@@ -1,4 +1,4 @@
-package mdb
+package lmdb
 
 import (
 	"testing"
@@ -19,7 +19,7 @@ func TestVal(t *testing.T) {
 	}
 }
 
-func TestValNoCopy(t *testing.T) {
+func TestValCopy(t *testing.T) {
 	orig := "hey hey"
 	val := Wrap([]byte(orig))
 
@@ -28,7 +28,7 @@ func TestValNoCopy(t *testing.T) {
 		t.Errorf("String() not the same as original data: %q", s)
 	}
 
-	p := val.BytesNoCopy()
+	p := val.BytesCopy()
 	if string(p) != orig {
 		t.Errorf("Bytes() not the same as original data: %q", p)
 	}

@@ -1,4 +1,4 @@
-package mdb
+package lmdb
 
 import (
 	crand "crypto/rand"
@@ -45,7 +45,7 @@ func BenchmarkTxnPut(b *testing.B) {
 }
 
 // repeatedly get random keys.
-func BenchmarkTxnGetRDONLY(b *testing.B) {
+func BenchmarkTxnGetReadonly(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
@@ -67,13 +67,13 @@ func BenchmarkTxnGetRDONLY(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, RDONLY)
+	txn, err = env.BeginTxn(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := txn.Get(dbi, ps[rand.Intn(len(ps))])
-		if err == NotFound {
+		if err == ErrNotFound {
 			continue
 		}
 		if err != nil {
@@ -83,8 +83,8 @@ func BenchmarkTxnGetRDONLY(b *testing.B) {
 	b.StopTimer()
 }
 
-// like BenchmarkTxnGetRDONLY, but txn.GetVal() is called instead.
-func BenchmarkTxnGetValRDONLY(b *testing.B) {
+// like BenchmarkTxnGetReadonly, but txn.GetVal() is called instead.
+func BenchmarkTxnGetValReadonly(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
@@ -106,13 +106,13 @@ func BenchmarkTxnGetValRDONLY(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, RDONLY)
+	txn, err = env.BeginTxn(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := txn.GetVal(dbi, ps[rand.Intn(len(ps))])
-		if err == NotFound {
+		if err == ErrNotFound {
 			continue
 		}
 		if err != nil {
@@ -123,7 +123,7 @@ func BenchmarkTxnGetValRDONLY(b *testing.B) {
 }
 
 // repeatedly scan all the values in a database.
-func BenchmarkCursorScanRDONLY(b *testing.B) {
+func BenchmarkCursorScanReadonly(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
@@ -145,19 +145,19 @@ func BenchmarkCursorScanRDONLY(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, RDONLY)
+	txn, err = env.BeginTxn(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		func() {
-			cur, err := txn.CursorOpen(dbi)
+			cur, err := txn.OpenCursor(dbi)
 			bMust(b, err, "opening cursor")
 			defer cur.Close()
 			var count int64
 			for {
-				_, _, err := cur.Get(nil, nil, NEXT)
-				if err == NotFound {
+				_, _, err := cur.Get(nil, nil, Next)
+				if err == ErrNotFound {
 					return
 				}
 				if err != nil {
@@ -173,8 +173,8 @@ func BenchmarkCursorScanRDONLY(b *testing.B) {
 	b.StopTimer()
 }
 
-// like BenchmarkCursoreScanRDONLY, but cursor.GetVal() is called instead.
-func BenchmarkCursorScanValRDONLY(b *testing.B) {
+// like BenchmarkCursoreScanReadonly, but cursor.GetVal() is called instead.
+func BenchmarkCursorScanValReadonly(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
@@ -196,19 +196,19 @@ func BenchmarkCursorScanValRDONLY(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, RDONLY)
+	txn, err = env.BeginTxn(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		func() {
-			cur, err := txn.CursorOpen(dbi)
+			cur, err := txn.OpenCursor(dbi)
 			bMust(b, err, "opening cursor")
 			defer cur.Close()
 			var count int64
 			for {
-				_, _, err := cur.GetVal(nil, nil, NEXT)
-				if err == NotFound {
+				_, _, err := cur.GetVal(nil, nil, Next)
+				if err == ErrNotFound {
 					return
 				}
 				if err != nil {
@@ -244,8 +244,7 @@ func setupBenchDB(b *testing.B) (*Env, string) {
 func openBenchDBI(b *testing.B, env *Env) DBI {
 	txn, err := env.BeginTxn(nil, 0)
 	bMust(b, err, "starting transaction")
-	name := "benchmark"
-	dbi, err := txn.DBIOpen(&name, CREATE)
+	dbi, err := txn.OpenDBI("benchmark", Create)
 	if err != nil {
 		txn.Abort()
 		b.Fatalf("error opening dbi: %v", err)

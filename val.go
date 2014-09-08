@@ -1,9 +1,6 @@
-package mdb
+package lmdb
 
 /*
-#cgo CFLAGS: -pthread -W -Wall -Wno-unused-parameter -Wbad-function-cast -O2 -g
-#cgo CFLAGS: -I/usr/local
-
 #include <stdlib.h>
 #include <stdio.h>
 #include "lmdb.h"
@@ -31,13 +28,13 @@ func Wrap(p []byte) Val {
 	})
 }
 
-// If val is nil, a empty slice is retured.
-func (val Val) Bytes() []byte {
+// BytesCopy returns a slice copied from the region pointed to by val.
+func (val Val) BytesCopy() []byte {
 	return C.GoBytes(val.mv_data, C.int(val.mv_size))
 }
 
-// If val is nil, a empty slice is retured.
-func (val Val) BytesNoCopy() []byte {
+// Bytes creates a slice referencing the region referenced by val.
+func (val Val) Bytes() []byte {
 	hdr := reflect.SliceHeader{
 		Data: uintptr(unsafe.Pointer(val.mv_data)),
 		Len:  int(val.mv_size),

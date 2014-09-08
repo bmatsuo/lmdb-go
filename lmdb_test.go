@@ -1,11 +1,27 @@
-package mdb
+package lmdb
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"syscall"
 	"testing"
 )
+
+func TestErrno(t *testing.T) {
+	zeroerr := errno(0)
+	if zeroerr != nil {
+		t.Errorf("errno(0) != nil: %#v", zeroerr)
+	}
+	syserr := _errno(int(syscall.EINVAL))
+	if syserr != syscall.EINVAL { // fails if syserr is Errno(syscall.EINVAL)
+		t.Errorf("errno(syscall.EINVAL) != syscall.EINVAL: %#v", syserr)
+	}
+	mdberr := _errno(int(ErrKeyExist))
+	if mdberr != ErrKeyExist { // fails if syserr is Errno(syscall.EINVAL)
+		t.Errorf("errno(ErrKeyExist) != ErrKeyExist: %#v", syserr)
+	}
+}
 
 func TestTest1(t *testing.T) {
 	env, err := NewEnv()
@@ -35,9 +51,8 @@ func TestTest1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot begin transaction: %s", err)
 	}
-	var dbi DBI
-	dbi, err = txn.DBIOpen(nil, 0)
-	defer env.DBIClose(dbi)
+	db, err := txn.OpenDBI("", 0)
+	defer env.CloseDBI(db)
 	if err != nil {
 		t.Fatalf("Cannot create DBI %s", err)
 	}
@@ -49,7 +64,7 @@ func TestTest1(t *testing.T) {
 		key = fmt.Sprintf("Key-%d", i)
 		val = fmt.Sprintf("Val-%d", i)
 		data[key] = val
-		err = txn.Put(dbi, []byte(key), []byte(val), NOOVERWRITE)
+		err = txn.Put(db, []byte(key), []byte(val), NoOverwrite)
 		if err != nil {
 			txn.Abort()
 			t.Fatalf("Error during put: %s", err)
@@ -72,8 +87,7 @@ func TestTest1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot begin transaction: %s", err)
 	}
-	var cursor *Cursor
-	cursor, err = txn.CursorOpen(dbi)
+	cursor, err := txn.OpenCursor(db)
 	if err != nil {
 		cursor.Close()
 		txn.Abort()
@@ -82,7 +96,7 @@ func TestTest1(t *testing.T) {
 	var bkey, bval []byte
 	var rc error
 	for {
-		bkey, bval, rc = cursor.Get(nil, nil, NEXT)
+		bkey, bval, rc = cursor.Get(nil, nil, Next)
 		if rc != nil {
 			break
 		}
@@ -100,14 +114,12 @@ func TestTest1(t *testing.T) {
 		}
 	}
 	cursor.Close()
-	bval, err = txn.Get(dbi, []byte("Key-0"))
+	bval, err = txn.Get(db, []byte("Key-0"))
+	txn.Abort()
 	if err != nil {
-		txn.Abort()
 		t.Fatalf("Error during txn get %s", err)
 	}
 	if string(bval) != "Val-0" {
-		txn.Abort()
 		t.Fatalf("Invalid txn get %s", string(bval))
 	}
-	txn.Abort()
 }

@@ -1,13 +1,19 @@
-gomdb
-=====
+#lmdb
 
-Go wrapper for OpenLDAP Lightning Memory-Mapped Database (LMDB).
-Read more about LMDB here: http://symas.com/mdb/
+Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
-GoDoc available here: http://godoc.org/github.com/szferi/gomdb
+This is an incompatible fork of "github.com/szferi/gomdb".
 
-Build
-=======
+This package is experimental and the API signature or its behavior may change
+without notice.
+
+## Differences from gomdb
+
+- Zero-copy by default
+- Some function signatures have been changed to be easier to use.
+- TODO Serialized transactions safe for concurrent use.
+
+#Build
 
 `go get github.com/szferi/gomdb`
 
@@ -17,12 +23,17 @@ On FreeBSD 10, you must explicitly set `CC` (otherwise it will fail with a crypt
 
 `CC=clang go test -v`
 
-TODO
-======
+#Documentation
 
- * write more documentation
- * write more unit test
- * benchmark
- * figure out how can you write go binding for `MDB_comp_func` and `MDB_rel_func`
- * Handle go `*Cursor` close with `txn.Commit` and `txn.Abort` transparently
+The best source of documentation is the official LMDB C API documentation
+reachable through the LMDB [homepage](http://symas.com/mdb/)
 
+Documentation specific to the Go bindings and how methods differ from their
+underlying C counterparts can be found on
+[godoc.org](http://godoc.org/github.com/bmatsuo/lmdb.exp).
+
+#TODO
+
+- identify missing functions that deserve to be included
+- documentation
+- tests

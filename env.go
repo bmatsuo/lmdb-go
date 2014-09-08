@@ -1,10 +1,6 @@
-package mdb
+package lmdb
 
 /*
-#cgo CFLAGS: -pthread -W -Wall -Wno-unused-parameter -Wbad-function-cast -O2 -g
-#cgo freebsd CFLAGS: -DMDB_DSYNC=O_SYNC
-#cgo openbsd CFLAGS: -DMDB_DSYNC=O_SYNC
-#cgo netbsd CFLAGS: -DMDB_DSYNC=O_SYNC
 #include <stdlib.h>
 #include <stdio.h>
 #include "lmdb.h"
@@ -14,106 +10,71 @@ import "C"
 import (
 	"errors"
 	"fmt"
-	"syscall"
+	"os"
 	"unsafe"
 )
 
-const SUCCESS = C.MDB_SUCCESS
+// Success is a value returned from the LMDB API to indicate a successful call.
+// The functions in this API this behavior and its use is not required.
+const Success = C.MDB_SUCCESS
 
-// mdb_env Environment Flags
+// Env flags.
+//
+// See mdb_env_open
 const (
-	FIXEDMAP   = C.MDB_FIXEDMAP   // mmap at a fixed address (experimental)
-	NOSUBDIR   = C.MDB_NOSUBDIR   // no environment directory
-	NOSYNC     = C.MDB_NOSYNC     // don't fsync after commit
-	RDONLY     = C.MDB_RDONLY     // read only
-	NOMETASYNC = C.MDB_NOMETASYNC // don't fsync metapage after commit
-	WRITEMAP   = C.MDB_WRITEMAP   // use writable mmap
-	MAPASYNC   = C.MDB_MAPASYNC   // use asynchronous msync when MDB_WRITEMAP is use
-	NOTLS      = C.MDB_NOTLS      // tie reader locktable slots to Txn objects instead of threads
+	FixedMap    = C.MDB_FIXEDMAP   // Danger zone. Map memory at a fixed address.
+	NoSubdir    = C.MDB_NOSUBDIR   // Argument to Open is a file, not a directory.
+	Readonly    = C.MDB_RDONLY     // Used in several functions to denote an object as readonly.
+	WriteMap    = C.MDB_WRITEMAP   // Use a writable memory map
+	NoMetaSync  = C.MDB_NOMETASYNC // Don't fsync metapage after commit
+	NoSync      = C.MDB_NOSYNC     // Don't fsync after commit
+	MapAsync    = C.MDB_MAPASYNC   // Flush asynchronously when using the WriteMap flag.
+	NoTLS       = C.MDB_NOTLS      // Danger zone. Tie reader locktable slots to Txn objects instead of threads.
+	NoLock      = C.MDB_NOLOCK     // Danger zone. LMDB does not use any locks. All transactions must serialize.
+	NoReadahead = C.MDB_NORDAHEAD  // Disable readahead. Requires OS support.
+	NoMemInit   = C.MDB_NOMEMINIT  // Disable LMDB memory initialization.
 )
 
-type DBI uint
-
-type Errno C.int
-
-// minimum and maximum values produced for the Errno type. syscall.Errnos of
-// other values may still be produced.
-const minErrno, maxErrno C.int = C.MDB_KEYEXIST, C.MDB_LAST_ERRCODE
-
-func (e Errno) Error() string {
-	s := C.GoString(C.mdb_strerror(C.int(e)))
-	if s == "" {
-		return fmt.Sprint("mdb errno:", int(e))
-	}
-	return s
-}
-
-// for tests that can't import C
-func _errno(ret int) error {
-	return errno(C.int(ret))
-}
-
-func errno(ret C.int) error {
-	if ret == C.MDB_SUCCESS {
-		return nil
-	}
-	if minErrno <= ret && ret <= maxErrno {
-		return Errno(ret)
-	}
-	return syscall.Errno(ret)
-}
-
-// error codes
-const (
-	KeyExist        = Errno(C.MDB_KEYEXIST)
-	NotFound        = Errno(C.MDB_NOTFOUND)
-	PageNotFound    = Errno(C.MDB_PAGE_NOTFOUND)
-	Corrupted       = Errno(C.MDB_CORRUPTED)
-	Panic           = Errno(C.MDB_PANIC)
-	VersionMismatch = Errno(C.MDB_VERSION_MISMATCH)
-	Invalid         = Errno(C.MDB_INVALID)
-	MapFull         = Errno(C.MDB_MAP_FULL)
-	DbsFull         = Errno(C.MDB_DBS_FULL)
-	ReadersFull     = Errno(C.MDB_READERS_FULL)
-	TlsFull         = Errno(C.MDB_TLS_FULL)
-	TxnFull         = Errno(C.MDB_TXN_FULL)
-	CursorFull      = Errno(C.MDB_CURSOR_FULL)
-	PageFull        = Errno(C.MDB_PAGE_FULL)
-	MapResized      = Errno(C.MDB_MAP_RESIZED)
-	Incompatibile   = Errno(C.MDB_INCOMPATIBLE)
-)
-
-func Version() string {
-	var major, minor, patch *C.int
-	ver_str := C.mdb_version(major, minor, patch)
-	return C.GoString(ver_str)
-}
+// DBI is a handle for a database in an Env.
+//
+// See MDB_dbi
+type DBI C.MDB_dbi
 
 // Env is opaque structure for a database environment.
 // A DB environment supports multiple databases, all residing in the
 // same shared-memory map.
+//
+// See MDB_env.
 type Env struct {
 	_env *C.MDB_env
 }
 
-// Create an MDB environment handle.
+// NewEnv allocates and initialized an new Env.
+//
+// See mdb_env_create.
 func NewEnv() (*Env, error) {
 	var _env *C.MDB_env
 	ret := C.mdb_env_create(&_env)
-	if ret != SUCCESS {
+	if ret != Success {
 		return nil, errno(ret)
 	}
 	return &Env{_env}, nil
 }
 
-// Open an environment handle. If this function fails Close() must be called to discard the Env handle.
-func (env *Env) Open(path string, flags uint, mode uint) error {
+// Open an environment handle. If this function fails Close() must be called to
+// discard the Env handle.  Open passes flags|NoTLS to mdb_env_open.
+//
+// See mdb_env_open.
+func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
-	ret := C.mdb_env_open(env._env, cpath, C.uint(NOTLS|flags), C.mdb_mode_t(mode))
+	ret := C.mdb_env_open(env._env, cpath, C.uint(NoTLS|flags), C.mdb_mode_t(mode))
 	return errno(ret)
 }
 
+// Close shuts down the environment and releases the memory map.
+//
+// See mdb_env_close.
 func (env *Env) Close() error {
 	if env._env == nil {
 		return errors.New("Environment already closed")
@@ -123,6 +84,9 @@ func (env *Env) Close() error {
 	return nil
 }
 
+// Copy copies the data in env to an environment at path.
+//
+// See mdb_env_copy.
 func (env *Env) Copy(path string) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
@@ -130,7 +94,19 @@ func (env *Env) Copy(path string) error {
 	return errno(ret)
 }
 
+// CopyFlag copies the data in env to an environment at path created with flags.
+//
+// See mdb_env_copy2.
+func (env *Env) CopyFlag(path string, flags uint) error {
+	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+	ret := C.mdb_env_copy2(env._env, cpath, C.uint(flags))
+	return errno(ret)
+}
+
 // Statistics for a database in the environment
+//
+// See MDB_stat.
 type Stat struct {
 	PSize         uint   // Size of a database page. This is currently the same for all databases.
 	Depth         uint   // Depth (height) of the B-tree
@@ -140,10 +116,13 @@ type Stat struct {
 	Entries       uint64 // Number of data items
 }
 
+// Stat returns statistics about the environment.
+//
+// See mdb_env_stat.
 func (env *Env) Stat() (*Stat, error) {
 	var _stat C.MDB_stat
 	ret := C.mdb_env_stat(env._env, &_stat)
-	if ret != SUCCESS {
+	if ret != Success {
 		return nil, errno(ret)
 	}
 	stat := Stat{PSize: uint(_stat.ms_psize),
@@ -155,73 +134,124 @@ func (env *Env) Stat() (*Stat, error) {
 	return &stat, nil
 }
 
-type Info struct {
-	MapSize    uint64 // Size of the data memory map
-	LastPNO    uint64 // ID of the last used page
-	LastTxnID  uint64 // ID of the last committed transaction
-	MaxReaders uint   // maximum number of threads for the environment
-	NumReaders uint   // maximum number of threads used in the environment
+// Information about the environment.
+//
+// See MDB_envinfo.
+type EnvInfo struct {
+	MapSize    int64 // Size of the data memory map
+	LastPNO    int64 // ID of the last used page
+	LastTxnID  int64 // ID of the last committed transaction
+	MaxReaders uint  // maximum number of threads for the environment
+	NumReaders uint  // maximum number of threads used in the environment
 }
 
-func (env *Env) Info() (*Info, error) {
+// Info returns information about the environment.
+//
+// See mdb_env_info.
+func (env *Env) Info() (*EnvInfo, error) {
 	var _info C.MDB_envinfo
 	ret := C.mdb_env_info(env._env, &_info)
-	if ret != SUCCESS {
+	if ret != Success {
 		return nil, errno(ret)
 	}
-	info := Info{MapSize: uint64(_info.me_mapsize),
-		LastPNO:    uint64(_info.me_last_pgno),
-		LastTxnID:  uint64(_info.me_last_txnid),
+	info := EnvInfo{
+		MapSize:    int64(_info.me_mapsize),
+		LastPNO:    int64(_info.me_last_pgno),
+		LastTxnID:  int64(_info.me_last_txnid),
 		MaxReaders: uint(_info.me_maxreaders),
-		NumReaders: uint(_info.me_numreaders)}
+		NumReaders: uint(_info.me_numreaders),
+	}
 	return &info, nil
 }
 
-func (env *Env) Sync(force int) error {
-	ret := C.mdb_env_sync(env._env, C.int(force))
+// Sync flushes buffers to disk.
+//
+// See mdb_env_sync.
+func (env *Env) Sync(force bool) error {
+	ret := C.mdb_env_sync(env._env, cbool(force))
 	return errno(ret)
 }
 
+// SetFlags enables/disables flags in the environment.
+//
+// See mdb_env_set_flags.
 func (env *Env) SetFlags(flags uint, onoff int) error {
 	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(onoff))
 	return errno(ret)
 }
 
+// Flags returns the flags set in the environment.
+//
+// See mdb_env_get_flags.
 func (env *Env) Flags() (uint, error) {
 	var _flags C.uint
 	ret := C.mdb_env_get_flags(env._env, &_flags)
-	if ret != SUCCESS {
+	if ret != Success {
 		return 0, errno(ret)
 	}
 	return uint(_flags), nil
 }
 
+// Path returns the path argument passed to Open.
+//
+// See mdb_env_path.
 func (env *Env) Path() (string, error) {
 	var path string
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_get_path(env._env, &cpath)
-	if ret != SUCCESS {
+	if ret != Success {
 		return "", errno(ret)
 	}
 	return C.GoString(cpath), nil
 }
 
-func (env *Env) SetMapSize(size uint64) error {
+// SetMapSize sets the size of the environment memory map.
+//
+// See mdb_env_set_map_size.
+func (env *Env) SetMapSize(size int64) error {
+	if size < 0 {
+		return fmt.Errorf("negative size")
+	}
 	ret := C.mdb_env_set_mapsize(env._env, C.size_t(size))
 	return errno(ret)
 }
 
-func (env *Env) SetMaxReaders(size uint) error {
+// SetMaxReaders sets the maximum number of reader slots in the environment.
+//
+// See mdb_env_set_max_readers.
+func (env *Env) SetMaxReaders(size int) error {
+	if size < 0 {
+		return fmt.Errorf("negative size")
+	}
 	ret := C.mdb_env_set_maxreaders(env._env, C.uint(size))
 	return errno(ret)
 }
 
-func (env *Env) SetMaxDBs(size DBI) error {
+// SetMaxDBs sets the maximum number of named databases for the environment.
+//
+// See mdb_env_set_maxdbs.
+func (env *Env) SetMaxDBs(size int) error {
+	if size < 0 {
+		return fmt.Errorf("negative size")
+	}
 	ret := C.mdb_env_set_maxdbs(env._env, C.MDB_dbi(size))
 	return errno(ret)
 }
 
-func (env *Env) DBIClose(dbi DBI) {
-	C.mdb_dbi_close(env._env, C.MDB_dbi(dbi))
+// Begin creates a transaction for the environment.
+//
+// See mdb_txn_begin.
+func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
+	return beginTxn(env, parent, flags)
+}
+
+// CloseDBI closes the database handle, db.  Normally calling CloseDBI
+// explicitly is not necessary.
+//
+// It is the caller's responsibility to serialize calls to CloseDBI.
+//
+// See mdb_dbi_close.
+func (env *Env) CloseDBI(db DBI) {
+	C.mdb_dbi_close(env._env, C.MDB_dbi(db))
 }
