@@ -6,13 +6,13 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/bmatsuo/lmdb.exp"
 )
 
 // This complete example demonstrates the DupFixed (and DupSort) DBI flags.
 func Example_dupFixed() {
+	// Open an environment as normal. DupSort is applied at the database level.
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		log.Panic(err)
@@ -92,26 +92,25 @@ func Example_dupFixed() {
 		txn.Abort()
 		log.Panic(err)
 	}
-	k, v, err := cur.Get(nil, nil, lmdb.First)
-	for err != lmdb.ErrNotFound {
+	var next uint // zero is lmdb.First
+	for {
+		k, v, err := cur.Get(nil, nil, next)
+		if err == lmdb.ErrNotFound {
+			break
+		}
 		if err != nil {
 			log.Panic(err)
 		}
-		k, v, err = cur.Get(nil, nil, lmdb.GetCurrent)
-		if err != nil {
-			log.Panic(err)
-		}
+		next = lmdb.Next
 		isdup, lastk = bytes.Equal(lastk, k), k
 
-		if !isdup {
-			fmt.Printf("%s %s\n", k, v)
-			k, v, err = cur.Get(k, v, lmdb.Next)
-		} else {
-			// print space instead of the name because it's on the previous
-			// line and jump to the next key.
-			fmt.Printf("%s %s\n", strings.Repeat(" ", len(k)), v)
-			k, v, err = cur.Get(k, v, lmdb.NextNoDup)
+		// jump to the next key and omit the name
+		if isdup {
+			next = lmdb.NextNoDup
+			k = bytes.Repeat([]byte{' '}, len(k))
 		}
+
+		fmt.Printf("%s %s\n", k, v)
 	}
 
 	// Output:
@@ -148,7 +147,8 @@ func ExampleEnv() {
 		panic(err)
 	}
 
-	// get statistics about the db. print the number of key-value pairs.
+	// get statistics about the db. print the number of key-value pairs (it
+	// should be empty).
 	stat, err := txn.Stat(db)
 	if err != nil {
 		txn.Abort()
