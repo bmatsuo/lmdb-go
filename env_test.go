@@ -115,23 +115,21 @@ func setup(t *testing.T) *Env {
 func clean(env *Env, t *testing.T) {
 	path, err := env.Path()
 	if err != nil {
-		t.Errorf("Cannot get path")
-	}
-	if path == "" {
-		t.Errorf("Invalid path")
+		t.Errorf("path: %v", err)
 	}
 	err = env.Close()
 	if err != nil {
 		t.Errorf("close: %s", err)
 	}
-	// clean up
-	err = os.RemoveAll(path)
-	if err != nil {
-		t.Errorf("remove: %v", err)
+	if path != "" {
+		err = os.RemoveAll(path)
+		if err != nil {
+			t.Errorf("remove: %v", err)
+		}
 	}
 }
 
 func TestEnvCopy(t *testing.T) {
 	env := setup(t)
-	clean(env, t)
+	defer clean(env, t)
 }

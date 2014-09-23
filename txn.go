@@ -24,15 +24,6 @@ const (
 	Create     = C.MDB_CREATE     // create DB if not already existing
 )
 
-// Put flags.
-const (
-	NoDupData   = C.MDB_NODUPDATA
-	NoOverwrite = C.MDB_NOOVERWRITE
-	Reserve     = C.MDB_RESERVE
-	Append      = C.MDB_APPEND
-	AppendDup   = C.MDB_APPENDDUP
-)
-
 // Txn is a database transaction in an environment.
 //
 // BUG: Using write transactions multiple goroutines has undefined results.

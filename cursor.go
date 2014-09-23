@@ -11,26 +11,48 @@ import (
 	"errors"
 )
 
-// MDB_cursor_op
+// Flags for the Get method on Cursors.  These flags modify the cursor position
+// and dictate behavior.
+//
+// TODO:
+// MDB_GET_MULTIPLE and MDB_NEXT_MULTIPLE may not work. I need to see how they
+// are returned.
+//
+// See MDB_cursor_op.
 const (
-	First = iota
-	FirstDup
-	GetBoth
-	GetRange
-	GetCurrent
-	GetMultiple
-	Last
-	LastDup
-	Next
-	NextDup
-	NextMultiple
-	NextNoDup
-	Prev
-	PrevDup
-	PrevNoDup
-	Set
-	SetKey
-	SetRange
+	First        = C.MDB_FIRST          // The first item.
+	FirstDup     = C.MDB_FIRST_DUP      // The first value of current key (DupSort).
+	GetBoth      = C.MDB_GET_BOTH       // Get the key as well as the value (DupSort).
+	GetBothRange = C.MDB_GET_BOTH_RANGE // Get the key and the nearsest value (DupSort).
+	GetCurrent   = C.MDB_GET_CURRENT    // Get the key and value at the current position.
+	//GetMultiple  = C.MDB_GET_MULTIPLE  // Get up to a page dup values for key at current position (DupFixed).
+	Last    = C.MDB_LAST     // Last item.
+	LastDup = C.MDB_LAST_DUP // Position at last value of current key (DupSort).
+	Next    = C.MDB_NEXT     // Next value.
+	NextDup = C.MDB_NEXT_DUP // Next value of the current key (DupSort).
+	//NextMultiple = C.MDB_NEXT_MULTIPLE // Get key and up to a page of values from the next cursor position (DupFixed)
+	NextNoDup = C.MDB_NEXT_NODUP // The first value of the next key (DupSort).
+	Prev      = C.MDB_PREV       // The previous item.
+	PrevDup   = C.MDB_PREV_DUP   // The previous item of the current key (DupSort).
+	PrevNoDup = C.MDB_PREV_NODUP // The last data item of the previous key (DupSort).
+	Set       = C.MDB_SET        // The specified key.
+	SetKey    = C.MDB_SET_KEY    // Get key and data at the specified key.
+	SetRange  = C.MDB_SET_RANGE  // The first key no less than the specified key.
+)
+
+// Flags for the Put method on Cursors.
+//
+// Note: the MDB_RESERVE and MDB_MULTIPLE flags are somewhat special and do not
+// fit the calling pattern of most calls to Put. They require special methods
+// (TODO).
+//
+// See mdb_put and mdb_cursor_put.
+const (
+	Current     = C.MDB_CURRENT     // Replace the item at the current key position (Cursor only).
+	NoDupData   = C.MDB_NODUPDATA   // Store the key-value pair only if key is not present (DupSort)
+	NoOverwrite = C.MDB_NOOVERWRITE // Store a new key-value pair only if key is not present
+	Append      = C.MDB_APPEND      // Append an item to the database.
+	AppendDup   = C.MDB_APPENDDUP   // Append an item to the database (DupSort).
 )
 
 // Cursor operates on data inside a transaction and holds a position in the
