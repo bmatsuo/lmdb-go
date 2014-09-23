@@ -14,9 +14,9 @@ import (
 	"unsafe"
 )
 
-// Success is a value returned from the LMDB API to indicate a successful call.
+// success is a value returned from the LMDB API to indicate a successful call.
 // The functions in this API this behavior and its use is not required.
-const Success = C.MDB_SUCCESS
+const success = C.MDB_SUCCESS
 
 // Env flags.
 //
@@ -55,7 +55,7 @@ type Env struct {
 func NewEnv() (*Env, error) {
 	var _env *C.MDB_env
 	ret := C.mdb_env_create(&_env)
-	if ret != Success {
+	if ret != success {
 		return nil, errno(ret)
 	}
 	return &Env{_env}, nil
@@ -122,7 +122,7 @@ type Stat struct {
 func (env *Env) Stat() (*Stat, error) {
 	var _stat C.MDB_stat
 	ret := C.mdb_env_stat(env._env, &_stat)
-	if ret != Success {
+	if ret != success {
 		return nil, errno(ret)
 	}
 	stat := Stat{PSize: uint(_stat.ms_psize),
@@ -151,7 +151,7 @@ type EnvInfo struct {
 func (env *Env) Info() (*EnvInfo, error) {
 	var _info C.MDB_envinfo
 	ret := C.mdb_env_info(env._env, &_info)
-	if ret != Success {
+	if ret != success {
 		return nil, errno(ret)
 	}
 	info := EnvInfo{
@@ -186,7 +186,7 @@ func (env *Env) SetFlags(flags uint, onoff int) error {
 func (env *Env) Flags() (uint, error) {
 	var _flags C.uint
 	ret := C.mdb_env_get_flags(env._env, &_flags)
-	if ret != Success {
+	if ret != success {
 		return 0, errno(ret)
 	}
 	return uint(_flags), nil
@@ -202,7 +202,7 @@ func (env *Env) Path() (string, error) {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_get_path(env._env, &cpath)
-	if ret != Success {
+	if ret != success {
 		return "", errno(ret)
 	}
 	if cpath == nil {

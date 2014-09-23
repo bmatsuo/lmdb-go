@@ -45,7 +45,7 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 		runtime.LockOSThread()
 	}
 	ret := C.mdb_txn_begin(env._env, ptxn, C.uint(flags), &_txn)
-	if ret != Success {
+	if ret != success {
 		runtime.UnlockOSThread()
 		return nil, errno(ret)
 	}
@@ -59,7 +59,7 @@ func (txn *Txn) Commit() error {
 	ret := C.mdb_txn_commit(txn._txn)
 	runtime.UnlockOSThread()
 	// The transaction handle is freed if there was no error
-	if ret == Success {
+	if ret == success {
 		txn._txn = nil
 	}
 	return errno(ret)
@@ -108,7 +108,7 @@ func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
 		defer C.free(unsafe.Pointer(cname))
 	}
 	ret := C.mdb_dbi_open(txn._txn, cname, C.uint(flags), &_dbi)
-	if ret != Success {
+	if ret != success {
 		return DBI(math.NaN()), errno(ret)
 	}
 	return DBI(_dbi), nil
@@ -120,7 +120,7 @@ func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
 func (txn *Txn) Stat(dbi DBI) (*Stat, error) {
 	var _stat C.MDB_stat
 	ret := C.mdb_stat(txn._txn, C.MDB_dbi(dbi), &_stat)
-	if ret != Success {
+	if ret != success {
 		return nil, errno(ret)
 	}
 	stat := Stat{PSize: uint(_stat.ms_psize),

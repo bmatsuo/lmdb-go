@@ -66,7 +66,7 @@ type Cursor struct {
 func openCursor(txn *Txn, db DBI) (*Cursor, error) {
 	var _cursor *C.MDB_cursor
 	ret := C.mdb_cursor_open(txn._txn, C.MDB_dbi(db), &_cursor)
-	if ret != Success {
+	if ret != success {
 		return nil, errno(ret)
 	}
 	return &Cursor{_cursor}, nil
@@ -165,7 +165,7 @@ func (cursor *Cursor) Del(flags uint) error {
 func (cursor *Cursor) Count() (uint64, error) {
 	var _size C.size_t
 	ret := C.mdb_cursor_count(cursor._cursor, &_size)
-	if ret != Success {
+	if ret != success {
 		return 0, errno(ret)
 	}
 	return uint64(_size), nil
