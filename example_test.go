@@ -53,8 +53,8 @@ func Example_dupFixed() {
 		{"alice", "234-1234"},
 		{"bob", "825-1234"},
 		{"carol", "824-1234"},
-		{"carol", "502-1234"},
-		{"carol", "828-1234"}, // duplicate keys can be mixed and will be appended in the result
+		{"carol", "828-1234"}, // DupSort stores multiple values for a key.
+		{"carol", "502-1234"}, // DupSort values are stored in sorted order.
 		{"jenny", "867-5309"},
 	}
 	for _, e := range entries {
