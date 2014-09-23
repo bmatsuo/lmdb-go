@@ -15,7 +15,7 @@ without notice.
 
 #Build
 
-`go get github.com/szferi/gomdb`
+`go get github.com/bmatsuo/lmdb.exp`
 
 There is no dependency on LMDB dynamic library.
 
