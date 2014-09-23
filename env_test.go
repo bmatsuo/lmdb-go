@@ -65,6 +65,9 @@ func TestEnvOpen(t *testing.T) {
 	if err == nil {
 		t.Errorf("open: must exist")
 	}
+	if !os.IsNotExist(err) {
+		t.Errorf("open: %v", err)
+	}
 
 	// open an environment at a temporary path.
 	path, err := ioutil.TempDir("/tmp", "mdb_test")
