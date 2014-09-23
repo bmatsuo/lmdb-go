@@ -40,9 +40,8 @@ const (
 // See MDB_dbi
 type DBI C.MDB_dbi
 
-// Env is opaque structure for a database environment.
-// A DB environment supports multiple databases, all residing in the
-// same shared-memory map.
+// Env is opaque structure for a database environment.  A DB environment
+// supports multiple databases, all residing in the same shared-memory map.
 //
 // See MDB_env.
 type Env struct {
