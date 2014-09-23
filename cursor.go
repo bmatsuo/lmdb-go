@@ -101,8 +101,8 @@ func (cursor *Cursor) MDBCursor() *C.MDB_cursor {
 // result in a panic.
 //
 // See mdb_cursor_get.
-func (cursor *Cursor) Get(set_key, sval []byte, op uint) (key, val []byte, err error) {
-	k, v, err := cursor.GetVal(set_key, sval, op)
+func (cursor *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
+	k, v, err := cursor.GetVal(setkey, setval, op)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -112,11 +112,11 @@ func (cursor *Cursor) Get(set_key, sval []byte, op uint) (key, val []byte, err e
 // GetVal retrieves items from the database.
 //
 // See mdb_cursor_get.
-func (cursor *Cursor) GetVal(key, val []byte, op uint) (Val, Val, error) {
-	ckey := Wrap(key)
-	cval := Wrap(val)
-	ret := C.mdb_cursor_get(cursor._cursor, (*C.MDB_val)(&ckey), (*C.MDB_val)(&cval), C.MDB_cursor_op(op))
-	return ckey, cval, errno(ret)
+func (cursor *Cursor) GetVal(setkey, setval []byte, op uint) (key, val Val, err error) {
+	key = Wrap(setkey)
+	val = Wrap(setval)
+	ret := C.mdb_cursor_get(cursor._cursor, (*C.MDB_val)(&key), (*C.MDB_val)(&val), C.MDB_cursor_op(op))
+	return key, val, errno(ret)
 }
 
 // Put stores an item in the database.
