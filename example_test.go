@@ -11,7 +11,7 @@ import (
 	"github.com/bmatsuo/lmdb.exp"
 )
 
-// This example demonstrates the DupFixed (and DupSort) DBI flags.
+// This complete example demonstrates the DupFixed (and DupSort) DBI flags.
 func Example_dupFixed() {
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -137,7 +137,7 @@ func ExampleEnv() {
 	env.Open(path, 0, 0664)
 	defer env.Close()
 
-	// open a database.
+	// open a database, creating it if necessary.
 	txn, err := env.BeginTxn(nil, 0)
 	if err != nil {
 		panic(err)
