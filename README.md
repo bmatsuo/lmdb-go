@@ -1,4 +1,4 @@
-#lmdb
+#lmdb [![Build Status](https://travis-ci.org/bmatsuo/lmdb.exp.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb.exp)
 
 Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
