@@ -6,11 +6,17 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sort"
 
 	"github.com/bmatsuo/lmdb.exp"
 )
 
-// This complete example demonstrates the DupFixed (and DupSort) DBI flags.
+// This complete example demonstrates populating and iterating a database with
+// the DupFixed|DupSort DBI flags.  The use case is probably too trivial to
+// warrant such optimization but it demonstrates the key points.
+//
+// Note the importance of supplying both DupFixed and DupSort flags on database
+// creation.
 func Example_dupFixed() {
 	// Open an environment as normal. DupSort is applied at the database level.
 	env, err := lmdb.NewEnv()
@@ -32,14 +38,156 @@ func Example_dupFixed() {
 		log.Panic(err)
 	}
 
-	// open the database of friends' phone numbers.  a single person can have
-	// multiple phone numbers and in this limited world phone nubers are all
-	// the same length.
+	// open the database of friends' phone numbers.  in this limited world
+	// phone nubers are all the same length.
 	txn, err := env.BeginTxn(nil, 0)
 	if err != nil {
 		log.Panic(err)
 	}
 	phonedb, err := txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort|lmdb.DupFixed)
+	if err != nil {
+		txn.Abort()
+		log.Panic(err)
+	}
+
+	// load entries into the database using PutMulti.  the numbers must be
+	// sorted so they may be contiguous in memory.
+	entries := []struct {
+		name    string
+		numbers []string
+	}{
+		{"alice", []string{"234-1234"}},
+		{"bob", []string{"825-1234"}},
+		{"carol", []string{"502-1234", "824-1234", "828-1234"}},
+		{"bob", []string{"433-1234", "957-1234"}}, // sorted dup values may be interleaved with existing dups
+		{"jenny", []string{"867-5309"}},
+	}
+	cur, err := txn.OpenCursor(phonedb)
+	if err != nil {
+		txn.Abort()
+		log.Panic(err)
+	}
+	for _, e := range entries {
+		sort.Strings(e.numbers)
+		pnums := make([][]byte, len(e.numbers))
+		for i := range e.numbers {
+			pnums[i] = []byte(e.numbers[i])
+		}
+		page := bytes.Join(pnums, nil)
+		err = cur.PutMulti([]byte(e.name), page, len(e.numbers[0]), 0)
+		if err != nil {
+			txn.Abort()
+			log.Panic(err)
+		}
+	}
+	errc := cur.Close()
+	if err == nil {
+		err = errc
+	}
+	if err == nil {
+		err = txn.Commit()
+	} else {
+		txn.Abort()
+	}
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// grabs the first (partial) page of phone numbers for each name and print
+	// them.
+	txn, err = env.BeginTxn(nil, lmdb.Readonly)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer txn.Abort()
+	cur, err = txn.OpenCursor(phonedb)
+	if err != nil {
+		txn.Abort()
+		log.Panic(err)
+	}
+	for {
+		// move to the next key
+		k, vfirst, err := cur.Get(nil, nil, lmdb.NextNoDup)
+		if err == lmdb.ErrNotFound {
+			break
+		}
+		if err != nil {
+			log.Panic(err)
+		}
+
+		// determine if multiple keys should be printed and short circuit if
+		// so.
+		ndup, err := cur.Count()
+		if err != nil {
+			log.Panic(err)
+		}
+		if ndup < 2 {
+			fmt.Printf("%s %s\n", k, vfirst)
+			continue
+		}
+
+		// get a page of records and split it into discrete values.  the length
+		// of the first dup is used to split the page of contiguous values.
+		_, page, err := cur.Get(nil, nil, lmdb.GetMultiple)
+		if err != nil {
+			log.Panic(err)
+		}
+		m, err := lmdb.WrapMulti(page, len(vfirst))
+		if err != nil {
+			log.Panic(err)
+		}
+		numbers := m.Bytes()
+
+		// print the phone numbers for the person
+		prim, others := numbers[0], numbers[1:]
+		fmt.Printf("%s %s\n", k, prim)
+		ph := bytes.Repeat([]byte{' '}, len(k))
+		for i := range others {
+			fmt.Printf("%s %s\n", ph, others[i])
+		}
+	}
+
+	// Output:
+	// alice 234-1234
+	// bob 433-1234
+	//     825-1234
+	//     957-1234
+	// carol 502-1234
+	//       824-1234
+	//       828-1234
+	// jenny 867-5309
+}
+
+// This complete example demonstrates populating and iterating a database with
+// the DupSort DBI flags.
+func Example_dupSort() {
+	// Open an environment as normal. DupSort is applied at the database level.
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		log.Panic(err)
+	}
+	path, err := ioutil.TempDir("", "mdb_test")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.RemoveAll(path)
+	err = env.SetMaxDBs(1)
+	if err != nil {
+		log.Panic(err)
+	}
+	err = env.Open(path, 0, 0644)
+	defer env.Close()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// open the database of friends' phone numbers.  a single person can have
+	// multiple phone numbers.
+	txn, err := env.BeginTxn(nil, 0)
+	if err != nil {
+		log.Panic(err)
+	}
+	phonedb, err := txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort)
 	if err != nil {
 		txn.Abort()
 		log.Panic(err)

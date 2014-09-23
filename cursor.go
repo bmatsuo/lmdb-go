@@ -7,16 +7,10 @@ package lmdb
 */
 import "C"
 
-import (
-	"errors"
-)
+import "errors"
 
 // Flags for the Get method on Cursors.  These flags modify the cursor position
 // and dictate behavior.
-//
-// TODO:
-// MDB_GET_MULTIPLE and MDB_NEXT_MULTIPLE may not work. I need to see how they
-// are returned.
 //
 // See MDB_cursor_op.
 const (
@@ -25,26 +19,29 @@ const (
 	GetBoth      = C.MDB_GET_BOTH       // Get the key as well as the value (DupSort).
 	GetBothRange = C.MDB_GET_BOTH_RANGE // Get the key and the nearsest value (DupSort).
 	GetCurrent   = C.MDB_GET_CURRENT    // Get the key and value at the current position.
-	//GetMultiple  = C.MDB_GET_MULTIPLE  // Get up to a page dup values for key at current position (DupFixed).
-	Last    = C.MDB_LAST     // Last item.
-	LastDup = C.MDB_LAST_DUP // Position at last value of current key (DupSort).
-	Next    = C.MDB_NEXT     // Next value.
-	NextDup = C.MDB_NEXT_DUP // Next value of the current key (DupSort).
-	//NextMultiple = C.MDB_NEXT_MULTIPLE // Get key and up to a page of values from the next cursor position (DupFixed)
-	NextNoDup = C.MDB_NEXT_NODUP // The first value of the next key (DupSort).
-	Prev      = C.MDB_PREV       // The previous item.
-	PrevDup   = C.MDB_PREV_DUP   // The previous item of the current key (DupSort).
-	PrevNoDup = C.MDB_PREV_NODUP // The last data item of the previous key (DupSort).
-	Set       = C.MDB_SET        // The specified key.
-	SetKey    = C.MDB_SET_KEY    // Get key and data at the specified key.
-	SetRange  = C.MDB_SET_RANGE  // The first key no less than the specified key.
+	GetMultiple  = C.MDB_GET_MULTIPLE   // Get up to a page dup values for key at current position (DupFixed).
+	Last         = C.MDB_LAST           // Last item.
+	LastDup      = C.MDB_LAST_DUP       // Position at last value of current key (DupSort).
+	Next         = C.MDB_NEXT           // Next value.
+	NextDup      = C.MDB_NEXT_DUP       // Next value of the current key (DupSort).
+	NextMultiple = C.MDB_NEXT_MULTIPLE  // Get key and up to a page of values from the next cursor position (DupFixed)
+	NextNoDup    = C.MDB_NEXT_NODUP     // The first value of the next key (DupSort).
+	Prev         = C.MDB_PREV           // The previous item.
+	PrevDup      = C.MDB_PREV_DUP       // The previous item of the current key (DupSort).
+	PrevNoDup    = C.MDB_PREV_NODUP     // The last data item of the previous key (DupSort).
+	Set          = C.MDB_SET            // The specified key.
+	SetKey       = C.MDB_SET_KEY        // Get key and data at the specified key.
+	SetRange     = C.MDB_SET_RANGE      // The first key no less than the specified key.
 )
 
 // Flags for the Put method on Cursors.
 //
-// Note: the MDB_RESERVE and MDB_MULTIPLE flags are somewhat special and do not
-// fit the calling pattern of most calls to Put. They require special methods
-// (TODO).
+// Importers of the package should not use the Multiple flag directly and
+// should instead use the specialized function, PutMulti.  In this area the C
+// API is dark and full of terrors.
+//
+// Note: the MDB_RESERVE flag is somewhat special and does not fit the calling
+// pattern of most calls to Put. It requires a special method (TODO).
 //
 // See mdb_put and mdb_cursor_put.
 const (
@@ -53,6 +50,7 @@ const (
 	NoOverwrite = C.MDB_NOOVERWRITE // Store a new key-value pair only if key is not present
 	Append      = C.MDB_APPEND      // Append an item to the database.
 	AppendDup   = C.MDB_APPENDDUP   // Append an item to the database (DupSort).
+	Multiple    = C.MDB_MULTIPLE    // Danger Zone. Store multiple contiguous items (DupSort + DupFixed).
 )
 
 // Cursor operates on data inside a transaction and holds a position in the
@@ -134,10 +132,10 @@ func (cursor *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err 
 // GetVal retrieves items from the database.
 //
 // See mdb_cursor_get.
-func (cursor *Cursor) GetVal(setkey, setval []byte, op uint) (key, val Val, err error) {
+func (cursor *Cursor) GetVal(setkey, setval []byte, op uint) (key, val *Val, err error) {
 	key = Wrap(setkey)
 	val = Wrap(setval)
-	ret := C.mdb_cursor_get(cursor._cursor, (*C.MDB_val)(&key), (*C.MDB_val)(&val), C.MDB_cursor_op(op))
+	ret := C.mdb_cursor_get(cursor._cursor, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
 	return key, val, errno(ret)
 }
 
@@ -147,7 +145,30 @@ func (cursor *Cursor) GetVal(setkey, setval []byte, op uint) (key, val Val, err 
 func (cursor *Cursor) Put(key, val []byte, flags uint) error {
 	ckey := Wrap(key)
 	cval := Wrap(val)
-	ret := C.mdb_cursor_put(cursor._cursor, (*C.MDB_val)(&ckey), (*C.MDB_val)(&cval), C.uint(flags))
+	return cursor.PutVal(ckey, cval, flags)
+}
+
+// PutMulti stores a set of contiguous items with stride size under key.
+// PutMulti returns an error if len(page) is not a multiple of stride.  The
+// cursor's database must be DupFixed and DupSort.
+//
+// PutMulti implies Multiple and it does not need to be supplied in flags.
+//
+// See mdb_cursor_put.
+func (cursor *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
+	ckey := Wrap(key)
+	cval, err := WrapMulti(page, stride)
+	if err != nil {
+		return err
+	}
+	return cursor.PutVal(ckey, cval.val(), flags|Multiple)
+}
+
+// Put stores an item in the database.
+//
+// See mdb_cursor_put.
+func (cursor *Cursor) PutVal(key, val *Val, flags uint) error {
+	ret := C.mdb_cursor_put(cursor._cursor, (*C.MDB_val)(key), (*C.MDB_val)(val), C.uint(flags))
 	return errno(ret)
 }
 
