@@ -30,7 +30,8 @@ const (
 //
 // See MDB_txn.
 type Txn struct {
-	_txn *C.MDB_txn
+	iswrite bool
+	unsafe  *unsafeTxn
 }
 
 func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
@@ -328,11 +329,15 @@ func (txn *unsafeTxn) Get(dbi DBI, key []byte) ([]byte, error) {
 // GetVal retrieves items from database dbi as a Val.
 //
 // See mdb_get.
-func (txn *unsafeTxn) GetVal(dbi DBI, key []byte) (Val, error) {
+func (txn *unsafeTxn) GetVal(dbi DBI, key []byte) (*Val, error) {
 	ckey := Wrap(key)
 	var cval Val
 	ret := C.mdb_get(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(&ckey), (*C.MDB_val)(&cval))
-	return cval, errno(ret)
+	err := errno(ret)
+	if err != nil {
+		return nil, err
+	}
+	return &cval, nil
 }
 
 // Put stores an item in database dbi.
