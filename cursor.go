@@ -7,8 +7,6 @@ package lmdb
 */
 import "C"
 
-import "errors"
-
 // Flags for the Get method on Cursors.  These flags modify the cursor position
 // and dictate behavior.
 //
@@ -83,13 +81,9 @@ func (cursor *Cursor) Renew(txn *Txn) error {
 // terminated.
 //
 // See mdb_cursor_close.
-func (cursor *Cursor) Close() error {
-	if cursor._cursor == nil {
-		return errors.New("Cursor already closed")
-	}
+func (cursor *Cursor) Close() {
 	C.mdb_cursor_close(cursor._cursor)
 	cursor._cursor = nil
-	return nil
 }
 
 // Txn returns the cursors transaction.

@@ -80,15 +80,8 @@ func Example_dupFixed() {
 			log.Panic(err)
 		}
 	}
-	errc := cur.Close()
-	if err == nil {
-		err = errc
-	}
-	if err == nil {
-		err = txn.Commit()
-	} else {
-		txn.Abort()
-	}
+	cur.Close()
+	err = txn.Commit()
 	if err != nil {
 		log.Panic(err)
 	}
@@ -212,15 +205,8 @@ func Example_dupSort() {
 			log.Panic(err)
 		}
 	}
-	errc := cur.Close()
-	if err == nil {
-		err = errc
-	}
-	if err == nil {
-		err = txn.Commit()
-	} else {
-		txn.Abort()
-	}
+	cur.Close()
+	err = txn.Commit()
 	if err != nil {
 		log.Panic(err)
 	}

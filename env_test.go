@@ -97,19 +97,23 @@ func TestEnvOpen(t *testing.T) {
 func setup(t *testing.T) *Env {
 	env, err := NewEnv()
 	if err != nil {
-		t.Errorf("Cannot create enviroment: %s", err)
+		t.Fatalf("env: %s", err)
 	}
 	path, err := ioutil.TempDir("/tmp", "mdb_test")
 	if err != nil {
-		t.Errorf("Cannot create temporary directory")
+		t.Fatalf("tempdir: %v", err)
 	}
 	err = os.MkdirAll(path, 0770)
 	if err != nil {
-		t.Errorf("Cannot create directory: %s", path)
+		t.Fatalf("mkdir: %s", path)
+	}
+	err = env.SetMaxDBs(64 << 10)
+	if err != nil {
+		t.Fatalf("setmaxdbs: %v", err)
 	}
 	err = env.Open(path, 0, 0664)
 	if err != nil {
-		t.Errorf("Cannot open environment: %s", err)
+		t.Fatalf("open: %s", err)
 	}
 
 	return env
