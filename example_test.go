@@ -2,14 +2,268 @@ package lmdb_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"sort"
+	"text/tabwriter"
 
 	"github.com/bmatsuo/lmdb.exp"
 )
+
+// This complete example demonstrates use of nested transactions.  Parent
+// transactions must not be used while children are alive.  Helper functions
+// are used in this example to shadow parent transactions and prevent such
+// invalid use.
+func Example_nested() {
+	// for the purposes of testing output the ID is not included in the item
+	// data, only the key.
+	type Employee struct {
+		ID     string `json:"-"`
+		DeptID string
+	}
+	type Dept struct {
+		ID   string `json:"-"`
+		Name string
+	}
+
+	// Open an environment.
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		log.Panic(err)
+	}
+	path, err := ioutil.TempDir("", "mdb_test")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer os.RemoveAll(path)
+	err = env.SetMaxDBs(2)
+	if err != nil {
+		log.Panic(err)
+	}
+	err = env.Open(path, 0, 0644)
+	defer env.Close()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// Create a writable transaction that is the root of all other
+	// transactions.
+	txnroot, err := env.BeginTxn(nil, 0)
+	if err != nil {
+		log.Panic(err)
+	}
+	empldb, err := txnroot.OpenDBI("employees", lmdb.Create)
+	if err != nil {
+		log.Panic(err)
+	}
+	deptdb, err := txnroot.OpenDBI("departments", lmdb.Create)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer func() {
+		// sub transactions prevent the database from entering an inconsistent
+		// state and we can always commit.
+		err := txnroot.Commit()
+		if err != nil {
+			log.Panic(err)
+		}
+	}()
+
+	// dumpdb writes a database's contents to w as a two-column space delimited
+	// list.
+	dumpdb := func(w io.Writer, txn *lmdb.Txn, db lmdb.DBI) (err error) {
+		tw := tabwriter.NewWriter(w, 8, 2, 2, ' ', 0)
+		w = tw
+		defer func() {
+			if err == nil {
+				err = tw.Flush()
+			}
+		}()
+		c, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+		for {
+			k, v, err := c.Get(nil, nil, lmdb.Next)
+			if err == lmdb.ErrNotFound {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(w, "%s\t%s\n", k, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// popdepts adds depts to deptdb in a transaction.
+	popdepts := func(txn *lmdb.Txn, depts []*Dept) (err error) {
+		for _, dept := range depts {
+			p, err := json.Marshal(dept)
+			if err != nil {
+				return fmt.Errorf("json: %v", err)
+			}
+			err = txn.Put(deptdb, []byte(dept.ID), p, 0)
+			if err != nil {
+				return fmt.Errorf("put: %v", err)
+			}
+		}
+		return nil
+	}
+	// popempls adds depts to deptdb in a transaction.
+	popempls := func(txn *lmdb.Txn, empls []*Employee) (err error) {
+		for _, empl := range empls {
+			p, err := json.Marshal(empl)
+			if err != nil {
+				return fmt.Errorf("json: %v", err)
+			}
+			err = txn.Put(empldb, []byte(empl.ID), p, 0)
+			if err != nil {
+				return fmt.Errorf("put: %v", err)
+			}
+		}
+		return nil
+	}
+	// depdept removes a department and all its employees. sometimes downsizing
+	// is necessary for continued fiscal viability.
+	deldept := func(txn *lmdb.Txn, id string) (err error) {
+		// delemplsbydept locates all employees in the department and deletes
+		// them using the supplied transaction.
+		delemplsbydept := func(txn *lmdb.Txn) error {
+			c, err := txn.OpenCursor(empldb)
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+
+			for {
+				_, v, err := c.Get(nil, nil, lmdb.Next)
+				if err == lmdb.ErrNotFound {
+					return nil
+				}
+				if err != nil {
+					return fmt.Errorf("get: %v", err)
+				}
+				empl := new(Employee)
+				err = json.Unmarshal(v, empl)
+				if err != nil {
+					return fmt.Errorf("json: %v", err)
+				}
+				if empl.DeptID == id {
+					err := c.Del(0)
+					if err != nil {
+						return fmt.Errorf("del: %v", err)
+					}
+				}
+			}
+		}
+
+		txnempl, err := env.BeginTxn(txn, 0)
+		if err != nil {
+			return err
+		}
+		err = delemplsbydept(txnempl)
+		if err != nil {
+			txnempl.Abort()
+		} else {
+			err = txnempl.Commit()
+		}
+		if err != nil {
+			return fmt.Errorf("empl: %v", err)
+		}
+
+		err = txn.Del(deptdb, []byte(id), nil)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// populate the department database
+	depts := []*Dept{
+		{"eng", "engineering"},
+		{"mkt", "marketing"},
+	}
+	txndept, err := env.BeginTxn(txnroot, 0)
+	if err != nil {
+		txndept.Abort()
+		log.Panic(err)
+	}
+	err = popdepts(txndept, depts)
+	if err != nil {
+		txndept.Abort()
+	} else {
+		err = txndept.Commit()
+	}
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// populate the employee database
+	empls := []*Employee{
+		{"e1341", "eng"},
+		{"e3251", "mkt"},
+		{"e7371", "mkt"},
+	}
+	txnempl, err := env.BeginTxn(txnroot, 0)
+	if err != nil {
+		log.Panic(err)
+	}
+	err = popempls(txnempl, empls)
+	if err != nil {
+		txnempl.Abort()
+	} else {
+		err = txnempl.Commit()
+	}
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// delete the marketing department
+	txnempl, err = env.BeginTxn(txnroot, 0)
+	if err != nil {
+		log.Panic(err)
+	}
+	err = deldept(txnempl, "mkt")
+	if err != nil {
+		txnempl.Abort()
+	} else {
+		err = txnempl.Commit()
+	}
+	if err != nil {
+		log.Panic(err)
+	}
+
+	txndump, err := env.BeginTxn(txnroot, 0)
+	if err != nil {
+		log.Panic(err)
+	}
+	fmt.Println("deptdb")
+	err = dumpdb(os.Stdout, txndump, deptdb)
+	if err != nil {
+		txndump.Abort()
+		log.Print(err)
+	}
+	fmt.Println("empldb")
+	err = dumpdb(os.Stdout, txndump, empldb)
+	if err != nil {
+		txndump.Abort()
+		log.Print(err)
+	}
+	txndump.Abort()
+
+	// Output:
+	// deptdb
+	// eng     {"Name":"engineering"}
+	// empldb
+	// e1341   {"DeptID":"eng"}
+}
 
 // This complete example demonstrates populating and iterating a database with
 // the DupFixed|DupSort DBI flags.  The use case is probably too trivial to
