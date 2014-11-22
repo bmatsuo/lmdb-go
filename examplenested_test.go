@@ -46,20 +46,18 @@ func Example_nested() {
 	// Create employee and department databases.  These operations must succeed
 	// for the transaction to be committed.
 	var empldb, deptdb lmdb.DBI
-	err = txnroot.Send(CreateDB("employees", &empldb))
-	if err != nil {
-		panic(err)
-	}
-	err = txnroot.Send(CreateDB("departments", &deptdb))
+	err = txnroot.Do(
+		CreateDB("employees", &empldb),
+		CreateDB("departments", &deptdb),
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	// In the rest of the example the subtransactions prevent the database
+	// For the rest of the example the subtransactions prevent the database
 	// from entering an inconsistent state and we can always commit.
 	defer func() {
-		err := txnroot.Commit()
-		if err != nil {
+		if err := txnroot.Commit(); err != nil {
 			panic(err)
 		}
 	}()
@@ -115,10 +113,11 @@ func Example_nested() {
 	}
 
 	// dump the databases to stdout.
-	if err := txnroot.Sub(DumpDB(deptdb, "deptdb")); err != nil {
-		panic(err)
-	}
-	if err := txnroot.Sub(DumpDB(empldb, "empldb")); err != nil {
+	err = txnroot.Sub(
+		DumpDB(deptdb, "deptdb"),
+		DumpDB(empldb, "empldb"),
+	)
+	if err != nil {
 		panic(err)
 	}
 

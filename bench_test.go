@@ -19,7 +19,7 @@ func BenchmarkTxnPut(b *testing.B) {
 	var ps [][]byte
 
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
+	txn, err := env.Begin(nil, 0)
 	bMust(b, err, "starting transaction")
 	for i := 0; i < benchDBNumKeys; i++ {
 		k := makeBenchDBKey(&rc)
@@ -31,7 +31,7 @@ func BenchmarkTxnPut(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, 0)
+	txn, err = env.Begin(nil, 0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		k := ps[rand.Intn(len(ps)/2)*2]
@@ -55,7 +55,7 @@ func BenchmarkTxnGetReadonly(b *testing.B) {
 	var ps [][]byte
 
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
+	txn, err := env.Begin(nil, 0)
 	bMust(b, err, "starting transaction")
 	for i := 0; i < benchDBNumKeys; i++ {
 		k := makeBenchDBKey(&rc)
@@ -67,7 +67,7 @@ func BenchmarkTxnGetReadonly(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, Readonly)
+	txn, err = env.Begin(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
@@ -94,7 +94,7 @@ func BenchmarkTxnGetValReadonly(b *testing.B) {
 	var ps [][]byte
 
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
+	txn, err := env.Begin(nil, 0)
 	bMust(b, err, "starting transaction")
 	for i := 0; i < benchDBNumKeys; i++ {
 		k := makeBenchDBKey(&rc)
@@ -106,7 +106,7 @@ func BenchmarkTxnGetValReadonly(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, Readonly)
+	txn, err = env.Begin(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
@@ -133,7 +133,7 @@ func BenchmarkCursorScanReadonly(b *testing.B) {
 	var ps [][]byte
 
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
+	txn, err := env.Begin(nil, 0)
 	bMust(b, err, "starting transaction")
 	for i := 0; i < benchDBNumKeys; i++ {
 		k := makeBenchDBKey(&rc)
@@ -145,7 +145,7 @@ func BenchmarkCursorScanReadonly(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, Readonly)
+	txn, err = env.Begin(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
@@ -184,7 +184,7 @@ func BenchmarkCursorScanValReadonly(b *testing.B) {
 	var ps [][]byte
 
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
+	txn, err := env.Begin(nil, 0)
 	bMust(b, err, "starting transaction")
 	for i := 0; i < benchDBNumKeys; i++ {
 		k := makeBenchDBKey(&rc)
@@ -196,7 +196,7 @@ func BenchmarkCursorScanValReadonly(b *testing.B) {
 	err = txn.Commit()
 	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, Readonly)
+	txn, err = env.Begin(nil, Readonly)
 	bMust(b, err, "starting transaction")
 	defer txn.Abort()
 	b.ResetTimer()
@@ -242,7 +242,7 @@ func setupBenchDB(b *testing.B) (*Env, string) {
 }
 
 func openBenchDBI(b *testing.B, env *Env) DBI {
-	txn, err := env.BeginTxn(nil, 0)
+	txn, err := env.Begin(nil, 0)
 	bMust(b, err, "starting transaction")
 	dbi, err := txn.OpenDBI("benchmark", Create)
 	if err != nil {

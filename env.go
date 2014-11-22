@@ -248,16 +248,16 @@ func (env *Env) beginTxn(parent *Txn, flags uint) (*Txn, error) {
 	return beginTxn(env, parent, flags)
 }
 
-// BeginTxn is a low-level (potentially dangerous) method to initialize a new
+// Begin is a low-level (potentially dangerous) method to initialize a new
 // transaction on env.  BeginTxn does not attempt to serialize operations on
 // write transactions to the same OS thread and its use, without care, can
-// cause unspecified results.
+// cause undefined results.
 //
-// Instead of BeginTxn users should call the View, Update, BeginView,
-// BeginUpdate or Run methods.
+// Instead of Begin users should call the View, Update, BeginView, BeginUpdate
+// or RunTxn methods.
 //
 // See mdb_txn_begin.
-func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
+func (env *Env) Begin(parent *Txn, flags uint) (*Txn, error) {
 	txn, err := beginTxn(env, parent, flags)
 	return txn, err
 }
@@ -267,15 +267,15 @@ func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 //
 // See mdb_txn_begin.
 func (env *Env) BeginView() (*Txn, error) {
-	return env.BeginViewFlag(0)
+	return env.beginViewFlag(0)
 }
 
 // BeginViewFlag is like BeginView but allows transaction flags to be
-// specified.  The Readonly flag is implied by BeginViewFlag and is not
-// required to be passed.
+// specified.
 //
-// See mdb_txn_begin.
-func (env *Env) BeginViewFlag(flags uint) (*Txn, error) {
+// This method is not exported because at the moment (0.9.14) Readonly is the
+// only flag and that is implied here.
+func (env *Env) beginViewFlag(flags uint) (*Txn, error) {
 	return beginTxn(env, nil, flags|Readonly)
 }
 
@@ -285,17 +285,14 @@ func (env *Env) BeginViewFlag(flags uint) (*Txn, error) {
 //
 // See mdb_txn_begin.
 func (env *Env) BeginUpdate() (*WriteTxn, error) {
-	return env.BeginUpdateFlag(0)
+	return env.beginUpdateFlag(0)
 }
 
-// BeginUpdateFlag is like BeginUpdate but allows transaction flags to be
-// specified.
+// beginUpdateFlag takes txn flags.
 //
-// See mdb_txn_begin.
-func (env *Env) BeginUpdateFlag(flags uint) (*WriteTxn, error) {
-	if isReadonly(flags) {
-		return nil, fmt.Errorf("flag Readonly cannot be passed to BeginUpdate")
-	}
+// this method is not exported because the only flag at the moment (0.9.14) is
+// Readonly and that makes no sense here.
+func (env *Env) beginUpdateFlag(flags uint) (*WriteTxn, error) {
 	return beginWriteTxn(env, flags)
 }
 
@@ -308,7 +305,7 @@ func (env *Env) BeginUpdateFlag(flags uint) (*WriteTxn, error) {
 // running fn.
 //
 // See mdb_txn_begin.
-func (env *Env) Run(flags uint, fn TxnOp) error {
+func (env *Env) RunTxn(flags uint, fn TxnOp) error {
 	if isReadonly(flags) {
 		return env.runReadonly(flags, fn)
 	}
@@ -319,7 +316,7 @@ func (env *Env) Run(flags uint, fn TxnOp) error {
 // environment and passes it to fn.  View terminates its transaction after fn
 // returns.  Any error encountered by View is returned.
 func (env *Env) View(fn TxnOp) error {
-	return env.Run(Readonly, fn)
+	return env.RunTxn(Readonly, fn)
 }
 
 // Update creates a writable transaction and passes it to fn.  Update commits
@@ -329,7 +326,7 @@ func (env *Env) View(fn TxnOp) error {
 // The Txn passed to fn must not be used from multiple goroutines, even with
 // synchronization.
 func (env *Env) Update(fn TxnOp) error {
-	return env.Run(0, fn)
+	return env.RunTxn(0, fn)
 }
 
 func (env *Env) runReadonly(flags uint, fn TxnOp) error {

@@ -141,11 +141,11 @@ func (txn *Txn) Drop(dbi DBI, del bool) error {
 
 // Sub executes fn in a subtransaction.  Sub commits the subtransaction iff no
 // error is returned.  Sub returns any error it encounters.
-func (txn *Txn) Sub(fn TxnOp) error {
-	return txn.SubFlag(0, fn)
+func (txn *Txn) Sub(fn ...TxnOp) error {
+	return txn.subFlag(0, fn)
 }
 
-func (txn *Txn) SubFlag(flags uint, fn TxnOp) error {
+func (txn *Txn) subFlag(flags uint, fn []TxnOp) error {
 	sub, err := beginTxn(txn.env, txn, flags)
 	if err != nil {
 		return err
@@ -156,10 +156,12 @@ func (txn *Txn) SubFlag(flags uint, fn TxnOp) error {
 			panic(e)
 		}
 	}()
-	err = fn(sub)
-	if err != nil {
-		sub.Abort()
-		return err
+	for _, fn := range fn {
+		err = fn(sub)
+		if err != nil {
+			sub.Abort()
+			return err
+		}
 	}
 	return sub.Commit()
 }
@@ -323,10 +325,12 @@ func (w *WriteTxn) loop(txn *Txn) {
 						panic(e)
 					}
 				}()
-				err = op.fn(txn)
-				if err != nil {
-					txn.Abort()
-					op.errc <- err
+				for _, fn := range op.fn {
+					err = fn(txn)
+					if err != nil {
+						txn.Abort()
+						op.errc <- err
+					}
 				}
 			}()
 		case comm := <-w.commit:
@@ -359,10 +363,10 @@ func (w *WriteTxn) loop(txn *Txn) {
 	}
 }
 
-// runSub executes fn within a subtransaction.  if fn returns a non-nil error
-// the subtransaction runSub aborts returns the error.  if no error is returned
-// by fn then the subtransaction is committed.
-func (w *WriteTxn) runSub(txn *Txn, flags uint, fn TxnOp) error {
+// runSub executes fn in order within a subtransaction.  if fn returns a
+// non-nil error the subtransaction runSub aborts returns the error.  if no
+// error is returned by fn then the subtransaction is committed.
+func (w *WriteTxn) runSub(txn *Txn, flags uint, fn []TxnOp) error {
 	sub, err := w.beginSub(txn, flags)
 	if err != nil {
 		return err
@@ -373,10 +377,12 @@ func (w *WriteTxn) runSub(txn *Txn, flags uint, fn TxnOp) error {
 			panic(e)
 		}
 	}()
-	err = fn(sub)
-	if err != nil {
-		sub.Abort()
-		return err
+	for _, fn := range fn {
+		err = fn(sub)
+		if err != nil {
+			sub.Abort()
+			return err
+		}
 	}
 	return sub.Commit()
 }
@@ -395,15 +401,15 @@ func (w *WriteTxn) beginSub(txn *Txn, flags uint) (*Txn, error) {
 // through closure). Doing so has undefined results.
 type TxnOp func(txn *Txn) error
 
-// Send executes fn within a transaction.  Send serializes execution of
+// Do executes fn within a transaction.  Do serializes execution of
 // functions within a single goroutine (and thread).
-func (w *WriteTxn) Send(fn TxnOp) error {
+func (w *WriteTxn) Do(fn ...TxnOp) error {
 	return w.send(false, fn)
 }
 
-// Sub executes fn within a subtransaction of w committing iff no error is
-// encountered.
-func (w *WriteTxn) Sub(fn TxnOp) error {
+// Sub executes fn in order within a subtransaction of w committing iff no
+// error is encountered.
+func (w *WriteTxn) Sub(fn ...TxnOp) error {
 	return w.send(true, fn)
 }
 
@@ -437,8 +443,8 @@ func (w *WriteTxn) sub(id int) *WriteTxn {
 
 // send sends a writeOp to the primary transaction goroutine so execution of fn
 // may be serialized.
-func (w *WriteTxn) send(sub bool, fn TxnOp) error {
-	// like Send but the operation is marked subtransactional
+func (w *WriteTxn) send(sub bool, fn []TxnOp) error {
+	// like Do but the operation is marked subtransactional
 	errc := make(chan error)
 	op := writeOp{w.id, sub, fn, errc}
 	select {
@@ -508,7 +514,7 @@ func (w *writeNewSub) Close() {
 type writeOp struct {
 	id   int
 	sub  bool
-	fn   TxnOp
+	fn   []TxnOp
 	errc chan<- error
 }
 

@@ -1,6 +1,7 @@
 package lmdb
 
 import (
+	"runtime"
 	"syscall"
 	"testing"
 )
@@ -9,7 +10,10 @@ func TestCursorClose(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
-	txn, err := env.BeginTxn(nil, 0)
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	txn, err := env.Begin(nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
