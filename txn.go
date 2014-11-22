@@ -31,6 +31,7 @@ const (
 //
 // See MDB_txn.
 type Txn struct {
+	env  *Env
 	_txn *C.MDB_txn
 }
 
@@ -48,7 +49,7 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	if ret != success {
 		return nil, errno(ret)
 	}
-	return &Txn{_txn}, nil
+	return &Txn{env, _txn}, nil
 }
 
 // Commit commits all operations of the transaction to the database.
@@ -136,6 +137,31 @@ func (txn *Txn) Stat(dbi DBI) (*Stat, error) {
 func (txn *Txn) Drop(dbi DBI, del bool) error {
 	ret := C.mdb_drop(txn._txn, C.MDB_dbi(dbi), cbool(del))
 	return errno(ret)
+}
+
+// Sub executes fn in a subtransaction.  Sub commits the subtransaction iff no
+// error is returned.  Sub returns any error it encounters.
+func (txn *Txn) Sub(fn TxnOp) error {
+	return txn.SubFlag(0, fn)
+}
+
+func (txn *Txn) SubFlag(flags uint, fn TxnOp) error {
+	sub, err := beginTxn(txn.env, txn, flags)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if e := recover(); e != nil {
+			sub.Abort()
+			panic(e)
+		}
+	}()
+	err = fn(sub)
+	if err != nil {
+		sub.Abort()
+		return err
+	}
+	return sub.Commit()
 }
 
 // Get retrieves items from database dbi.  The slice returned by Get references

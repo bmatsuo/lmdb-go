@@ -56,6 +56,7 @@ const (
 //
 // See MDB_cursor.
 type Cursor struct {
+	txn     *Txn
 	_cursor *C.MDB_cursor
 }
 
@@ -65,7 +66,7 @@ func openCursor(txn *Txn, db DBI) (*Cursor, error) {
 	if ret != success {
 		return nil, errno(ret)
 	}
-	return &Cursor{_cursor}, nil
+	return &Cursor{txn, _cursor}, nil
 }
 
 // Renew associates readonly cursor with txn.
@@ -86,16 +87,9 @@ func (cursor *Cursor) Close() {
 	cursor._cursor = nil
 }
 
-// Txn returns the cursors transaction.
-//
-// See mdb_cursor_txn.
+// Txn returns the cursor's transaction.
 func (cursor *Cursor) Txn() *Txn {
-	var _txn *C.MDB_txn
-	_txn = C.mdb_cursor_txn(cursor._cursor)
-	if _txn != nil {
-		return &Txn{_txn}
-	}
-	return nil
+	return cursor.txn
 }
 
 // DBI returns the cursors database.
