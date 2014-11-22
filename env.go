@@ -262,16 +262,6 @@ func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	return txn, err
 }
 
-type TxnOp func(txn *Txn) error
-
-type Update interface {
-	Send(TxnOp) error
-	Commit() error
-	Abort()
-	//RunSub(TxnOp)
-	//Sub() (Update, error)
-}
-
 // BeginView starts a readonly transaction on env.  BeginRead implies the
 // Readonly flag and its present is not required in the flags argument.
 //

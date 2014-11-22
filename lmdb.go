@@ -12,6 +12,20 @@ This package is experimental and the API is in flux while core development is
 being done and the spartan but volumnous LMDB docs are being completly
 deciphered.
 
+Transactions
+
+Readonly transactions in LMDB operate on a snapshot of the database at the time
+the transaction began.  The number of simultaneously active read transaction is
+bounded and configured when the environment is initialized.
+
+LMDB allows only one read-write transaction to be active at a time.  Attempts
+to create write transactions will block until no others write transactions are
+active.
+
+LMDB allows read-write transactions to have subtransactions which may be
+aborted and rolled back without aborting their parent.  Transactions must not
+be used while they have an active subtransaction.
+
 Errors
 
 The errors returned by the package API will with few exceptions have type Errno

@@ -196,6 +196,9 @@ func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 	return openCursor(txn, dbi)
 }
 
+// WriteTxn is a safe writable transaction.  All operations to the transaction
+// are serialized a single goroutine (and single OS thread) for reliable
+// execution behavior.
 type WriteTxn struct {
 	id      int
 	env     *Env
@@ -286,14 +289,20 @@ func (w *WriteTxn) loop(txn *Txn) {
 				close(op.errc)
 				continue
 			}
-			err = op.fn(txn)
-			if err != nil {
-				txn.Abort()
-				op.errc <- err
-				close(op.errc)
-				continue
-			}
-			close(op.errc)
+			func() {
+				defer close(op.errc)
+				defer func() {
+					if e := recover(); e != nil {
+						txn.Abort()
+						panic(e)
+					}
+				}()
+				err = op.fn(txn)
+				if err != nil {
+					txn.Abort()
+					op.errc <- err
+				}
+			}()
 		case comm := <-w.commit:
 			txn, err := getTxn(comm.id)
 			if err != nil {
@@ -324,11 +333,20 @@ func (w *WriteTxn) loop(txn *Txn) {
 	}
 }
 
+// runSub executes fn within a subtransaction.  if fn returns a non-nil error
+// the subtransaction runSub aborts returns the error.  if no error is returned
+// by fn then the subtransaction is committed.
 func (w *WriteTxn) runSub(txn *Txn, flags uint, fn TxnOp) error {
 	sub, err := w.beginSub(txn, flags)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if e := recover(); e != nil {
+			sub.Abort()
+			panic(e)
+		}
+	}()
 	err = fn(sub)
 	if err != nil {
 		sub.Abort()
@@ -337,18 +355,34 @@ func (w *WriteTxn) runSub(txn *Txn, flags uint, fn TxnOp) error {
 	return sub.Commit()
 }
 
+// beginSub is a convenience method to begin a subtransaction of txn.
 func (w *WriteTxn) beginSub(txn *Txn, flags uint) (*Txn, error) {
 	return beginTxn(w.env, txn, flags)
 }
 
+// TxnOp is an operation applied to a transaction.  If a TxnOp returns an error
+// or panics the transaction will be aborted.
+//
+// IMPORTANT:
+// TxnOps that write to the database (those passed to Update or BeginUpdate)
+// must not use the Txn in another goroutine (passing it directory otherwise
+// through closure). Doing so has undefined results.
+type TxnOp func(txn *Txn) error
+
+// Send executes fn within a transaction.  Send serializes execution of
+// functions within a single goroutine (and thread).
 func (w *WriteTxn) Send(fn TxnOp) error {
 	return w.send(false, fn)
 }
 
+// Sub executes fn within a subtransaction of w committing iff no error is
+// encountered.
 func (w *WriteTxn) Sub(fn TxnOp) error {
 	return w.send(true, fn)
 }
 
+// BeginSub starts a subtransaction of w and returns it as a new WriteTxn.
+// While the returned transaction it is active the receiver w may not be used.
 func (w *WriteTxn) BeginSub(fn TxnOp) (*WriteTxn, error) {
 	subc := make(chan struct {
 		int
@@ -367,6 +401,7 @@ func (w *WriteTxn) BeginSub(fn TxnOp) (*WriteTxn, error) {
 	return w2, nil
 }
 
+// sub returns a WriteTxn identical to w mod the id which is replaced.
 func (w *WriteTxn) sub(id int) *WriteTxn {
 	w2 := new(WriteTxn)
 	*w2 = *w
@@ -374,6 +409,8 @@ func (w *WriteTxn) sub(id int) *WriteTxn {
 	return w2
 }
 
+// send sends a writeOp to the primary transaction goroutine so execution of fn
+// may be serialized.
 func (w *WriteTxn) send(sub bool, fn TxnOp) error {
 	// like Send but the operation is marked subtransactional
 	errc := make(chan error)
@@ -386,6 +423,9 @@ func (w *WriteTxn) send(sub bool, fn TxnOp) error {
 	}
 }
 
+// Commit terminates the transaction and commits changes to the environment.
+// An error is returned if any the transaction count not be committed or if the
+// transaction was terminated previously.
 func (w *WriteTxn) Commit() error {
 	errc := make(chan error)
 	comm := writeCommit{
@@ -400,6 +440,7 @@ func (w *WriteTxn) Commit() error {
 	}
 }
 
+// Abort terminates the transaction and discards changes.  Abort is idempotent.
 func (w *WriteTxn) Abort() {
 	select {
 	case <-w.closed:
