@@ -46,80 +46,88 @@ func TestTest1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot open environment: %s", err)
 	}
-	var txn *Txn
-	txn, err = env.BeginTxn(nil, 0)
-	if err != nil {
-		t.Fatalf("Cannot begin transaction: %s", err)
-	}
-	db, err := txn.OpenDBI("", 0)
-	defer env.CloseDBI(db)
-	if err != nil {
-		t.Fatalf("Cannot create DBI %s", err)
-	}
+
+	var db DBI
+	numEntries := 10
 	var data = map[string]string{}
 	var key string
 	var val string
-	num_entries := 10
-	for i := 0; i < num_entries; i++ {
+	for i := 0; i < numEntries; i++ {
 		key = fmt.Sprintf("Key-%d", i)
 		val = fmt.Sprintf("Val-%d", i)
 		data[key] = val
-		err = txn.Put(db, []byte(key), []byte(val), NoOverwrite)
+	}
+	err = env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenDBI("", 0)
 		if err != nil {
-			txn.Abort()
-			t.Fatalf("Error during put: %s", err)
+			return err
 		}
-	}
-	err = txn.Commit()
+
+		for k, v := range data {
+			err = txn.Put(db, []byte(k), []byte(v), NoOverwrite)
+			if err != nil {
+				return fmt.Errorf("put: %v", err)
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		txn.Abort()
-		t.Fatalf("Cannot commit %s", err)
+		t.Fatal(err)
 	}
+
 	stat, err := env.Stat()
 	if err != nil {
 		t.Fatalf("Cannot get stat %s", err)
+	} else if stat.Entries != uint64(numEntries) {
+		t.Errorf("Less entry in the database than expected: %d <> %d", stat.Entries, numEntries)
 	}
-	t.Logf("%+v", stat)
-	if stat.Entries != uint64(num_entries) {
-		t.Errorf("Less entry in the database than expected: %d <> %d", stat.Entries, num_entries)
-	}
-	txn, err = env.BeginTxn(nil, 0)
-	if err != nil {
-		t.Fatalf("Cannot begin transaction: %s", err)
-	}
-	cursor, err := txn.OpenCursor(db)
-	if err != nil {
+	t.Logf("%#v", stat)
+
+	err = env.View(func(txn *Txn) error {
+		cursor, err := txn.OpenCursor(db)
+		if err != nil {
+			cursor.Close()
+			return fmt.Errorf("cursor: %v", err)
+		}
+		var bkey, bval []byte
+		var bNumVal int
+		for {
+			bkey, bval, err = cursor.Get(nil, nil, Next)
+			if err == ErrNotFound {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("cursor get: %v", err)
+			}
+			bNumVal++
+			skey := string(bkey)
+			sval := string(bval)
+			t.Logf("Val: %s", sval)
+			t.Logf("Key: %s", skey)
+			var d string
+			var ok bool
+			if d, ok = data[skey]; !ok {
+				return fmt.Errorf("cursor get: key does not exist %q", skey)
+			}
+			if d != sval {
+				return fmt.Errorf("cursor get: value %q does not match %q", sval, d)
+			}
+		}
+		if bNumVal != numEntries {
+			t.Errorf("cursor iterated over %d entries when %d expected", bNumVal, numEntries)
+		}
 		cursor.Close()
-		txn.Abort()
-		t.Fatalf("Error during cursor open %s", err)
-	}
-	var bkey, bval []byte
-	var rc error
-	for {
-		bkey, bval, rc = cursor.Get(nil, nil, Next)
-		if rc != nil {
-			break
+		bval, err = txn.Get(db, []byte("Key-0"))
+		if err != nil {
+			return fmt.Errorf("get: %v", err)
 		}
-		skey := string(bkey)
-		sval := string(bval)
-		t.Logf("Val: %s", sval)
-		t.Logf("Key: %s", skey)
-		var d string
-		var ok bool
-		if d, ok = data[skey]; !ok {
-			t.Errorf("Cannot found: %q", skey)
+		if string(bval) != "Val-0" {
+			return fmt.Errorf("get: value %q does not match %q", bval, "Val-0")
 		}
-		if d != sval {
-			t.Errorf("Data missmatch: %q <> %q", sval, d)
-		}
-	}
-	cursor.Close()
-	bval, err = txn.Get(db, []byte("Key-0"))
-	txn.Abort()
+		return nil
+	})
 	if err != nil {
-		t.Fatalf("Error during txn get %s", err)
-	}
-	if string(bval) != "Val-0" {
-		t.Fatalf("Invalid txn get %s", string(bval))
+		t.Fatal(err)
 	}
 }
