@@ -248,16 +248,16 @@ func (env *Env) beginTxn(parent *Txn, flags uint) (*Txn, error) {
 	return beginTxn(env, parent, flags)
 }
 
-// Begin is a low-level (potentially dangerous) method to initialize a new
+// BeginTxn is a low-level (potentially dangerous) method to initialize a new
 // transaction on env.  BeginTxn does not attempt to serialize operations on
 // write transactions to the same OS thread and its use, without care, can
 // cause undefined results.
 //
-// Instead of Begin users should call the View, Update, BeginView, BeginUpdate
-// or RunTxn methods.
+// Instead of BeginTxn users should call the View, Update, BeginView,
+// BeginUpdate or RunTxn methods.
 //
 // See mdb_txn_begin.
-func (env *Env) Begin(parent *Txn, flags uint) (*Txn, error) {
+func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	txn, err := beginTxn(env, parent, flags)
 	return txn, err
 }

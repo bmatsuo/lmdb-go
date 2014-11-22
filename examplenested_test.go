@@ -46,10 +46,10 @@ func Example_nested() {
 	// Create employee and department databases.  These operations must succeed
 	// for the transaction to be committed.
 	var empldb, deptdb lmdb.DBI
-	err = txnroot.Do(
+	err = txnroot.Do(AllOps(
 		CreateDB("employees", &empldb),
 		CreateDB("departments", &deptdb),
-	)
+	))
 	if err != nil {
 		panic(err)
 	}
@@ -113,10 +113,10 @@ func Example_nested() {
 	}
 
 	// dump the databases to stdout.
-	err = txnroot.Sub(
+	err = txnroot.Sub(AllOps(
 		DumpDB(deptdb, "deptdb"),
 		DumpDB(empldb, "empldb"),
-	)
+	))
 	if err != nil {
 		panic(err)
 	}
@@ -218,5 +218,19 @@ func DumpDB(db lmdb.DBI, name string) lmdb.TxnOp {
 			}
 			fmt.Fprintf(tw, "%s\t%s\n", k, v)
 		}
+	}
+}
+
+// AllOps returns a TxnOp that executes each of fn in sequence and returns an
+// error if an error is encountered.
+func AllOps(fn ...lmdb.TxnOp) lmdb.TxnOp {
+	return func(txn *lmdb.Txn) error {
+		for _, fn := range fn {
+			err := fn(txn)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }
