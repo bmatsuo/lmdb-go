@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"unsafe"
 )
 
@@ -243,11 +244,134 @@ func (env *Env) SetMaxDBs(size int) error {
 	return errno(ret)
 }
 
-// Begin creates a transaction for the environment.
+func (env *Env) beginTxn(parent *Txn, flags uint) (*Txn, error) {
+	return beginTxn(env, parent, flags)
+}
+
+// BeginTxn is a low-level (potentially dangerous) method to initialize a new
+// transaction on env.  BeginTxn does not attempt to serialize operations on
+// write transactions to the same OS thread and its use, without care, can
+// cause unspecified results.
+//
+// Instead of BeginTxn users should call the View, Update, BeginView,
+// BeginUpdate or Run methods.
 //
 // See mdb_txn_begin.
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
-	return beginTxn(env, parent, flags)
+	txn, err := beginTxn(env, parent, flags)
+	return txn, err
+}
+
+type TxnOp func(txn *Txn) error
+
+type Update interface {
+	Send(TxnOp) error
+	Commit() error
+	Abort()
+	//RunSub(TxnOp)
+	//Sub() (Update, error)
+}
+
+// BeginView starts a readonly transaction on env.  BeginRead implies the
+// Readonly flag and its present is not required in the flags argument.
+//
+// See mdb_txn_begin.
+func (env *Env) BeginView() (*Txn, error) {
+	return env.BeginViewFlag(0)
+}
+
+// BeginViewFlag is like BeginView but allows transaction flags to be
+// specified.  The Readonly flag is implied by BeginViewFlag and is not
+// required to be passed.
+//
+// See mdb_txn_begin.
+func (env *Env) BeginViewFlag(flags uint) (*Txn, error) {
+	return beginTxn(env, nil, flags|Readonly)
+}
+
+// BeginUpdate starts a write transaction on env.  BeginUpdate returns an
+// Update instead of a *Txn Because LMDB write transactions must serialize all
+// actions on the same OS thread.
+//
+// See mdb_txn_begin.
+func (env *Env) BeginUpdate() (*WriteTxn, error) {
+	return env.BeginUpdateFlag(0)
+}
+
+// BeginUpdateFlag is like BeginUpdate but allows transaction flags to be
+// specified.
+//
+// See mdb_txn_begin.
+func (env *Env) BeginUpdateFlag(flags uint) (*WriteTxn, error) {
+	if isReadonly(flags) {
+		return nil, fmt.Errorf("flag Readonly cannot be passed to BeginUpdate")
+	}
+	return beginWriteTxn(env, flags)
+}
+
+// Run creates a new Txn and calls fn with it as an argument.  Run commits the
+// transaction if fn returns nil otherwise the transaction is aborted.
+//
+// Because Run terminates the transaction goroutines should not retain
+// references to it after fn returns.  Writable transactions (without the
+// Readonly flag) must not be used from any goroutines other than the one
+// running fn.
+//
+// See mdb_txn_begin.
+func (env *Env) Run(flags uint, fn TxnOp) error {
+	if isReadonly(flags) {
+		return env.runReadonly(flags, fn)
+	}
+	return env.runUpdate(flags, fn)
+}
+
+// View creates a readonly transaction with a consistent view of the
+// environment and passes it to fn.  View terminates its transaction after fn
+// returns.  Any error encountered by View is returned.
+func (env *Env) View(fn TxnOp) error {
+	return env.Run(Readonly, fn)
+}
+
+// Update creates a writable transaction and passes it to fn.  Update commits
+// the transaction if fn returns without error otherwise Update aborts the
+// transaction and returns the error.
+//
+// The Txn passed to fn must not be used from multiple goroutines, even with
+// synchronization.
+func (env *Env) Update(fn TxnOp) error {
+	return env.Run(0, fn)
+}
+
+func (env *Env) runReadonly(flags uint, fn TxnOp) error {
+	txn, err := beginTxn(env, nil, flags)
+	if err != nil {
+		return err
+	}
+	defer txn.Abort()
+	err = fn(txn)
+	return err
+}
+
+func (env *Env) runUpdate(flags uint, fn TxnOp) error {
+	errc := make(chan error)
+	go func() {
+		defer close(errc)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		txn, err := beginTxn(env, nil, flags)
+		if err != nil {
+			errc <- err
+			return
+		}
+		err = fn(txn)
+		if err != nil {
+			txn.Abort()
+			errc <- err
+			return
+		}
+		errc <- txn.Commit()
+	}()
+	return <-errc
 }
 
 // CloseDBI closes the database handle, db.  Normally calling CloseDBI
@@ -258,4 +382,8 @@ func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 // See mdb_dbi_close.
 func (env *Env) CloseDBI(db DBI) {
 	C.mdb_dbi_close(env._env, C.MDB_dbi(db))
+}
+
+func isReadonly(flags uint) bool {
+	return flags&Readonly != 0
 }

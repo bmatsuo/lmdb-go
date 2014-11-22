@@ -8,6 +8,7 @@ package lmdb
 import "C"
 
 import (
+	"fmt"
 	"math"
 	"runtime"
 	"unsafe"
@@ -33,6 +34,8 @@ type Txn struct {
 	_txn *C.MDB_txn
 }
 
+// beginTxn does not lock the OS thread which is a prerequisite for creating a
+// write transaction.
 func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	var _txn *C.MDB_txn
 	var ptxn *C.MDB_txn
@@ -41,12 +44,8 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	} else {
 		ptxn = parent._txn
 	}
-	if flags&Readonly == 0 {
-		runtime.LockOSThread()
-	}
 	ret := C.mdb_txn_begin(env._env, ptxn, C.uint(flags), &_txn)
 	if ret != success {
-		runtime.UnlockOSThread()
 		return nil, errno(ret)
 	}
 	return &Txn{_txn}, nil
@@ -57,7 +56,6 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 // See mdb_txn_commit.
 func (txn *Txn) Commit() error {
 	ret := C.mdb_txn_commit(txn._txn)
-	runtime.UnlockOSThread()
 	// The transaction handle is freed if there was no error
 	if ret == success {
 		txn._txn = nil
@@ -73,7 +71,6 @@ func (txn *Txn) Abort() {
 		return
 	}
 	C.mdb_txn_abort(txn._txn)
-	runtime.UnlockOSThread()
 	// The transaction handle is always freed.
 	txn._txn = nil
 }
@@ -197,4 +194,258 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 // See mdb_cursor_open.
 func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 	return openCursor(txn, dbi)
+}
+
+type WriteTxn struct {
+	id      int
+	env     *Env
+	subchan chan writeNewSub
+	opchan  chan writeOp
+	commit  chan writeCommit
+	abort   chan int
+	closed  chan struct{}
+}
+
+func beginWriteTxn(env *Env, flags uint) (*WriteTxn, error) {
+	wtxn := &WriteTxn{
+		env:    env,
+		opchan: make(chan writeOp),
+		commit: make(chan writeCommit),
+		abort:  make(chan int),
+		closed: make(chan struct{}),
+	}
+	errc := make(chan error)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		txn, err := beginTxn(env, nil, flags)
+		if err != nil {
+			errc <- err
+			return
+		}
+		close(errc)
+		wtxn.loop(txn)
+	}()
+	err := <-errc
+	if err != nil {
+		return nil, err
+	}
+	return wtxn, nil
+}
+
+func (w *WriteTxn) loop(txn *Txn) {
+	type IDTxn struct {
+		id  int
+		txn *Txn
+	}
+	txns := []IDTxn{{0, txn}}
+	nextid := 1
+	getTxn := func(id int) (*Txn, error) {
+		current := txns[len(txns)-1]
+		if current.id != id {
+			for _, t := range txns {
+				if t.id == id {
+					return nil, fmt.Errorf("attempt to use transaction while a subtransaction is active")
+				}
+			}
+			return nil, fmt.Errorf("attempt to use transaction after it was closed")
+		}
+		return current.txn, nil
+	}
+	defer close(w.closed)
+	for {
+		select {
+		case sub := <-w.subchan:
+			txn, err := getTxn(sub.id)
+			if err != nil {
+				sub.Err(err)
+				sub.Close()
+				continue
+			}
+			child, err := beginTxn(w.env, txn, sub.flags)
+			if err != nil {
+				sub.Err(err)
+				sub.Close()
+				continue
+			}
+			id := nextid
+			nextid++
+			txns = append(txns, IDTxn{id, child})
+			sub.OK(id)
+			sub.Close()
+		case op := <-w.opchan:
+			txn, err := getTxn(op.id)
+			if err != nil {
+				op.errc <- err
+				close(op.errc)
+				continue
+			}
+			if op.sub {
+				op.errc <- w.runSub(txn, 0, op.fn)
+				close(op.errc)
+				continue
+			}
+			err = op.fn(txn)
+			if err != nil {
+				txn.Abort()
+				op.errc <- err
+				close(op.errc)
+				continue
+			}
+			close(op.errc)
+		case comm := <-w.commit:
+			txn, err := getTxn(comm.id)
+			if err != nil {
+				comm.errc <- err
+			} else {
+				txns = txns[:len(txns)-1]
+				err = txn.Commit()
+				if err != nil {
+					comm.errc <- err
+				}
+			}
+			close(comm.errc)
+			if len(txns) == 0 {
+				return
+			}
+		case id := <-w.abort:
+			txn, err := getTxn(id)
+			if err != nil {
+				panic(fmt.Errorf("abort: %v", err))
+			} else {
+				txns = txns[:len(txns)-1]
+				txn.Abort()
+			}
+			if len(txns) == 0 {
+				return
+			}
+		}
+	}
+}
+
+func (w *WriteTxn) runSub(txn *Txn, flags uint, fn TxnOp) error {
+	sub, err := w.beginSub(txn, flags)
+	if err != nil {
+		return err
+	}
+	err = fn(sub)
+	if err != nil {
+		sub.Abort()
+		return err
+	}
+	return sub.Commit()
+}
+
+func (w *WriteTxn) beginSub(txn *Txn, flags uint) (*Txn, error) {
+	return beginTxn(w.env, txn, flags)
+}
+
+func (w *WriteTxn) Send(fn TxnOp) error {
+	return w.send(false, fn)
+}
+
+func (w *WriteTxn) Sub(fn TxnOp) error {
+	return w.send(true, fn)
+}
+
+func (w *WriteTxn) BeginSub(fn TxnOp) (*WriteTxn, error) {
+	subc := make(chan struct {
+		int
+		error
+	})
+	w.subchan <- writeNewSub{
+		id:    w.id,
+		flags: 0,
+		c:     subc,
+	}
+	res := <-subc
+	if res.error != nil {
+		return nil, res.error
+	}
+	w2 := w.sub(res.int)
+	return w2, nil
+}
+
+func (w *WriteTxn) sub(id int) *WriteTxn {
+	w2 := new(WriteTxn)
+	*w2 = *w
+	w2.id = id
+	return w2
+}
+
+func (w *WriteTxn) send(sub bool, fn TxnOp) error {
+	// like Send but the operation is marked subtransactional
+	errc := make(chan error)
+	op := writeOp{w.id, sub, fn, errc}
+	select {
+	case <-w.closed:
+		return fmt.Errorf("send: attempted after transaction was closed")
+	case w.opchan <- op:
+		return <-errc
+	}
+}
+
+func (w *WriteTxn) Commit() error {
+	errc := make(chan error)
+	comm := writeCommit{
+		id:   w.id,
+		errc: errc,
+	}
+	select {
+	case <-w.closed:
+		return fmt.Errorf("commit: attempted after transaction was closed")
+	case w.commit <- comm:
+		return <-errc
+	}
+}
+
+func (w *WriteTxn) Abort() {
+	select {
+	case <-w.closed:
+		panic("abort: attempted after transaction was closed")
+	case w.abort <- w.id:
+	}
+}
+
+type writeNewSub struct {
+	id    int
+	flags uint
+	c     chan<- struct {
+		int
+		error
+	}
+}
+
+func (w *writeNewSub) OK(newid int) {
+	w.c <- struct {
+		int
+		error
+	}{newid, nil}
+}
+
+func (w *writeNewSub) Err(err error) {
+	if err == nil {
+		panic("no error provided")
+	}
+	w.c <- struct {
+		int
+		error
+	}{0, err}
+}
+
+func (w *writeNewSub) Close() {
+	close(w.c)
+}
+
+type writeOp struct {
+	id   int
+	sub  bool
+	fn   TxnOp
+	errc chan<- error
+}
+
+type writeCommit struct {
+	id   int
+	errc chan<- error
 }
