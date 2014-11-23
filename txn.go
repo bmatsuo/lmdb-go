@@ -427,7 +427,7 @@ func (w *WriteTxn) Sub(fn TxnOp) error {
 
 // BeginSub starts a subtransaction of w and returns it as a new WriteTxn.
 // While the returned transaction it is active the receiver w may not be used.
-func (w *WriteTxn) BeginSub(fn TxnOp) (*WriteTxn, error) {
+func (w *WriteTxn) BeginSub() (*WriteTxn, error) {
 	subc := make(chan struct {
 		int
 		error
