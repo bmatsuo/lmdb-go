@@ -404,8 +404,8 @@ func (w *WriteTxn) beginSub(txn *Txn, flags uint) (*Txn, error) {
 	return beginTxn(w.env, txn, flags)
 }
 
-// TxnOp is an operation applied to a transaction.  If a TxnOp returns an error
-// or panics the transaction will be aborted.
+// TxnOp is an operation applied to a transaction.  The Txn passed to a TxnOp
+// is managed and the operation must not call its Abort or Commit methods.
 //
 // IMPORTANT:
 // TxnOps that write to the database (those passed to Update or BeginUpdate)
