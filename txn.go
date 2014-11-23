@@ -96,7 +96,7 @@ func (txn *Txn) Renew() error {
 	return errno(ret)
 }
 
-// Open opens a database in the environment.  An error is returned if name is empty.
+// OpenDBI opens a database in the environment.  An error is returned if name is empty.
 //
 // BUG:
 // DBI(math.NaN()) is returned on error which seems really wrong.
@@ -104,13 +104,18 @@ func (txn *Txn) Renew() error {
 // See mdb_dbi_open.
 func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
 	if name == "" {
-		return DBI(math.NaN()), fmt.Errorf("empty name")
+		return 0, fmt.Errorf("database name cannot be empty")
 	}
 
 	cname := C.CString(name)
 	dbi, err := txn.openDBI(cname, flags)
 	C.free(unsafe.Pointer(cname))
 	return dbi, err
+}
+
+// CreateDBI is a shorthand for OpenDBI that passed the flag lmdb.Create.
+func (txn *Txn) CreateDBI(name string) (DBI, error) {
+	return txn.OpenDBI(name, Create)
 }
 
 // OpenRoot opens the root database.  Applications should not write to the root
