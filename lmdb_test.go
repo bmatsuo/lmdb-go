@@ -58,7 +58,7 @@ func TestTest1(t *testing.T) {
 		data[key] = val
 	}
 	err = env.Update(func(txn *Txn) (err error) {
-		db, err = txn.OpenDBI("", 0)
+		db, err = txn.OpenRoot(0)
 		if err != nil {
 			return err
 		}

@@ -96,24 +96,37 @@ func (txn *Txn) Renew() error {
 	return errno(ret)
 }
 
-// Open opens a database in the environment.  If name is empty Open opens the
-// default database.
+// Open opens a database in the environment.  An error is returned if name is empty.
 //
-// TODO: Add an example showing potential problems using the default database.
+// BUG:
+// DBI(math.NaN()) is returned on error which seems really wrong.
 //
 // See mdb_dbi_open.
 func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
-	var _dbi C.MDB_dbi
-	var cname *C.char
-	if name != "" {
-		cname = C.CString(name)
-		defer C.free(unsafe.Pointer(cname))
+	if name == "" {
+		return DBI(math.NaN()), fmt.Errorf("empty name")
 	}
-	ret := C.mdb_dbi_open(txn._txn, cname, C.uint(flags), &_dbi)
+
+	cname := C.CString(name)
+	dbi, err := txn.openDBI(cname, flags)
+	C.free(unsafe.Pointer(cname))
+	return dbi, err
+}
+
+// OpenRoot opens the root database.  Applications should not write to the root
+// database if also using named databases as LMDB stores metadata in the root
+// database.
+func (txn *Txn) OpenRoot(flags uint) (DBI, error) {
+	return txn.openDBI(nil, flags)
+}
+
+func (txn *Txn) openDBI(cname *C.char, flags uint) (DBI, error) {
+	var dbi C.MDB_dbi
+	ret := C.mdb_dbi_open(txn._txn, cname, C.uint(flags), &dbi)
 	if ret != success {
 		return DBI(math.NaN()), errno(ret)
 	}
-	return DBI(_dbi), nil
+	return DBI(dbi), nil
 }
 
 // Stat returns statistics for database handle dbi.
