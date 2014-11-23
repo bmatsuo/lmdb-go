@@ -99,11 +99,6 @@ func (cursor *Cursor) DBI() DBI {
 	return DBI(_dbi)
 }
 
-// MDBCursor retrieves the low-level MDB cursor.
-func (cursor *Cursor) MDBCursor() *C.MDB_cursor {
-	return cursor._cursor
-}
-
 // Get retrieves items from the database. The slices returned by Get reference
 // readonly sections of memory and attempts to mutate the region of memory will
 // result in a panic.
