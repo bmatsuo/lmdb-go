@@ -246,41 +246,14 @@ func (env *Env) SetMaxDBs(size int) error {
 
 // BeginTxn is a low-level (potentially dangerous) method to initialize a new
 // transaction on env.  BeginTxn does not attempt to serialize operations on
-// write transactions to the same OS thread and its use, without care, can
-// cause undefined results.
+// write transactions to the same OS thread and its use for write transactions
+// can cause undefined results without care.
 //
-// Instead of BeginTxn users should call the View, Update, BeginView,
-// BeginUpdate or RunTxn methods.
+// Instead of BeginTxn users should call the View, Update, RunTxn methods.
 //
 // See mdb_txn_begin.
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	return beginTxn(env, parent, flags)
-}
-
-// BeginView starts a readonly transaction on env.  BeginRead implies the
-// Readonly flag and its present is not required in the flags argument.
-//
-// See mdb_txn_begin.
-func (env *Env) BeginView() (*Txn, error) {
-	return env.beginViewFlag(0)
-}
-
-// BeginViewFlag is like BeginView but allows transaction flags to be
-// specified.
-//
-// This method is not exported because at the moment (0.9.14) Readonly is the
-// only flag and that is implied here.
-func (env *Env) beginViewFlag(flags uint) (*Txn, error) {
-	return env.BeginTxn(nil, flags|Readonly)
-}
-
-// BeginUpdate starts a write transaction on env.  BeginUpdate returns an
-// Update instead of a *Txn Because LMDB write transactions must serialize all
-// actions on the same OS thread.
-//
-// See mdb_txn_begin.
-func (env *Env) BeginUpdate() (*WriteTxn, error) {
-	return beginWriteTxn(env, 0)
 }
 
 // Run creates a new Txn and calls fn with it as an argument.  Run commits the
