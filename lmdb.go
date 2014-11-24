@@ -91,12 +91,22 @@ const (
 	ErrIncompatibile   Errno = C.MDB_INCOMPATIBLE
 )
 
-// Version returns a string representation of the LMDB version.
+// Version return the major, minor, and patch version numbers of the LMDB C
+// library and a string representation of the version.
 //
 // See mdb_version.
-func Version() string {
-	var major, minor, patch *C.int
-	ver_str := C.mdb_version(major, minor, patch)
+func Version() (major, minor, patch int, s string) {
+	var maj, min, pat C.int
+	ver_str := C.mdb_version(&maj, &min, &pat)
+	return int(maj), int(min), int(pat), C.GoString(ver_str)
+}
+
+// VersionString returns a string representation of the LMDB C library version.
+//
+// See mdb_version.
+func VersionString() string {
+	var maj, min, pat C.int
+	ver_str := C.mdb_version(&maj, &min, &pat)
 	return C.GoString(ver_str)
 }
 
