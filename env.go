@@ -275,6 +275,9 @@ func (env *Env) RunTxn(flags uint, fn TxnOp) error {
 // View creates a readonly transaction with a consistent view of the
 // environment and passes it to fn.  View terminates its transaction after fn
 // returns.  Any error encountered by View is returned.
+//
+// Any call to Commit, Abort, Reset or Renew on a Txn created by View will
+// panic.
 func (env *Env) View(fn TxnOp) error {
 	return env.run(Readonly, fn)
 }
@@ -285,6 +288,9 @@ func (env *Env) View(fn TxnOp) error {
 //
 // The Txn passed to fn must not be used from multiple goroutines, even with
 // synchronization.
+//
+// Any call to Commit, Abort, Reset or Renew on a Txn created by Update will
+// panic.
 func (env *Env) Update(fn TxnOp) error {
 	return env.runUpdate(0, fn)
 }

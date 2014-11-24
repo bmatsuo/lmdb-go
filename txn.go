@@ -196,8 +196,11 @@ func (txn *Txn) Drop(dbi DBI, del bool) error {
 }
 
 // Sub executes fn in a subtransaction.  Sub commits the subtransaction iff no
-// error is returned and aborts otherwise.  Sub returns any error it
+// error is returned and otherwise aborts it.  Sub returns any error it
 // encounters.
+//
+// Any call to Abort, Commit, Renew, or Reset on a Txn created by Sub will
+// panic.
 func (txn *Txn) Sub(fn ...TxnOp) error {
 	// As of 0.9.14 Readonly is the only Txn flag and readonly subtransactions
 	// don't make sense.
@@ -285,7 +288,8 @@ func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 }
 
 // TxnOp is an operation applied to a transaction.  The Txn passed to a TxnOp
-// is managed and the operation must not call its Abort or Commit methods.
+// is managed and the operation must not call Commit, Abort, Renew, or Reset on
+// it.
 //
 // IMPORTANT:
 // TxnOps that write to the database (those passed to Update or BeginUpdate)
