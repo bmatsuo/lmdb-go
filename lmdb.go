@@ -1,8 +1,8 @@
 /*
 Package lmdb provides bindings to the lmdb C API.  The package bindings are
 fairly low level and are designed to provide a minimal interface that prevents
-misuse up to a reasonable extent.  In general the C documentation should be
-used as reference.
+misuse to a reasonable extent.  When in doubt refer to the C documentation as a
+reference.
 
 	http://symas.com/mdb/doc/group__mdb.html
 
@@ -19,12 +19,18 @@ the transaction began.  The number of simultaneously active read transaction is
 bounded and configured when the environment is initialized.
 
 LMDB allows only one read-write transaction to be active at a time.  Attempts
-to create write transactions will block until no others write transactions are
+to create write transactions will block until no other write transactions are
 active.
 
 LMDB allows read-write transactions to have subtransactions which may be
-aborted and rolled back without aborting their parent.  Transactions must not
-be used while they have an active subtransaction.
+aborted and rolled back without aborting their parent.  Transactions cannot be
+used while they have an active subtransaction.
+
+The lmdb package supplies managed, and unmanaged transaction types. Managed
+transactions which do not require explicit calling of Abort()/Commit() are
+provided through Env methods Update(), View(), and RunTxn(). Unmanaged readonly
+transactions created with the method BeginView() and unmanaged readwrite
+transactions with BeginUpdate().
 
 Errors
 
