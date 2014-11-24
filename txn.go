@@ -201,13 +201,13 @@ func (txn *Txn) Drop(dbi DBI, del bool) error {
 //
 // Any call to Abort, Commit, Renew, or Reset on a Txn created by Sub will
 // panic.
-func (txn *Txn) Sub(fn ...TxnOp) error {
+func (txn *Txn) Sub(fn TxnOp) error {
 	// As of 0.9.14 Readonly is the only Txn flag and readonly subtransactions
 	// don't make sense.
 	return txn.subFlag(0, fn)
 }
 
-func (txn *Txn) subFlag(flags uint, fn []TxnOp) error {
+func (txn *Txn) subFlag(flags uint, fn TxnOp) error {
 	sub, err := beginTxn(txn.env, txn, flags)
 	if err != nil {
 		return err
@@ -219,12 +219,10 @@ func (txn *Txn) subFlag(flags uint, fn []TxnOp) error {
 			panic(e)
 		}
 	}()
-	for _, fn := range fn {
-		err = fn(sub)
-		if err != nil {
-			sub.abort()
-			return err
-		}
+	err = fn(sub)
+	if err != nil {
+		sub.abort()
+		return err
 	}
 	return sub.commit()
 }
