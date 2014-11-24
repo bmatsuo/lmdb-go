@@ -244,10 +244,6 @@ func (env *Env) SetMaxDBs(size int) error {
 	return errno(ret)
 }
 
-func (env *Env) beginTxn(parent *Txn, flags uint) (*Txn, error) {
-	return beginTxn(env, parent, flags)
-}
-
 // BeginTxn is a low-level (potentially dangerous) method to initialize a new
 // transaction on env.  BeginTxn does not attempt to serialize operations on
 // write transactions to the same OS thread and its use, without care, can
@@ -258,8 +254,7 @@ func (env *Env) beginTxn(parent *Txn, flags uint) (*Txn, error) {
 //
 // See mdb_txn_begin.
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
-	txn, err := beginTxn(env, parent, flags)
-	return txn, err
+	return beginTxn(env, parent, flags)
 }
 
 // BeginView starts a readonly transaction on env.  BeginRead implies the
@@ -276,7 +271,7 @@ func (env *Env) BeginView() (*Txn, error) {
 // This method is not exported because at the moment (0.9.14) Readonly is the
 // only flag and that is implied here.
 func (env *Env) beginViewFlag(flags uint) (*Txn, error) {
-	return beginTxn(env, nil, flags|Readonly)
+	return env.BeginTxn(nil, flags|Readonly)
 }
 
 // BeginUpdate starts a write transaction on env.  BeginUpdate returns an
@@ -285,15 +280,7 @@ func (env *Env) beginViewFlag(flags uint) (*Txn, error) {
 //
 // See mdb_txn_begin.
 func (env *Env) BeginUpdate() (*WriteTxn, error) {
-	return env.beginUpdateFlag(0)
-}
-
-// beginUpdateFlag takes txn flags.
-//
-// this method is not exported because the only flag at the moment (0.9.14) is
-// Readonly and that makes no sense here.
-func (env *Env) beginUpdateFlag(flags uint) (*WriteTxn, error) {
-	return beginWriteTxn(env, flags)
+	return beginWriteTxn(env, 0)
 }
 
 // Run creates a new Txn and calls fn with it as an argument.  Run commits the
@@ -307,7 +294,7 @@ func (env *Env) beginUpdateFlag(flags uint) (*WriteTxn, error) {
 // See mdb_txn_begin.
 func (env *Env) RunTxn(flags uint, fn TxnOp) error {
 	if isReadonly(flags) {
-		return env.runReadonly(flags, fn)
+		return env.run(flags, fn)
 	}
 	return env.runUpdate(flags, fn)
 }
@@ -316,7 +303,7 @@ func (env *Env) RunTxn(flags uint, fn TxnOp) error {
 // environment and passes it to fn.  View terminates its transaction after fn
 // returns.  Any error encountered by View is returned.
 func (env *Env) View(fn TxnOp) error {
-	return env.RunTxn(Readonly, fn)
+	return env.run(Readonly, fn)
 }
 
 // Update creates a writable transaction and passes it to fn.  Update commits
@@ -326,17 +313,21 @@ func (env *Env) View(fn TxnOp) error {
 // The Txn passed to fn must not be used from multiple goroutines, even with
 // synchronization.
 func (env *Env) Update(fn TxnOp) error {
-	return env.RunTxn(0, fn)
+	return env.runUpdate(0, fn)
 }
 
-func (env *Env) runReadonly(flags uint, fn TxnOp) error {
-	txn, err := beginTxn(env, nil, flags)
+func (env *Env) run(flags uint, fn TxnOp) error {
+	txn, err := env.BeginTxn(nil, flags)
 	if err != nil {
 		return err
 	}
-	defer txn.Abort()
+	txn.managed = true
 	err = fn(txn)
-	return err
+	if err != nil {
+		txn.abort()
+		return err
+	}
+	return txn.commit()
 }
 
 func (env *Env) runUpdate(flags uint, fn TxnOp) error {
@@ -345,18 +336,10 @@ func (env *Env) runUpdate(flags uint, fn TxnOp) error {
 		defer close(errc)
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		txn, err := beginTxn(env, nil, flags)
+		err := env.run(flags, fn)
 		if err != nil {
 			errc <- err
-			return
 		}
-		err = fn(txn)
-		if err != nil {
-			txn.Abort()
-			errc <- err
-			return
-		}
-		errc <- txn.Commit()
 	}()
 	return <-errc
 }

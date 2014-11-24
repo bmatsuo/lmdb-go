@@ -33,8 +33,9 @@ const (
 //
 // See MDB_txn.
 type Txn struct {
-	env  *Env
-	_txn *C.MDB_txn
+	env     *Env
+	_txn    *C.MDB_txn
+	managed bool
 }
 
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
@@ -51,7 +52,11 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	if ret != success {
 		return nil, errno(ret)
 	}
-	return &Txn{env, _txn}, nil
+	txn := &Txn{
+		env:  env,
+		_txn: _txn,
+	}
+	return txn, nil
 }
 
 // Commit commits all operations of the transaction to the database.  A Txn
@@ -59,6 +64,13 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 //
 // See mdb_txn_commit.
 func (txn *Txn) Commit() error {
+	if txn.managed {
+		panic("managed transaction cannot be comitted directly")
+	}
+	return txn.commit()
+}
+
+func (txn *Txn) commit() error {
 	ret := C.mdb_txn_commit(txn._txn)
 	// The transaction handle is freed if there was no error
 	if ret == success {
@@ -72,6 +84,14 @@ func (txn *Txn) Commit() error {
 //
 // See mdb_txn_abort.
 func (txn *Txn) Abort() {
+	if txn.managed {
+		panic("managed transaction cannot be aborted directly")
+	}
+
+	txn.abort()
+}
+
+func (txn *Txn) abort() {
 	if txn._txn == nil {
 		return
 	}
@@ -81,10 +101,18 @@ func (txn *Txn) Abort() {
 }
 
 // Reset aborts the transaction clears internal state so the transaction may be
-// reused by calling Renew.
+// reused by calling Renew.  Reset panics if the transaction is managed by
+// Update, View, etc.
 //
 // See mdb_txn_reset.
 func (txn *Txn) Reset() {
+	if txn.managed {
+		panic("managed transaction cannot be reset directly")
+	}
+	txn.reset()
+}
+
+func (txn *Txn) reset() {
 	C.mdb_txn_reset(txn._txn)
 }
 
@@ -92,6 +120,13 @@ func (txn *Txn) Reset() {
 //
 // See mdb_txn_renew.
 func (txn *Txn) Renew() error {
+	if txn.managed {
+		panic("managed transaction cannot be renewed directly")
+	}
+	return txn.renew()
+}
+
+func (txn *Txn) renew() error {
 	ret := C.mdb_txn_renew(txn._txn)
 	return errno(ret)
 }
@@ -172,20 +207,21 @@ func (txn *Txn) subFlag(flags uint, fn []TxnOp) error {
 	if err != nil {
 		return err
 	}
+	sub.managed = true
 	defer func() {
 		if e := recover(); e != nil {
-			sub.Abort()
+			sub.abort()
 			panic(e)
 		}
 	}()
 	for _, fn := range fn {
 		err = fn(sub)
 		if err != nil {
-			sub.Abort()
+			sub.abort()
 			return err
 		}
 	}
-	return sub.Commit()
+	return sub.commit()
 }
 
 // Get retrieves items from database dbi.  The slice returned by Get references
@@ -248,7 +284,8 @@ func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 
 // WriteTxn is a safe writable transaction.  All operations to the transaction
 // are serialized a single goroutine (and single OS thread) for reliable
-// execution behavior.
+// execution behavior.  As a consequence the WriteTxn methods Do and Sub may be
+// called concurrently from multiple goroutines.
 type WriteTxn struct {
 	id      int
 	env     *Env
@@ -288,6 +325,7 @@ func beginWriteTxn(env *Env, flags uint) (*WriteTxn, error) {
 }
 
 func (w *WriteTxn) loop(txn *Txn) {
+	txn.managed = true
 	type IDTxn struct {
 		id  int
 		txn *Txn
@@ -322,6 +360,7 @@ func (w *WriteTxn) loop(txn *Txn) {
 				sub.Close()
 				continue
 			}
+			child.managed = true
 			id := nextid
 			nextid++
 			txns = append(txns, IDTxn{id, child})
@@ -334,16 +373,11 @@ func (w *WriteTxn) loop(txn *Txn) {
 				close(op.errc)
 				continue
 			}
-			if op.sub {
-				op.errc <- w.doSub(txn, 0, op.fn)
-				close(op.errc)
-				continue
-			}
 			func() {
 				defer close(op.errc)
 				defer func() {
 					if e := recover(); e != nil {
-						txn.Abort()
+						txn.abort()
 						panic(e)
 					}
 				}()
@@ -358,7 +392,7 @@ func (w *WriteTxn) loop(txn *Txn) {
 				comm.errc <- err
 			} else {
 				txns = txns[:len(txns)-1]
-				err = txn.Commit()
+				err = txn.commit()
 				if err != nil {
 					comm.errc <- err
 				}
@@ -373,35 +407,13 @@ func (w *WriteTxn) loop(txn *Txn) {
 				panic(fmt.Errorf("abort: %v", err))
 			} else {
 				txns = txns[:len(txns)-1]
-				txn.Abort()
+				txn.abort()
 			}
 			if len(txns) == 0 {
 				return
 			}
 		}
 	}
-}
-
-// doSub executes fn in order within a subtransaction.  if fn returns a
-// non-nil error the subtransaction doSub aborts returns the error.  if no
-// error is returned by fn then the subtransaction is committed.
-func (w *WriteTxn) doSub(txn *Txn, flags uint, fn TxnOp) error {
-	sub, err := w.beginSub(txn, flags)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if e := recover(); e != nil {
-			sub.Abort()
-			panic(e)
-		}
-	}()
-	err = fn(sub)
-	if err != nil {
-		sub.Abort()
-		return err
-	}
-	return sub.Commit()
 }
 
 // beginSub is a convenience method to begin a subtransaction of txn.
@@ -418,20 +430,26 @@ func (w *WriteTxn) beginSub(txn *Txn, flags uint) (*Txn, error) {
 // through closure). Doing so has undefined results.
 type TxnOp func(txn *Txn) error
 
+// SubTxn returns a TxnOp that performs op in a subtransaction.  SubTxn
+// simplifies executing subtransaction operations on WriteTxn types.
+//		txn.Do(lmdb.SubTxn(op))
+// The above statement is semantically equavalent to
+//		txn.Do(func(txn *Txn) error {
+//			return txn.Sub(op)
+//		})
+func SubTxn(op TxnOp) TxnOp {
+	return func(txn *Txn) error { return txn.Sub(op) }
+}
+
 // Do executes fn within a transaction.  Do serializes execution of
 // functions within a single goroutine (and thread).
 func (w *WriteTxn) Do(fn TxnOp) error {
-	return w.send(false, fn)
+	return w.send(fn)
 }
 
-// Sub executes fn in order within a subtransaction of w committing iff no
-// error is encountered.
-func (w *WriteTxn) Sub(fn TxnOp) error {
-	return w.send(true, fn)
-}
-
-// BeginSub starts a subtransaction of w and returns it as a new WriteTxn.
-// While the returned transaction it is active the receiver w may not be used.
+// BeginSub starts an unmanaged subtransaction of w and returns it as a new
+// WriteTxn.  While the returned transaction is active the parent WriteTxn may
+// not be used.
 func (w *WriteTxn) BeginSub() (*WriteTxn, error) {
 	subc := make(chan struct {
 		int
@@ -460,10 +478,10 @@ func (w *WriteTxn) sub(id int) *WriteTxn {
 
 // send sends a writeOp to the primary transaction goroutine so execution of fn
 // may be serialized.
-func (w *WriteTxn) send(sub bool, fn TxnOp) error {
+func (w *WriteTxn) send(fn TxnOp) error {
 	// like Do but the operation is marked subtransactional
 	errc := make(chan error)
-	op := writeOp{w.id, sub, fn, errc}
+	op := writeOp{w.id, fn, errc}
 	select {
 	case <-w.closed:
 		return fmt.Errorf("send: attempted after transaction was closed")
@@ -530,7 +548,6 @@ func (w *writeNewSub) Close() {
 
 type writeOp struct {
 	id   int
-	sub  bool
 	fn   TxnOp
 	errc chan<- error
 }

@@ -36,8 +36,7 @@ func Example_nested() {
 		log.Panic(err)
 	}
 
-	// Create a writable transaction that is the root of all other
-	// transactions.
+	// Create a transaction to serve as the root of all other changes.
 	txnroot, err := env.BeginUpdate()
 	if err != nil {
 		panic(err)
@@ -62,12 +61,12 @@ func Example_nested() {
 		}
 	}()
 
-	// populate the department database
+	// populate the department database.
 	depts := []*Dept{
 		{ID: "eng", Name: "engineering"},
 		{ID: "mkt", Name: "marketing"},
 	}
-	err = txnroot.Sub(func(txn *lmdb.Txn) error {
+	err = txnroot.Do(lmdb.SubTxn(func(txn *lmdb.Txn) error {
 		for _, dept := range depts {
 			p, err := json.Marshal(dept)
 			if err != nil {
@@ -79,7 +78,7 @@ func Example_nested() {
 			}
 		}
 		return nil
-	})
+	}))
 	if err != nil {
 		panic(err)
 	}
@@ -90,7 +89,7 @@ func Example_nested() {
 		{ID: "e3251", DeptID: "mkt"},
 		{ID: "e7371", DeptID: "mkt"},
 	}
-	err = txnroot.Sub(func(txn *lmdb.Txn) error {
+	err = txnroot.Do(lmdb.SubTxn(func(txn *lmdb.Txn) error {
 		for _, empl := range empls {
 			p, err := json.Marshal(empl)
 			if err != nil {
@@ -102,21 +101,21 @@ func Example_nested() {
 			}
 		}
 		return nil
-	})
+	}))
 	if err != nil {
 		panic(err)
 	}
 
 	// delete the marketing department and its employees.
-	if err = txnroot.Sub(DeleteDept(empldb, deptdb, "mkt")); err != nil {
+	if err = txnroot.Do(lmdb.SubTxn(DeleteDept(empldb, deptdb, "mkt"))); err != nil {
 		panic(err)
 	}
 
 	// dump the databases to stdout.
-	err = txnroot.Sub(AllOps(
+	err = txnroot.Do(lmdb.SubTxn(AllOps(
 		DumpDB(deptdb, "deptdb"),
 		DumpDB(empldb, "empldb"),
-	))
+	)))
 	if err != nil {
 		panic(err)
 	}
