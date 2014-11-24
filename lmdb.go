@@ -12,6 +12,28 @@ This package is experimental and the API is in flux while core development is
 being done and the spartan but volumnous LMDB docs are being completly
 deciphered.
 
+Environment
+
+An LMDB environment is represented as one file on the filesystem (though often
+a secondary corresponding lock file exists).  Most commonly the environment is
+opened by supplying a directory path.
+
+	err = env.Open("/path/to/database", 0, 0644)
+
+Data for the above environment will be stored in the file
+"/path/to/database/data.mdb" with permissions 0644.
+
+Databases
+
+A database in an LMDB environment is an ordered key-value store for data blobs.
+A database is referenced by an opaque handle known as its DBI.  A single LMDB
+environment can have multiple named databases.
+
+There is also a (unnamed) root database that can be used to store data.  But
+the root database must not be used in conjunction with named databases because
+it serves as an index of named databases.  See the Txn.OpenDBI example for more
+details.
+
 Transactions
 
 Readonly transactions in LMDB operate on a snapshot of the database at the time
@@ -31,13 +53,6 @@ transactions which do not require explicit calling of Abort()/Commit() are
 provided through Env methods Update(), View(), and RunTxn(). Unmanaged readonly
 transactions created with the method BeginView() and unmanaged readwrite
 transactions with BeginUpdate().
-
-Errors
-
-The errors returned by the package API will with few exceptions have type Errno
-or syscall.Errno.  The only errors of type Errno returned are those defined in
-lmdb.h, those which have constants defined in this package.  Other errno values
-like EINVAL will by of type syscall.Errno.
 */
 package lmdb
 
@@ -92,6 +107,9 @@ func errno(ret C.int) error {
 }
 
 // The set of error codes defined by LMDB are typed constants.
+// See the list of LMDB return codes for more information
+//
+//		http://symas.com/mdb/doc/group__errors.html
 const (
 	ErrKeyExist        Errno = C.MDB_KEYEXIST
 	ErrNotFound        Errno = C.MDB_NOTFOUND
