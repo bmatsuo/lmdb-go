@@ -27,8 +27,7 @@ const (
 // Txn is a database transaction in an environment.
 //
 // WARNING: A writable Txn is not threadsafe and may only be used in the
-// goroutine that created it.  To serialize concurrent access to a read-write
-// transaction use a WriteTxn.
+// goroutine that created it.
 //
 // See MDB_txn.
 type Txn struct {
