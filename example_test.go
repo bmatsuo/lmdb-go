@@ -2,6 +2,7 @@ package lmdb_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,13 +12,18 @@ import (
 	"github.com/bmatsuo/lmdb.exp"
 )
 
+// These values shouldn't actually be assigned to.  The are used as stand-ins
+// for tests which do not act as tests.
+var EnvEx *lmdb.Env
+var DBIEx lmdb.DBI
+
 // This complete example demonstrates populating and iterating a database with
 // the DupFixed|DupSort DBI flags.  The use case is probably too trivial to
 // warrant such optimization but it demonstrates the key points.
 //
 // Note the importance of supplying both DupFixed and DupSort flags on database
 // creation.
-func Example_dupFixed() {
+func ExampleEnv_dupFixed() {
 	// Open an environment as normal. DupSort is applied at the database level.
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -156,7 +162,7 @@ func Example_dupFixed() {
 
 // This complete example demonstrates populating and iterating a database with
 // the DupSort DBI flags.
-func Example_dupSort() {
+func ExampleEnv_dupSort() {
 	// Open an environment as normal. DupSort is applied at the database level.
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -468,4 +474,47 @@ func ExampleCursor() {
 	// key0: val0
 	// key1: val1
 	// key2: val2
+}
+
+// This example shows how to properly handle data retrieved from the database
+// and applies to Txn.Get() as well as Cursor.Get().  It is important to handle
+// data retreival carefully to make sure the application does not retain
+// pointers to memory pages which may be reclaimed by LMDB after the
+// transaction terminates.  Typically an application would define helper
+// functions/methods to conveniently handle data safe retrieval.
+func ExampleTxn_get() {
+	// variables to hold data extracted from the database
+	var point struct{ X, Y int }
+	var str string
+	var p1, p2 []byte
+
+	// extract data from an example environment/database.  it is critical for application
+	// code to handle errors  but that is omitted here to save space.
+	EnvEx.View(func(txn *lmdb.Txn) (err error) {
+		// OK
+		// A []byte to string conversion will always copy the data
+		v, _ := txn.Get(DBIEx, []byte("mykey"))
+		str = string(v)
+
+		// OK
+		// If []byte is the desired data type then an explicit copy is required
+		// for safe access after the transaction returns.
+		v, _ = txn.Get(DBIEx, []byte("mykey"))
+		p1 = make([]byte, len(v))
+		copy(p1, v)
+
+		// OK
+		// The data does not need be copied because it is parsed while txn is
+		// open.
+		v, _ = txn.Get(DBIEx, []byte("mykey"))
+		_ = json.Unmarshal(v, &point)
+
+		// BAD
+		// Assigning the result directly to p2 leaves its pointer volatile
+		// after the transaction completes which can result in unpredictable
+		// behavior.
+		p2, _ = txn.Get(DBIEx, []byte("mykey"))
+
+		return nil
+	})
 }
