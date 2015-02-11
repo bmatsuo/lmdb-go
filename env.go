@@ -48,6 +48,78 @@ type Env struct {
 	_env *C.MDB_env
 }
 
+// SetMapSize returns a function to configure memory map size to size.
+func SetMapSize(size int64) func(*Env) error {
+	return func(env *Env) error {
+		err := env.SetMapSize(size)
+		if err != nil {
+			return &ConfigError{"mapsize", err}
+		}
+		return nil
+	}
+}
+
+// SetMaxReaders returns a function to configure the maximum number of
+// simultaneous read transactions to n.
+func SetMaxReaders(n int) func(*Env) error {
+	return func(env *Env) error {
+		err := env.SetMaxReaders(n)
+		if err != nil {
+			return &ConfigError{"maxreaders", err}
+		}
+		return nil
+	}
+}
+
+// SetMaxDBs returns a function to configure the maximum number of databases to
+// n.
+func SetMaxDBs(n int) func(*Env) error {
+	return func(env *Env) error {
+		err := env.SetMaxDBs(n)
+		if err != nil {
+			return &ConfigError{"maxdbs", err}
+		}
+		return nil
+	}
+}
+
+type ConfigError struct {
+	Config string
+	Err    error
+}
+
+func (e *ConfigError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Config, e.Err)
+}
+
+// OpenEnv is a convenience wrapper to initialize and open a new Env.
+//		env, err := lmdb.OpenEnv(
+//			"./path/to/db/", lmdb.NoSync, 0644,
+//			lmdb.SetMapSize(1073741824), // 1GB
+//			lmdb.SetMaxDBs(64),
+//		)
+func OpenEnv(path string, flags uint, mode os.FileMode, config ...func(*Env) error) (*Env, error) {
+	env, err := NewEnv()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fn := range config {
+		err := fn(env)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = env.Open(path, flags, mode)
+	if err != nil {
+		env.Close()
+		return nil, err
+	}
+
+	return env, nil
+}
+
 // NewEnv allocates and initialized an new Env.
 //
 // See mdb_env_create.

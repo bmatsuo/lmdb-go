@@ -31,24 +31,16 @@ func Example_nested() {
 	}
 
 	// Open an environment.
-	env, err := lmdb.NewEnv()
-	if err != nil {
-		log.Panic(err)
-	}
 	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		log.Panic(err)
 	}
 	defer os.RemoveAll(path)
-	err = env.SetMaxDBs(2)
+	env, err := lmdb.OpenEnv(path, 0, 0644, lmdb.SetMaxDBs(2))
 	if err != nil {
 		log.Panic(err)
 	}
-	err = env.Open(path, 0, 0644)
 	defer env.Close()
-	if err != nil {
-		log.Panic(err)
-	}
 
 	// Create a writable transaction that is the root of all other
 	// transactions.
@@ -273,24 +265,16 @@ func Example_nested() {
 // creation.
 func Example_dupFixed() {
 	// Open an environment as normal. DupSort is applied at the database level.
-	env, err := lmdb.NewEnv()
-	if err != nil {
-		log.Panic(err)
-	}
 	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		log.Panic(err)
 	}
 	defer os.RemoveAll(path)
-	err = env.SetMaxDBs(1)
+	env, err := lmdb.OpenEnv(path, 0, 0644)
 	if err != nil {
 		log.Panic(err)
 	}
-	err = env.Open(path, 0, 0644)
 	defer env.Close()
-	if err != nil {
-		log.Panic(err)
-	}
 
 	// open the database of friends' phone numbers.  in this limited world
 	// phone nubers are all the same length.
@@ -298,7 +282,7 @@ func Example_dupFixed() {
 	if err != nil {
 		log.Panic(err)
 	}
-	phonedb, err := txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort|lmdb.DupFixed)
+	phonedb, err := txn.OpenDBI("", lmdb.Create|lmdb.DupSort|lmdb.DupFixed)
 	if err != nil {
 		txn.Abort()
 		log.Panic(err)
@@ -409,24 +393,16 @@ func Example_dupFixed() {
 // the DupSort DBI flags.
 func Example_dupSort() {
 	// Open an environment as normal. DupSort is applied at the database level.
-	env, err := lmdb.NewEnv()
-	if err != nil {
-		log.Panic(err)
-	}
 	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		log.Panic(err)
 	}
 	defer os.RemoveAll(path)
-	err = env.SetMaxDBs(1)
+	env, err := lmdb.OpenEnv(path, 0, 0644)
 	if err != nil {
 		log.Panic(err)
 	}
-	err = env.Open(path, 0, 0644)
 	defer env.Close()
-	if err != nil {
-		log.Panic(err)
-	}
 
 	// open the database of friends' phone numbers.  a single person can have
 	// multiple phone numbers.
@@ -434,7 +410,7 @@ func Example_dupSort() {
 	if err != nil {
 		log.Panic(err)
 	}
-	phonedb, err := txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort)
+	phonedb, err := txn.OpenDBI("", lmdb.Create|lmdb.DupSort)
 	if err != nil {
 		txn.Abort()
 		log.Panic(err)
@@ -509,19 +485,14 @@ func Example_dupSort() {
 	// jenny 867-5309
 }
 
-// This example shows how to use the Env type and open a database.
+// This example shows how to use the Env type and open a named database.
 func ExampleEnv() {
 	// create a directory to hold the database
 	path, _ := ioutil.TempDir("", "mdb_test")
 	defer os.RemoveAll(path)
 
 	// open the LMDB environment
-	env, err := lmdb.NewEnv()
-	if err != nil {
-		panic(err)
-	}
-	env.SetMaxDBs(1)
-	env.Open(path, 0, 0664)
+	env, _ := lmdb.OpenEnv(path, 0, 0664, lmdb.SetMaxDBs(1))
 	defer env.Close()
 
 	// open a database, creating it if necessary.
@@ -564,14 +535,12 @@ func ExampleTxn() {
 	defer os.RemoveAll(path)
 
 	// open the LMDB environment
-	env, _ := lmdb.NewEnv()
-	env.SetMaxDBs(1)
-	env.Open(path, 0, 0664)
+	env, _ := lmdb.OpenEnv(path, 0, 0664)
 	defer env.Close()
 
 	// open a database.
 	txn, _ := env.BeginTxn(nil, 0)
-	db, _ := txn.OpenDBI("exampledb", lmdb.Create)
+	db, _ := txn.OpenDBI("", lmdb.Create)
 	txn.Commit()
 
 	// write some data
@@ -608,9 +577,7 @@ func ExampleCursor() {
 	defer os.RemoveAll(path)
 
 	// open the LMDB environment
-	env, _ := lmdb.NewEnv()
-	env.SetMaxDBs(1)
-	env.Open(path, 0, 0664)
+	env, _ := lmdb.OpenEnv(path, 0, 0644, lmdb.SetMaxDBs(1))
 	defer env.Close()
 
 	// open a database.
