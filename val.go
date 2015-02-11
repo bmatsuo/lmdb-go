@@ -16,6 +16,8 @@ import (
 // MDB_val
 type Val C.MDB_val
 
+// MultiVal is a type to hold a page of values retrieved from a database open
+// with DupSort|DupFixed.
 type MultiVal [2]Val
 
 // Create a Val that points to p's data. the Val's data must not be freed
@@ -62,33 +64,48 @@ func (val *MultiVal) val() *Val {
 	return &val[0]
 }
 
-func (val *MultiVal) Bytes() [][]byte {
-	ps := make([][]byte, val.NumItem())
-	itemlen := val.ItemLen()
+// Vals returns a slice containing each value in val.
+func (val *MultiVal) Vals() [][]byte {
+	ps := make([][]byte, 0, val.Len())
+	stride := val.Stride()
 	data := val.Page()
-	for i := range ps {
-		ps[i], data = data[:itemlen], data[itemlen:]
+	for off := 0; off < len(data); off += stride {
+		ps = append(ps, data[off:off+stride])
 	}
 	return ps
 }
 
-// NumItem returns the number of items in the MultiVal.
-func (val *MultiVal) NumItem() int {
+// Val returns the value at index i.
+func (val *MultiVal) Val(i int) []byte {
+	if i < 0 {
+		panic("index out of range")
+	}
+	if i >= val.Len() {
+		panic("index out of range")
+	}
+	stride := val.Stride()
+	off := i * stride
+	return val.Page()[off : off+stride]
+}
+
+// Len returns the number of items in the MultiVal.
+func (val *MultiVal) Len() int {
 	return int(val[1].mv_size)
 }
 
-// ItemLen returns the length of an individual item in the MultiVal.
-func (val *MultiVal) ItemLen() int {
+// Stride returns the length of an individual item in the MultiVal.
+func (val *MultiVal) Stride() int {
 	return int(val[0].mv_size)
 }
 
-// Size returns the total size of the MultiVal data, the product of NumItem and
-// ItemLen.
+// Size returns the total size of the MultiVal data and is equivalent to
+//
+//		val.Len()*val.String()
 //
 // BUG:
 // Does not check oveflow.
 func (val *MultiVal) Size() int {
-	return val.NumItem() * val.ItemLen()
+	return val.Len() * val.Stride()
 }
 
 // Page returns the MultiVal page data as a raw slice of bytes with length val.Size().

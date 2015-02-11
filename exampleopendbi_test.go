@@ -4,17 +4,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/bmatsuo/lmdb.exp"
 )
 
 const MB = 1 << 20
 
-func ExampleTxn_openDBI() {
-	// the number of named databases to create
-	const numdb = 4
-
+func ExampleTxn_OpenDBI() {
 	dbpath, err := ioutil.TempDir("", "lmdb-test")
 	if err != nil {
 		panic(err)
@@ -25,13 +21,10 @@ func ExampleTxn_openDBI() {
 	if err != nil {
 		panic(err)
 	}
-	if err = env.SetMapSize(10 * MB); err != nil {
-		panic(err)
-	}
 
 	// when using named databases SetMaxDBs is required to be at least the
-	// number of databases needed.
-	if err = env.SetMaxDBs(numdb); err != nil {
+	// number of named databases needed.
+	if err = env.SetMaxDBs(4); err != nil {
 		panic(err)
 	}
 
@@ -41,55 +34,47 @@ func ExampleTxn_openDBI() {
 		panic(err)
 	}
 
-	// if you attempt to open a non-existent named database and you don't pass
-	// the lmdb.Create flag lmdb.ErrNotFound will be returned.
-	err = env.Update(func(txn *lmdb.Txn) error {
-		dbname := "a non-existent database"
-		fmt.Printf("opening %s\n", dbname)
-		_, err := txn.OpenDBI(dbname, 0) // lmdb.Create is not passed
+	var db1, db2, db3, db4 lmdb.DBI
+	var dbroot lmdb.DBI
+	env.Update(func(txn *lmdb.Txn) (err error) {
+		_, err = txn.OpenDBI("db0", 0) // ErrNotFound
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("db0", err)
+		}
+		db1, err = txn.OpenDBI("db1", lmdb.Create)
+		if err != nil {
+			fmt.Println("db1", err)
+		}
+		db2, err = txn.OpenDBI("db2", lmdb.Create)
+		if err != nil {
+			fmt.Println("db2", err)
+		}
+		db3, err = txn.OpenDBI("db3", lmdb.Create)
+		if err != nil {
+			fmt.Println("db3", err)
+		}
+		db4, err = txn.OpenDBI("db4", lmdb.Create)
+		if err != nil {
+			fmt.Println("db4", err)
+		}
+		_, err = txn.OpenDBI("db5", lmdb.Create) // ErrDBsFull
+		if err != nil {
+			fmt.Println("db5", err)
+		}
+		dbroot, err = txn.OpenRoot(0) // does not count against maxdbs
+		if err != nil {
+			fmt.Println("root", err)
 		}
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
 
-	// create the maximum number of named databases allowed and store a value
-	// for fun.
-	err = env.Update(func(txn *lmdb.Txn) error {
-		for i := 0; i < numdb; i++ {
-			name := fmt.Sprintf("database%d", i)
-			db, err := txn.CreateDBI(name)
-			if err != nil {
-				return fmt.Errorf("%s open: %v", name, err)
-			}
-			fmt.Printf("create %s: %x\n", name, db)
-			err = txn.Put(db, []byte("hello"), []byte(strings.Repeat("database", i)), 0)
-			if err != nil {
-				return fmt.Errorf("%s put: %v", name, err)
-			}
+	env.View(func(txn *lmdb.Txn) error {
+		cursor, err := txn.OpenCursor(dbroot)
+		if err != nil {
+			return fmt.Errorf("cursor: %v", err)
 		}
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
 
-	// Open the root dbi and iterate. Notice that this database is not created
-	// with lmdb.Create (because it was created behind the scenes when creating
-	// the named database).
-	err = env.View(func(txn *lmdb.Txn) error {
-		db, err := txn.OpenRoot(0)
-		if err != nil {
-			return fmt.Errorf("root open: %v", err)
-		}
-		fmt.Printf("open root: %x\n", db)
-		cursor, err := txn.OpenCursor(db)
-		if err != nil {
-			return fmt.Errorf("root cursor: %v", err)
-		}
+		fmt.Println("databases:")
 		for {
 			k, _, err := cursor.Get(nil, nil, lmdb.Next)
 			if err == lmdb.ErrNotFound {
@@ -98,23 +83,16 @@ func ExampleTxn_openDBI() {
 			if err != nil {
 				return fmt.Errorf("root next: %v", err)
 			}
-			fmt.Printf("%s\n", k)
+			fmt.Printf("  %s\n", k)
 		}
 	})
-	if err != nil {
-		panic(err)
-	}
 
 	// Output:
-	// opening a non-existent database
-	// MDB_NOTFOUND: No matching key/data pair found
-	// create database0: 2
-	// create database1: 3
-	// create database2: 4
-	// create database3: 5
-	// open root: 1
-	// database0
-	// database1
-	// database2
-	// database3
+	// db0 MDB_NOTFOUND: No matching key/data pair found
+	// db5 MDB_DBS_FULL: Environment maxdbs limit reached
+	// databases:
+	//   db1
+	//   db2
+	//   db3
+	//   db4
 }
