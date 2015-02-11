@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"unsafe"
 )
 
@@ -243,11 +244,83 @@ func (env *Env) SetMaxDBs(size int) error {
 	return errno(ret)
 }
 
-// Begin creates a transaction for the environment.
+// BeginTxn is a low-level (potentially dangerous) method to initialize a new
+// transaction on env.  BeginTxn does not attempt to serialize operations on
+// write transactions to the same OS thread and its use for write transactions
+// can cause undefined results without care.
+//
+// Instead of BeginTxn users should call the View, Update, RunTxn methods.
 //
 // See mdb_txn_begin.
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	return beginTxn(env, parent, flags)
+}
+
+// Run creates a new Txn and calls fn with it as an argument.  Run commits the
+// transaction if fn returns nil otherwise the transaction is aborted.
+//
+// Because Run terminates the transaction goroutines should not retain
+// references to it after fn returns.  Writable transactions (without the
+// Readonly flag) must not be used from any goroutines other than the one
+// running fn.
+//
+// See mdb_txn_begin.
+func (env *Env) RunTxn(flags uint, fn TxnOp) error {
+	if isReadonly(flags) {
+		return env.run(flags, fn)
+	}
+	return env.runUpdate(flags, fn)
+}
+
+// View creates a readonly transaction with a consistent view of the
+// environment and passes it to fn.  View terminates its transaction after fn
+// returns.  Any error encountered by View is returned.
+//
+// Any call to Commit, Abort, Reset or Renew on a Txn created by View will
+// panic.
+func (env *Env) View(fn TxnOp) error {
+	return env.run(Readonly, fn)
+}
+
+// Update creates a writable transaction and passes it to fn.  Update commits
+// the transaction if fn returns without error otherwise Update aborts the
+// transaction and returns the error.
+//
+// The Txn passed to fn must not be used from multiple goroutines, even with
+// synchronization.
+//
+// Any call to Commit, Abort, Reset or Renew on a Txn created by Update will
+// panic.
+func (env *Env) Update(fn TxnOp) error {
+	return env.runUpdate(0, fn)
+}
+
+func (env *Env) run(flags uint, fn TxnOp) error {
+	txn, err := env.BeginTxn(nil, flags)
+	if err != nil {
+		return err
+	}
+	txn.managed = true
+	err = fn(txn)
+	if err != nil {
+		txn.abort()
+		return err
+	}
+	return txn.commit()
+}
+
+func (env *Env) runUpdate(flags uint, fn TxnOp) error {
+	errc := make(chan error)
+	go func() {
+		defer close(errc)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		err := env.run(flags, fn)
+		if err != nil {
+			errc <- err
+		}
+	}()
+	return <-errc
 }
 
 // CloseDBI closes the database handle, db.  Normally calling CloseDBI
@@ -258,4 +331,8 @@ func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 // See mdb_dbi_close.
 func (env *Env) CloseDBI(db DBI) {
 	C.mdb_dbi_close(env._env, C.MDB_dbi(db))
+}
+
+func isReadonly(flags uint) bool {
+	return flags&Readonly != 0
 }

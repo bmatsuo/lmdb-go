@@ -4,266 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"sort"
-	"text/tabwriter"
 
 	"github.com/bmatsuo/lmdb.exp"
 )
 
-// This complete example demonstrates use of nested transactions.  Parent
-// transactions must not be used while children are alive.  Helper functions
-// are used in this example to shadow parent transactions and prevent such
-// invalid use.
-func Example_nested() {
-	// for the purposes of testing output the ID is not included in the item
-	// data, only the key.
-	type Employee struct {
-		ID     string `json:"-"`
-		DeptID string
-	}
-	type Dept struct {
-		ID   string `json:"-"`
-		Name string
-	}
-
-	// Open an environment.
-	env, err := lmdb.NewEnv()
-	if err != nil {
-		log.Panic(err)
-	}
-	path, err := ioutil.TempDir("", "mdb_test")
-	if err != nil {
-		log.Panic(err)
-	}
-	defer os.RemoveAll(path)
-	err = env.SetMaxDBs(2)
-	if err != nil {
-		log.Panic(err)
-	}
-	err = env.Open(path, 0, 0644)
-	defer env.Close()
-	if err != nil {
-		log.Panic(err)
-	}
-
-	// Create a writable transaction that is the root of all other
-	// transactions.
-	txnroot, err := env.BeginTxn(nil, 0)
-	if err != nil {
-		log.Panic(err)
-	}
-	empldb, err := txnroot.OpenDBI("employees", lmdb.Create)
-	if err != nil {
-		log.Panic(err)
-	}
-	deptdb, err := txnroot.OpenDBI("departments", lmdb.Create)
-	if err != nil {
-		log.Panic(err)
-	}
-	defer func() {
-		// sub transactions prevent the database from entering an inconsistent
-		// state and we can always commit.
-		err := txnroot.Commit()
-		if err != nil {
-			log.Panic(err)
-		}
-	}()
-
-	// dumpdb writes a database's contents to w as a two-column space delimited
-	// list.
-	dumpdb := func(w io.Writer, txn *lmdb.Txn, db lmdb.DBI) (err error) {
-		tw := tabwriter.NewWriter(w, 8, 2, 2, ' ', 0)
-		w = tw
-		defer func() {
-			if err == nil {
-				err = tw.Flush()
-			}
-		}()
-		c, err := txn.OpenCursor(db)
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-		for {
-			k, v, err := c.Get(nil, nil, lmdb.Next)
-			if err == lmdb.ErrNotFound {
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-			_, err = fmt.Fprintf(w, "%s\t%s\n", k, v)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	// popdepts adds depts to deptdb in a transaction.
-	popdepts := func(txn *lmdb.Txn, depts []*Dept) (err error) {
-		for _, dept := range depts {
-			p, err := json.Marshal(dept)
-			if err != nil {
-				return fmt.Errorf("json: %v", err)
-			}
-			err = txn.Put(deptdb, []byte(dept.ID), p, 0)
-			if err != nil {
-				return fmt.Errorf("put: %v", err)
-			}
-		}
-		return nil
-	}
-	// popempls adds depts to deptdb in a transaction.
-	popempls := func(txn *lmdb.Txn, empls []*Employee) (err error) {
-		for _, empl := range empls {
-			p, err := json.Marshal(empl)
-			if err != nil {
-				return fmt.Errorf("json: %v", err)
-			}
-			err = txn.Put(empldb, []byte(empl.ID), p, 0)
-			if err != nil {
-				return fmt.Errorf("put: %v", err)
-			}
-		}
-		return nil
-	}
-	// depdept removes a department and all its employees. sometimes downsizing
-	// is necessary for continued fiscal viability.
-	deldept := func(txn *lmdb.Txn, id string) (err error) {
-		// delemplsbydept locates all employees in the department and deletes
-		// them using the supplied transaction.
-		delemplsbydept := func(txn *lmdb.Txn) error {
-			c, err := txn.OpenCursor(empldb)
-			if err != nil {
-				return err
-			}
-			defer c.Close()
-
-			for {
-				_, v, err := c.Get(nil, nil, lmdb.Next)
-				if err == lmdb.ErrNotFound {
-					return nil
-				}
-				if err != nil {
-					return fmt.Errorf("get: %v", err)
-				}
-				empl := new(Employee)
-				err = json.Unmarshal(v, empl)
-				if err != nil {
-					return fmt.Errorf("json: %v", err)
-				}
-				if empl.DeptID == id {
-					err := c.Del(0)
-					if err != nil {
-						return fmt.Errorf("del: %v", err)
-					}
-				}
-			}
-		}
-
-		txnempl, err := env.BeginTxn(txn, 0)
-		if err != nil {
-			return err
-		}
-		err = delemplsbydept(txnempl)
-		if err != nil {
-			txnempl.Abort()
-		} else {
-			err = txnempl.Commit()
-		}
-		if err != nil {
-			return fmt.Errorf("empl: %v", err)
-		}
-
-		err = txn.Del(deptdb, []byte(id), nil)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// populate the department database
-	depts := []*Dept{
-		{"eng", "engineering"},
-		{"mkt", "marketing"},
-	}
-	txndept, err := env.BeginTxn(txnroot, 0)
-	if err != nil {
-		txndept.Abort()
-		log.Panic(err)
-	}
-	err = popdepts(txndept, depts)
-	if err != nil {
-		txndept.Abort()
-	} else {
-		err = txndept.Commit()
-	}
-	if err != nil {
-		log.Panic(err)
-	}
-
-	// populate the employee database
-	empls := []*Employee{
-		{"e1341", "eng"},
-		{"e3251", "mkt"},
-		{"e7371", "mkt"},
-	}
-	txnempl, err := env.BeginTxn(txnroot, 0)
-	if err != nil {
-		log.Panic(err)
-	}
-	err = popempls(txnempl, empls)
-	if err != nil {
-		txnempl.Abort()
-	} else {
-		err = txnempl.Commit()
-	}
-	if err != nil {
-		log.Panic(err)
-	}
-
-	// delete the marketing department
-	txnempl, err = env.BeginTxn(txnroot, 0)
-	if err != nil {
-		log.Panic(err)
-	}
-	err = deldept(txnempl, "mkt")
-	if err != nil {
-		txnempl.Abort()
-	} else {
-		err = txnempl.Commit()
-	}
-	if err != nil {
-		log.Panic(err)
-	}
-
-	txndump, err := env.BeginTxn(txnroot, 0)
-	if err != nil {
-		log.Panic(err)
-	}
-	fmt.Println("deptdb")
-	err = dumpdb(os.Stdout, txndump, deptdb)
-	if err != nil {
-		txndump.Abort()
-		log.Print(err)
-	}
-	fmt.Println("empldb")
-	err = dumpdb(os.Stdout, txndump, empldb)
-	if err != nil {
-		txndump.Abort()
-		log.Print(err)
-	}
-	txndump.Abort()
-
-	// Output:
-	// deptdb
-	// eng     {"Name":"engineering"}
-	// empldb
-	// e1341   {"DeptID":"eng"}
-}
+// These values shouldn't actually be assigned to.  The are used as stand-ins
+// for tests which do not act as tests.
+var EnvEx *lmdb.Env
+var DBIEx lmdb.DBI
 
 // This complete example demonstrates populating and iterating a database with
 // the DupFixed|DupSort DBI flags.  The use case is probably too trivial to
@@ -271,7 +23,7 @@ func Example_nested() {
 //
 // Note the importance of supplying both DupFixed and DupSort flags on database
 // creation.
-func Example_dupFixed() {
+func ExampleEnv_dupFixed() {
 	// Open an environment as normal. DupSort is applied at the database level.
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -294,104 +46,107 @@ func Example_dupFixed() {
 
 	// open the database of friends' phone numbers.  in this limited world
 	// phone nubers are all the same length.
-	txn, err := env.BeginTxn(nil, 0)
+	var phonedbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		phonedbi, err = txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort|lmdb.DupFixed)
+		return
+	})
 	if err != nil {
-		log.Panic(err)
-	}
-	phonedb, err := txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort|lmdb.DupFixed)
-	if err != nil {
-		txn.Abort()
-		log.Panic(err)
+		panic(err)
 	}
 
 	// load entries into the database using PutMulti.  the numbers must be
 	// sorted so they may be contiguous in memory.
-	entries := []struct {
-		name    string
-		numbers []string
-	}{
-		{"alice", []string{"234-1234"}},
-		{"bob", []string{"825-1234"}},
-		{"carol", []string{"502-1234", "824-1234", "828-1234"}},
-		{"bob", []string{"433-1234", "957-1234"}}, // sorted dup values may be interleaved with existing dups
-		{"jenny", []string{"867-5309"}},
-	}
-	cur, err := txn.OpenCursor(phonedb)
-	if err != nil {
-		txn.Abort()
-		log.Panic(err)
-	}
-	for _, e := range entries {
-		sort.Strings(e.numbers)
-		pnums := make([][]byte, len(e.numbers))
-		for i := range e.numbers {
-			pnums[i] = []byte(e.numbers[i])
+	err = env.Update(func(txn *lmdb.Txn) error {
+		entries := []struct {
+			name    string
+			numbers []string
+		}{
+			{"alice", []string{"234-1234"}},
+			{"bob", []string{"825-1234"}},
+			{"carol", []string{"502-1234", "824-1234", "828-1234"}},
+			{"bob", []string{"433-1234", "957-1234"}}, // sorted dup values may be interleaved with existing dups
+			{"jenny", []string{"867-5309"}},
 		}
-		page := bytes.Join(pnums, nil)
-		err = cur.PutMulti([]byte(e.name), page, len(e.numbers[0]), 0)
+		cur, err := txn.OpenCursor(phonedbi)
 		if err != nil {
-			txn.Abort()
-			log.Panic(err)
+			return fmt.Errorf("cursor: %v", err)
 		}
-	}
-	cur.Close()
-	err = txn.Commit()
+		defer cur.Close()
+
+		for _, e := range entries {
+			sort.Strings(e.numbers)
+			pnums := make([][]byte, len(e.numbers))
+			for i := range e.numbers {
+				pnums[i] = []byte(e.numbers[i])
+			}
+			page := bytes.Join(pnums, nil)
+			err = cur.PutMulti([]byte(e.name), page, len(e.numbers[0]), 0)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 
 	// grabs the first (partial) page of phone numbers for each name and print
 	// them.
-	txn, err = env.BeginTxn(nil, lmdb.Readonly)
+	err = env.View(func(txn *lmdb.Txn) error {
+		cur, err := txn.OpenCursor(phonedbi)
+		if err != nil {
+			return fmt.Errorf("cursor: %v", err)
+		}
+		defer cur.Close()
+		for {
+			// move to the next key
+			k, vfirst, err := cur.Get(nil, nil, lmdb.NextNoDup)
+			if err == lmdb.ErrNotFound {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("get: nextnodup: %v", err)
+			}
+
+			// determine if multiple keys should be printed and short circuit if
+			// so.
+			ndup, err := cur.Count()
+			if err != nil {
+				return fmt.Errorf("count: %v", err)
+			}
+			if ndup < 2 {
+				fmt.Printf("%s %s\n", k, vfirst)
+				continue
+			}
+
+			// get a page of records and split it into discrete values.  the length
+			// of the first dup is used to split the page of contiguous values.
+			_, page, err := cur.Get(nil, nil, lmdb.GetMultiple)
+			if err != nil {
+				return fmt.Errorf("get: multiple: %v", err)
+			}
+			m, err := lmdb.WrapMulti(page, len(vfirst))
+			if err != nil {
+				return fmt.Errorf("wrapmulti: %v", err)
+			}
+			numbers := m.Bytes()
+
+			// print the phone numbers for the person
+			prim, others := numbers[0], numbers[1:]
+			fmt.Printf("%s %s\n", k, prim)
+			ph := bytes.Repeat([]byte{' '}, len(k))
+			for i := range others {
+				fmt.Printf("%s %s\n", ph, others[i])
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		log.Panic(err)
-	}
-	defer txn.Abort()
-	cur, err = txn.OpenCursor(phonedb)
-	if err != nil {
-		txn.Abort()
-		log.Panic(err)
-	}
-	for {
-		// move to the next key
-		k, vfirst, err := cur.Get(nil, nil, lmdb.NextNoDup)
-		if err == lmdb.ErrNotFound {
-			break
-		}
-		if err != nil {
-			log.Panic(err)
-		}
-
-		// determine if multiple keys should be printed and short circuit if
-		// so.
-		ndup, err := cur.Count()
-		if err != nil {
-			log.Panic(err)
-		}
-		if ndup < 2 {
-			fmt.Printf("%s %s\n", k, vfirst)
-			continue
-		}
-
-		// get a page of records and split it into discrete values.  the length
-		// of the first dup is used to split the page of contiguous values.
-		_, page, err := cur.Get(nil, nil, lmdb.GetMultiple)
-		if err != nil {
-			log.Panic(err)
-		}
-		m, err := lmdb.WrapMulti(page, len(vfirst))
-		if err != nil {
-			log.Panic(err)
-		}
-		numbers := m.Bytes()
-
-		// print the phone numbers for the person
-		prim, others := numbers[0], numbers[1:]
-		fmt.Printf("%s %s\n", k, prim)
-		ph := bytes.Repeat([]byte{' '}, len(k))
-		for i := range others {
-			fmt.Printf("%s %s\n", ph, others[i])
-		}
+		panic(err)
 	}
 
 	// Output:
@@ -407,7 +162,7 @@ func Example_dupFixed() {
 
 // This complete example demonstrates populating and iterating a database with
 // the DupSort DBI flags.
-func Example_dupSort() {
+func ExampleEnv_dupSort() {
 	// Open an environment as normal. DupSort is applied at the database level.
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -428,77 +183,78 @@ func Example_dupSort() {
 		log.Panic(err)
 	}
 
+	var phonedbi lmdb.DBI
+
 	// open the database of friends' phone numbers.  a single person can have
 	// multiple phone numbers.
-	txn, err := env.BeginTxn(nil, 0)
-	if err != nil {
-		log.Panic(err)
-	}
-	phonedb, err := txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort)
-	if err != nil {
-		txn.Abort()
-		log.Panic(err)
-	}
-	cur, err := txn.OpenCursor(phonedb)
-	if err != nil {
-		txn.Abort()
-		log.Panic(err)
-	}
-	entries := []struct{ name, number string }{
-		{"alice", "234-1234"},
-		{"bob", "825-1234"},
-		{"carol", "824-1234"},
-		{"carol", "828-1234"}, // DupSort stores multiple values for a key.
-		{"carol", "502-1234"}, // DupSort values are stored in sorted order.
-		{"jenny", "867-5309"},
-	}
-	for _, e := range entries {
-		err = cur.Put([]byte(e.name), []byte(e.number), 0)
+	err = env.Update(func(txn *lmdb.Txn) error {
+		dbi, err := txn.OpenDBI("phone-numbers", lmdb.Create|lmdb.DupSort)
 		if err != nil {
-			txn.Abort()
-			log.Panic(err)
+			return err
 		}
-	}
-	cur.Close()
-	err = txn.Commit()
+		phonedbi = dbi
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		entries := []struct{ name, number string }{
+			{"alice", "234-1234"},
+			{"bob", "825-1234"},
+			{"carol", "824-1234"},
+			{"carol", "828-1234"}, // DupSort stores multiple values for a key.
+			{"carol", "502-1234"}, // DupSort values are stored in sorted order.
+			{"jenny", "867-5309"},
+		}
+		for _, e := range entries {
+			err = cur.Put([]byte(e.name), []byte(e.number), 0)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 
 	// iterate the database and print the first two phone numbers for each
 	// person.  this is similar to iterating a database normally but the
 	// NextNoDup flag may be used to skip ahead.
-	var lastk []byte
-	var isdup bool
-	txn, err = env.BeginTxn(nil, lmdb.Readonly)
-	if err != nil {
-		log.Panic(err)
-	}
-	defer txn.Abort()
-	cur, err = txn.OpenCursor(phonedb)
-	if err != nil {
-		txn.Abort()
-		log.Panic(err)
-	}
-	var next uint // zero is lmdb.First
-	for {
-		k, v, err := cur.Get(nil, nil, next)
-		if err == lmdb.ErrNotFound {
-			break
-		}
+	env.View(func(txn *lmdb.Txn) error {
+		var lastk []byte
+		var isdup bool
+		cur, err := txn.OpenCursor(phonedbi)
 		if err != nil {
-			log.Panic(err)
-		}
-		next = lmdb.Next
-		isdup, lastk = bytes.Equal(lastk, k), k
-
-		// jump to the next key and omit the name
-		if isdup {
-			next = lmdb.NextNoDup
-			k = bytes.Repeat([]byte{' '}, len(k))
+			return err
 		}
 
-		fmt.Printf("%s %s\n", k, v)
+		var next uint // zero is lmdb.First
+		for {
+			k, v, err := cur.Get(nil, nil, next)
+			if err == lmdb.ErrNotFound {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			next = lmdb.Next
+			isdup, lastk = bytes.Equal(lastk, k), k
+
+			// jump to the next key and omit the name
+			if isdup {
+				next = lmdb.NextNoDup
+				k = bytes.Repeat([]byte{' '}, len(k))
+			}
+
+			fmt.Printf("%s %s\n", k, v)
+		}
+
+		return nil
+	})
+	if err != nil {
+		panic(err)
 	}
 
 	// Output:
@@ -524,27 +280,25 @@ func ExampleEnv() {
 	env.Open(path, 0, 0664)
 	defer env.Close()
 
-	// open a database, creating it if necessary.
-	txn, err := env.BeginTxn(nil, 0)
-	if err != nil {
-		panic(err)
-	}
-	db, err := txn.OpenDBI("exampledb", lmdb.Create)
-	if err != nil {
-		txn.Abort()
-		panic(err)
-	}
+	err = env.Update(func(txn *lmdb.Txn) error {
+		// open a database, creating it if necessary.
+		db, err := txn.OpenDBI("exampledb", lmdb.Create)
+		if err != nil {
+			return err
+		}
 
-	// get statistics about the db. print the number of key-value pairs (it
-	// should be empty).
-	stat, err := txn.Stat(db)
-	if err != nil {
-		txn.Abort()
-		panic(err)
-	}
-	fmt.Println(stat.Entries)
+		// get statistics about the db. print the number of key-value pairs (it
+		// should be empty).
+		stat, err := txn.Stat(db)
+		if err != nil {
+			return err
+		}
+		fmt.Println(stat.Entries)
 
-	err = txn.Commit()
+		// commit the transaction, writing an entry for the newly created
+		// database.
+		return nil
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -570,29 +324,62 @@ func ExampleTxn() {
 	defer env.Close()
 
 	// open a database.
-	txn, _ := env.BeginTxn(nil, 0)
-	db, _ := txn.OpenDBI("exampledb", lmdb.Create)
-	txn.Commit()
+	var dbi lmdb.DBI
+	err := env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenDBI("exampledb", lmdb.Create)
+		// the transaction will be commited if the database was successfully
+		// opened/created.
+		return
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	// write some data
-	txn, _ = env.BeginTxn(nil, 0)
-	txn.Put(db, []byte("key0"), []byte("val0"), 0)
-	txn.Put(db, []byte("key1"), []byte("val1"), 0)
-	txn.Put(db, []byte("key2"), []byte("val2"), 0)
+	err = env.Update(func(txn *lmdb.Txn) error {
+		err := txn.Put(dbi, []byte("key0"), []byte("val0"), 0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("key1"), []byte("val1"), 0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("key2"), []byte("val2"), 0)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
 
-	// inspect the transaction
-	stat, _ := txn.Stat(db)
-	fmt.Println(stat.Entries)
+	// inspect the database
+	err = env.View(func(txn *lmdb.Txn) error {
+		stat, err := txn.Stat(dbi)
+		if err != nil {
+			return err
+		}
+		fmt.Println(stat.Entries)
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
 
-	// commit the transaction
-	_ = txn.Commit()
-
-	// perform random access on db.  Transactions created with the
-	// lmdb.Readonly flag can always be aborted.
-	txn, _ = env.BeginTxn(nil, lmdb.Readonly)
-	defer txn.Abort()
-	bval, _ := txn.Get(db, []byte("key1"))
-	fmt.Println(string(bval))
+	// perform random access on the database
+	err = env.Update(func(txn *lmdb.Txn) error {
+		bval, err := txn.Get(dbi, []byte("key1"))
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(bval))
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	// Output:
 	// 3
@@ -614,40 +401,72 @@ func ExampleCursor() {
 	defer env.Close()
 
 	// open a database.
-	txn, _ := env.BeginTxn(nil, 0)
-	db, _ := txn.OpenDBI("exampledb", lmdb.Create)
-	txn.Commit()
+	var dbi lmdb.DBI
+	err := env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenDBI("exampledb", lmdb.Create)
+		return
+	})
+	if err != nil {
+		panic(err)
+	}
 
-	// write some data
-	txn, _ = env.BeginTxn(nil, 0)
-	cursor, _ := txn.OpenCursor(db)
-	cursor.Put([]byte("key0"), []byte("val0"), 0)
-	cursor.Put([]byte("key1"), []byte("val1"), 0)
-	cursor.Put([]byte("key2"), []byte("val2"), 0)
-	cursor.Close()
-
-	// inspect the transaction
-	stat, _ := txn.Stat(db)
-	fmt.Println(stat.Entries)
-
-	// commit the transaction
-	_ = txn.Commit()
-
-	// scan the database
-	txn, _ = env.BeginTxn(nil, lmdb.Readonly)
-	defer txn.Abort()
-	cursor, _ = txn.OpenCursor(db)
-	defer cursor.Close()
-
-	for {
-		bkey, bval, err := cursor.Get(nil, nil, lmdb.Next)
-		if err == lmdb.ErrNotFound {
-			break
-		}
+	// write some data and print the number of items written
+	err = env.Update(func(txn *lmdb.Txn) error {
+		cursor, err := txn.OpenCursor(dbi)
 		if err != nil {
-			panic(err)
+			return err
 		}
-		fmt.Printf("%s: %s\n", bkey, bval)
+		defer cursor.Close()
+
+		err = cursor.Put([]byte("key0"), []byte("val0"), 0)
+		if err != nil {
+			return err
+		}
+		err = cursor.Put([]byte("key1"), []byte("val1"), 0)
+		if err != nil {
+			return err
+		}
+		err = cursor.Put([]byte("key2"), []byte("val2"), 0)
+		if err != nil {
+			return err
+		}
+
+		// inspect the transaction
+		stat, err := txn.Stat(dbi)
+		if err != nil {
+			return err
+		}
+		fmt.Println(stat.Entries)
+
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// scan the database and print all key-value pairs
+	err = env.View(func(txn *lmdb.Txn) error {
+		cursor, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cursor.Close()
+
+		for {
+			bkey, bval, err := cursor.Get(nil, nil, lmdb.Next)
+			if err == lmdb.ErrNotFound {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s: %s\n", bkey, bval)
+		}
+
+		return nil
+	})
+	if err != nil {
+		panic(err)
 	}
 
 	// Output:
@@ -655,4 +474,47 @@ func ExampleCursor() {
 	// key0: val0
 	// key1: val1
 	// key2: val2
+}
+
+// This example shows how to properly handle data retrieved from the database
+// and applies to Txn.Get() as well as Cursor.Get().  It is important to handle
+// data retreival carefully to make sure the application does not retain
+// pointers to memory pages which may be reclaimed by LMDB after the
+// transaction terminates.  Typically an application would define helper
+// functions/methods to conveniently handle data safe retrieval.
+func ExampleTxn_get() {
+	// variables to hold data extracted from the database
+	var point struct{ X, Y int }
+	var str string
+	var p1, p2 []byte
+
+	// extract data from an example environment/database.  it is critical for application
+	// code to handle errors  but that is omitted here to save space.
+	EnvEx.View(func(txn *lmdb.Txn) (err error) {
+		// OK
+		// A []byte to string conversion will always copy the data
+		v, _ := txn.Get(DBIEx, []byte("mykey"))
+		str = string(v)
+
+		// OK
+		// If []byte is the desired data type then an explicit copy is required
+		// for safe access after the transaction returns.
+		v, _ = txn.Get(DBIEx, []byte("mykey"))
+		p1 = make([]byte, len(v))
+		copy(p1, v)
+
+		// OK
+		// The data does not need be copied because it is parsed while txn is
+		// open.
+		v, _ = txn.Get(DBIEx, []byte("mykey"))
+		_ = json.Unmarshal(v, &point)
+
+		// BAD
+		// Assigning the result directly to p2 leaves its pointer volatile
+		// after the transaction completes which can result in unpredictable
+		// behavior.
+		p2, _ = txn.Get(DBIEx, []byte("mykey"))
+
+		return nil
+	})
 }

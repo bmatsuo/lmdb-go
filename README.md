@@ -2,16 +2,14 @@
 
 Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
-This is an incompatible fork of "github.com/szferi/gomdb".
-
 This package is experimental and the API signature or its behavior may change
 without notice.
 
-## Differences from gomdb
+## Key Features
 
 - Zero-copy by default
 - Some function signatures have been changed to be easier to use.
-- TODO Serialized transactions safe for concurrent use.
+- Serialized transactions safe for concurrent use.
 
 #Build
 
