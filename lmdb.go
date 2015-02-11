@@ -15,13 +15,15 @@ deciphered.
 Environment
 
 An LMDB environment is represented as one file on the filesystem (though often
-a secondary corresponding lock file exists).  Most commonly the environment is
-opened by supplying a directory path.
+a corresponding lock file exists).  Most commonly the environment is opened by
+supplying a directory path.
 
 	err = env.Open("/path/to/database", 0, 0644)
 
 Data for the above environment will be stored in the file
-"/path/to/database/data.mdb" with permissions 0644.
+"/path/to/database/data.mdb" with permissions 0644.  Additional flags may be
+provided to tune behavior/performance but the defaults are fine for simple
+applications.
 
 Databases
 
@@ -30,15 +32,18 @@ A database is referenced by an opaque handle known as its DBI.  A single LMDB
 environment can have multiple named databases.
 
 There is also a (unnamed) root database that can be used to store data.  But
-the root database must not be used in conjunction with named databases because
-it serves as an index of named databases.  See the Txn.OpenDBI example for more
-details.
+the root database should not be used in conjunction with named databases
+because it serves as an index of named databases.
+
+DBIs may be closed but it is not required.  Typically, applications aquire
+handles for all their databases immediately after opening an environment and
+retain them for the lifetime of the process.
 
 Transactions
 
 Readonly transactions in LMDB operate on a snapshot of the database at the time
-the transaction began.  The number of simultaneously active read transaction is
-bounded and configured when the environment is initialized.
+the transaction began.  The number of simultaneously active read transactions
+is bounded and configured when the environment is initialized.
 
 LMDB allows only one read-write transaction to be active at a time.  Attempts
 to create write transactions will block until no other write transactions are
@@ -50,9 +55,9 @@ used while they have an active subtransaction.
 
 The lmdb package supplies managed, and unmanaged transaction types. Managed
 transactions which do not require explicit calling of Abort()/Commit() are
-provided through Env methods Update(), View(), and RunTxn(). Unmanaged readonly
-transactions created with the method BeginView() and unmanaged readwrite
-transactions with BeginUpdate().
+provided through Env methods Update(), View(), and RunTxn().  The BeginTxn()
+method on Env creates an unmanaged transaction but its use is strongly advised
+against in most applications.
 */
 package lmdb
 

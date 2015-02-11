@@ -2,14 +2,23 @@
 
 Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
+## Experimental
+
 This package is experimental and the API signature or its behavior may change
-without notice.
+without notice. Several questions remain:
+
+- Should it be easier to initialize/open a database?
+- Should errors be abstracted more to provide better diagnostics?
+- Is the current function signature for `Cursor.PutMulti()` the right balance
+  of performance and usability?
+- Is \[Get\]Val necessary for export?
 
 ## Key Features
 
 - Zero-copy by default
-- Some function signatures have been changed to be easier to use.
-- Serialized transactions safe for concurrent use.
+- API inspired by [BoltDB](https://github.com/boltdb/bolt)
+- A full-featured LMDB bindings with comprehensive examples
+- Serialized transactions safe for concurrent use
 
 #Build
 
@@ -29,9 +38,3 @@ reachable through the LMDB [homepage](http://symas.com/mdb/)
 Documentation specific to the Go bindings and how methods differ from their
 underlying C counterparts can be found on
 [godoc.org](http://godoc.org/github.com/bmatsuo/lmdb.exp).
-
-#TODO
-
-- identify missing functions that deserve to be included
-- documentation
-- tests
