@@ -7,8 +7,7 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 This package is experimental and the API signature or its behavior may change
 without notice. Several questions remain:
 
-- Should it be easier to initialize/open a database? (edit(bmatsuo): probably safe to punt)
-- Should errors be abstracted more to provide better diagnostics?
+- Should errors be abstracted more to provide better diagnostics? (edit(bmatsuo): probably, the `return err` convension makes it confusing quickly)
 - Is the `Cursor.PutMulti()` signature the right balance of performance and
   usability?
 
