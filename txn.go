@@ -263,6 +263,20 @@ func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
 	return errno(ret)
 }
 
+// PutReserve returns a []byte of length n that can be written to, potentially
+// avoiding a memcopy.  The returned byte slice is only valid in txn's thread,
+// before it has terminated.
+func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, error) {
+	ckey := wrapVal(key)
+	cval := &mdbVal{mv_size: C.size_t(n)}
+	ret := C.mdb_put(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
+	err := errno(ret)
+	if err != nil {
+		return nil, err
+	}
+	return cval.Bytes(), nil
+}
+
 // Del deletes items from database dbi.
 //
 // See mdb_del.

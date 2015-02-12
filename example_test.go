@@ -521,3 +521,24 @@ func ExampleTxn_Get() {
 		return nil
 	})
 }
+
+// This example demonstrates the use of PutReserve to store a string value in
+// the root database.  This may be faster than Put alone for large values
+// because a string to []byte conversion is not required.
+func ExampleTxn_PutReserve() {
+	EnvEx.Update(func(txn *lmdb.Txn) (err error) {
+		dbroot, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+
+		valstr := "value"
+		p, err := txn.PutReserve(dbroot, []byte("key"), len(valstr), 0)
+		if err != nil {
+			return err
+		}
+		copy(p, valstr)
+
+		return nil
+	})
+}

@@ -38,8 +38,10 @@ const (
 // should instead use the specialized function, PutMulti.  In this area the C
 // API is dark and full of terrors.
 //
-// Note: the MDB_RESERVE flag is somewhat special and does not fit the calling
-// pattern of most calls to Put. It requires a special method (TODO).
+// The MDB_MULTIPLE and MDB_RESERVE flags are special and do not fit the
+// calling pattern of other calls to Put.  They are not exported because they
+// require special methods PutMultiple and PutReserve in which the flag is
+// implied and does not need to be passed.
 //
 // See mdb_put and mdb_cursor_put.
 const (
@@ -48,7 +50,6 @@ const (
 	NoOverwrite = C.MDB_NOOVERWRITE // Store a new key-value pair only if key is not present
 	Append      = C.MDB_APPEND      // Append an item to the database.
 	AppendDup   = C.MDB_APPENDDUP   // Append an item to the database (DupSort).
-	Multiple    = C.MDB_MULTIPLE    // Danger Zone. Store multiple contiguous items (DupSort + DupFixed).
 )
 
 // Cursor operates on data inside a transaction and holds a position in the
@@ -131,11 +132,23 @@ func (cursor *Cursor) Put(key, val []byte, flags uint) error {
 	return cursor.putVal(ckey, cval, flags)
 }
 
+// PutReserve returns a []byte of length n that can be written to, potentially
+// avoiding a memcopy.  The returned byte slice is only valid in txn's thread,
+// before it has terminated.
+func (cursor *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
+	ckey := wrapVal(key)
+	cval := &mdbVal{mv_size: C.size_t(n)}
+	ret := C.mdb_cursor_put(cursor._cursor, (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
+	err := errno(ret)
+	if err != nil {
+		return nil, err
+	}
+	return cval.Bytes(), nil
+}
+
 // PutMulti stores a set of contiguous items with stride size under key.
 // PutMulti returns an error if len(page) is not a multiple of stride.  The
 // cursor's database must be DupFixed and DupSort.
-//
-// PutMulti implies Multiple and it does not need to be supplied in flags.
 //
 // See mdb_cursor_put.
 func (cursor *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
@@ -144,7 +157,7 @@ func (cursor *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) 
 	if err != nil {
 		return err
 	}
-	return cursor.putVal(ckey, cval.val(), flags|Multiple)
+	return cursor.putVal(ckey, cval.val(), flags|C.MDB_MULTIPLE)
 }
 
 // putVal stores an item in the database.
