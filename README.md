@@ -11,7 +11,6 @@ without notice. Several questions remain:
 - Should errors be abstracted more to provide better diagnostics?
 - Is the `Cursor.PutMulti()` signature the right balance of performance and
   usability?
-- Is \[Get\]Val necessary for export? (edit(bmatsuo): probably not initially)
 
 ## Key Features
 

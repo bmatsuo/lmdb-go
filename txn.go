@@ -232,19 +232,19 @@ func (txn *Txn) subFlag(flags uint, fn TxnOp) error {
 //
 // See mdb_get.
 func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
-	val, err := txn.GetVal(dbi, key)
+	val, err := txn.getVal(dbi, key)
 	if err != nil {
 		return nil, err
 	}
 	return val.Bytes(), nil
 }
 
-// GetVal retrieves items from database dbi as a Val.
+// getVal retrieves items from database dbi as a mdbVal.
 //
 // See mdb_get.
-func (txn *Txn) GetVal(dbi DBI, key []byte) (*Val, error) {
-	ckey := Wrap(key)
-	var cval Val
+func (txn *Txn) getVal(dbi DBI, key []byte) (*mdbVal, error) {
+	ckey := wrapVal(key)
+	var cval mdbVal
 	ret := C.mdb_get(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(&cval))
 	err := errno(ret)
 	if err != nil {
@@ -257,8 +257,8 @@ func (txn *Txn) GetVal(dbi DBI, key []byte) (*Val, error) {
 //
 // See mdb_put.
 func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
-	ckey := Wrap(key)
-	cval := Wrap(val)
+	ckey := wrapVal(key)
+	cval := wrapVal(val)
 	ret := C.mdb_put(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags))
 	return errno(ret)
 }
@@ -267,12 +267,12 @@ func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
 //
 // See mdb_del.
 func (txn *Txn) Del(dbi DBI, key, val []byte) error {
-	ckey := Wrap(key)
+	ckey := wrapVal(key)
 	if val == nil {
 		ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), nil)
 		return errno(ret)
 	}
-	cval := Wrap(val)
+	cval := wrapVal(val)
 	ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval))
 	return errno(ret)
 }

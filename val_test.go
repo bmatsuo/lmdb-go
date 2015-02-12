@@ -6,7 +6,7 @@ import (
 
 func TestVal(t *testing.T) {
 	orig := "hey hey"
-	val := Wrap([]byte(orig))
+	val := wrapVal([]byte(orig))
 
 	s := val.String()
 	if s != orig {
@@ -21,7 +21,7 @@ func TestVal(t *testing.T) {
 
 func TestValCopy(t *testing.T) {
 	orig := "hey hey"
-	val := Wrap([]byte(orig))
+	val := wrapVal([]byte(orig))
 
 	s := val.String()
 	if s != orig {

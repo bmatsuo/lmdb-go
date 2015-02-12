@@ -105,19 +105,19 @@ func (cursor *Cursor) DBI() DBI {
 //
 // See mdb_cursor_get.
 func (cursor *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
-	k, v, err := cursor.GetVal(setkey, setval, op)
+	k, v, err := cursor.getVal(setkey, setval, op)
 	if err != nil {
 		return nil, nil, err
 	}
 	return k.Bytes(), v.Bytes(), nil
 }
 
-// GetVal retrieves items from the database.
+// getVal retrieves items from the database.
 //
 // See mdb_cursor_get.
-func (cursor *Cursor) GetVal(setkey, setval []byte, op uint) (key, val *Val, err error) {
-	key = Wrap(setkey)
-	val = Wrap(setval)
+func (cursor *Cursor) getVal(setkey, setval []byte, op uint) (key, val *mdbVal, err error) {
+	key = wrapVal(setkey)
+	val = wrapVal(setval)
 	ret := C.mdb_cursor_get(cursor._cursor, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
 	return key, val, errno(ret)
 }
@@ -126,9 +126,9 @@ func (cursor *Cursor) GetVal(setkey, setval []byte, op uint) (key, val *Val, err
 //
 // See mdb_cursor_put.
 func (cursor *Cursor) Put(key, val []byte, flags uint) error {
-	ckey := Wrap(key)
-	cval := Wrap(val)
-	return cursor.PutVal(ckey, cval, flags)
+	ckey := wrapVal(key)
+	cval := wrapVal(val)
+	return cursor.putVal(ckey, cval, flags)
 }
 
 // PutMulti stores a set of contiguous items with stride size under key.
@@ -139,18 +139,18 @@ func (cursor *Cursor) Put(key, val []byte, flags uint) error {
 //
 // See mdb_cursor_put.
 func (cursor *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
-	ckey := Wrap(key)
+	ckey := wrapVal(key)
 	cval, err := WrapMulti(page, stride)
 	if err != nil {
 		return err
 	}
-	return cursor.PutVal(ckey, cval.val(), flags|Multiple)
+	return cursor.putVal(ckey, cval.val(), flags|Multiple)
 }
 
-// Put stores an item in the database.
+// putVal stores an item in the database.
 //
 // See mdb_cursor_put.
-func (cursor *Cursor) PutVal(key, val *Val, flags uint) error {
+func (cursor *Cursor) putVal(key, val *mdbVal, flags uint) error {
 	ret := C.mdb_cursor_put(cursor._cursor, (*C.MDB_val)(key), (*C.MDB_val)(val), C.uint(flags))
 	return errno(ret)
 }

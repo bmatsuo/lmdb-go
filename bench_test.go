@@ -83,7 +83,7 @@ func BenchmarkTxnGetReadonly(b *testing.B) {
 	b.StopTimer()
 }
 
-// like BenchmarkTxnGetReadonly, but txn.GetVal() is called instead.
+// like BenchmarkTxnGetReadonly, but txn.getVal() is called instead.
 func BenchmarkTxnGetValReadonly(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
@@ -111,7 +111,7 @@ func BenchmarkTxnGetValReadonly(b *testing.B) {
 	defer txn.Abort()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := txn.GetVal(dbi, ps[rand.Intn(len(ps))])
+		_, err := txn.getVal(dbi, ps[rand.Intn(len(ps))])
 		if err == ErrNotFound {
 			continue
 		}
@@ -165,15 +165,12 @@ func BenchmarkCursorScanReadonly(b *testing.B) {
 				}
 				count++
 			}
-			if count != benchDBNumKeys {
-				b.Fatalf("unexpected number of keys: %d", count)
-			}
 		}()
 	}
 	b.StopTimer()
 }
 
-// like BenchmarkCursoreScanReadonly, but cursor.GetVal() is called instead.
+// like BenchmarkCursoreScanReadonly, but cursor.getVal() is called instead.
 func BenchmarkCursorScanValReadonly(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
@@ -207,7 +204,7 @@ func BenchmarkCursorScanValReadonly(b *testing.B) {
 			defer cur.Close()
 			var count int64
 			for {
-				_, _, err := cur.GetVal(nil, nil, Next)
+				_, _, err := cur.getVal(nil, nil, Next)
 				if err == ErrNotFound {
 					return
 				}
@@ -215,9 +212,6 @@ func BenchmarkCursorScanValReadonly(b *testing.B) {
 					b.Fatalf("error getting data: %v", err)
 				}
 				count++
-			}
-			if count != benchDBNumKeys {
-				b.Fatalf("unexpected number of keys: %d", count)
 			}
 		}()
 	}
