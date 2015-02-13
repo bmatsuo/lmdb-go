@@ -13,25 +13,11 @@ import (
 	"unsafe"
 )
 
-// MDB_val
-type mdbVal C.MDB_val
-
 // Multi is a type to hold a page of values retrieved from a database open
 // with DupSort|DupFixed.
+//
+// See mdb_cursor_put and MDB_MULTIPLE.
 type Multi [2]mdbVal
-
-// wrapVal creates an mdbVal that points to p's data. the mdbVal's data must
-// not be freed manually and C references must not survive the garbage
-// collection of p.
-func wrapVal(p []byte) *mdbVal {
-	if len(p) == 0 {
-		return new(mdbVal)
-	}
-	return &mdbVal{
-		mv_size: C.size_t(len(p)),
-		mv_data: unsafe.Pointer(&p[0]),
-	}
-}
 
 // WrapMulti converts a page of contiguous values with stride size into a
 // Multi.  WrapMulti returns an error if len(page) is not a multiple of
@@ -89,7 +75,7 @@ func (val *Multi) Val(i int) []byte {
 	return val.Page()[off : off+stride]
 }
 
-// Len returns the number of items in the Multi.
+// Len returns the number of values in the Multi.
 func (val *Multi) Len() int {
 	return int(val[1].mv_size)
 }
@@ -118,6 +104,22 @@ func (val *Multi) Page() []byte {
 		Cap:  size,
 	}
 	return *(*[]byte)(unsafe.Pointer(&hdr))
+}
+
+// MDB_val
+type mdbVal C.MDB_val
+
+// wrapVal creates an mdbVal that points to p's data. the mdbVal's data must
+// not be freed manually and C references must not survive the garbage
+// collection of p.
+func wrapVal(p []byte) *mdbVal {
+	if len(p) == 0 {
+		return new(mdbVal)
+	}
+	return &mdbVal{
+		mv_size: C.size_t(len(p)),
+		mv_data: unsafe.Pointer(&p[0]),
+	}
 }
 
 // BytesCopy returns a slice copied from the region pointed to by val.
