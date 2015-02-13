@@ -51,35 +51,37 @@ const (
 //
 // See MDB_cursor.
 type Cursor struct {
-	txn     *Txn
-	_cursor *C.MDB_cursor
+	txn *Txn
+	_c  *C.MDB_cursor
 }
 
 func openCursor(txn *Txn, db DBI) (*Cursor, error) {
-	var _cursor *C.MDB_cursor
-	ret := C.mdb_cursor_open(txn._txn, C.MDB_dbi(db), &_cursor)
+	var _c *C.MDB_cursor
+	ret := C.mdb_cursor_open(txn._txn, C.MDB_dbi(db), &_c)
 	if ret != success {
 		return nil, errno(ret)
 	}
-	return &Cursor{txn, _cursor}, nil
+	return &Cursor{txn, _c}, nil
 }
 
 // Renew associates readonly cursor with txn.
 //
 // See mdb_cursor_renew.
-func (cursor *Cursor) Renew(txn *Txn) error {
-	ret := C.mdb_cursor_renew(txn._txn, cursor._cursor)
+func (c *Cursor) Renew(txn *Txn) error {
+	ret := C.mdb_cursor_renew(txn._txn, c._c)
 	return errno(ret)
 }
 
-// Close the cursor handle.  The cursor must not be used after Close returns.
+// Close the cursor handle.  A runtime panic occurs if a the cursor is used
+// after Close is called.
+//
 // Cursors in write transactions must be closed before their transaction is
 // terminated.
 //
 // See mdb_cursor_close.
-func (cursor *Cursor) Close() {
-	C.mdb_cursor_close(cursor._cursor)
-	cursor._cursor = nil
+func (c *Cursor) Close() {
+	C.mdb_cursor_close(c._c)
+	c._c = nil
 }
 
 // Txn returns the cursor's transaction.
@@ -87,10 +89,10 @@ func (cursor *Cursor) Txn() *Txn {
 	return cursor.txn
 }
 
-// DBI returns the cursors database.
-func (cursor *Cursor) DBI() DBI {
+// DBI returns the cursor's database handle.
+func (c *Cursor) DBI() DBI {
 	var _dbi C.MDB_dbi
-	_dbi = C.mdb_cursor_dbi(cursor._cursor)
+	_dbi = C.mdb_cursor_dbi(c._c)
 	return DBI(_dbi)
 }
 
@@ -99,8 +101,8 @@ func (cursor *Cursor) DBI() DBI {
 // result in a panic.
 //
 // See mdb_cursor_get.
-func (cursor *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
-	k, v, err := cursor.getVal(setkey, setval, op)
+func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
+	k, v, err := c.getVal(setkey, setval, op)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -110,29 +112,29 @@ func (cursor *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err 
 // getVal retrieves items from the database.
 //
 // See mdb_cursor_get.
-func (cursor *Cursor) getVal(setkey, setval []byte, op uint) (key, val *mdbVal, err error) {
+func (c *Cursor) getVal(setkey, setval []byte, op uint) (key, val *mdbVal, err error) {
 	key = wrapVal(setkey)
 	val = wrapVal(setval)
-	ret := C.mdb_cursor_get(cursor._cursor, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
+	ret := C.mdb_cursor_get(c._c, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
 	return key, val, errno(ret)
 }
 
 // Put stores an item in the database.
 //
 // See mdb_cursor_put.
-func (cursor *Cursor) Put(key, val []byte, flags uint) error {
+func (c *Cursor) Put(key, val []byte, flags uint) error {
 	ckey := wrapVal(key)
 	cval := wrapVal(val)
-	return cursor.putVal(ckey, cval, flags)
+	return c.putVal(ckey, cval, flags)
 }
 
 // PutReserve returns a []byte of length n that can be written to, potentially
 // avoiding a memcopy.  The returned byte slice is only valid in txn's thread,
 // before it has terminated.
-func (cursor *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
+func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 	ckey := wrapVal(key)
 	cval := &mdbVal{mv_size: C.size_t(n)}
-	ret := C.mdb_cursor_put(cursor._cursor, (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
+	ret := C.mdb_cursor_put(c._c, (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
 	err := errno(ret)
 	if err != nil {
 		return nil, err
@@ -145,37 +147,37 @@ func (cursor *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) 
 // cursor's database must be DupFixed and DupSort.
 //
 // See mdb_cursor_put.
-func (cursor *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
+func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
 	ckey := wrapVal(key)
 	cval, err := WrapMulti(page, stride)
 	if err != nil {
 		return err
 	}
-	return cursor.putVal(ckey, cval.val(), flags|C.MDB_MULTIPLE)
+	return c.putVal(ckey, cval.val(), flags|C.MDB_MULTIPLE)
 }
 
 // putVal stores an item in the database.
 //
 // See mdb_cursor_put.
-func (cursor *Cursor) putVal(key, val *mdbVal, flags uint) error {
-	ret := C.mdb_cursor_put(cursor._cursor, (*C.MDB_val)(key), (*C.MDB_val)(val), C.uint(flags))
+func (c *Cursor) putVal(key, val *mdbVal, flags uint) error {
+	ret := C.mdb_cursor_put(c._c, (*C.MDB_val)(key), (*C.MDB_val)(val), C.uint(flags))
 	return errno(ret)
 }
 
 // Del deletes the item referred to by the cursor from the database.
 //
 // See mdb_cursor_del.
-func (cursor *Cursor) Del(flags uint) error {
-	ret := C.mdb_cursor_del(cursor._cursor, C.uint(flags))
+func (c *Cursor) Del(flags uint) error {
+	ret := C.mdb_cursor_del(c._c, C.uint(flags))
 	return errno(ret)
 }
 
 // Count returns the number of duplicates for the current key.
 //
 // See mdb_cursor_count.
-func (cursor *Cursor) Count() (uint64, error) {
+func (c *Cursor) Count() (uint64, error) {
 	var _size C.size_t
-	ret := C.mdb_cursor_count(cursor._cursor, &_size)
+	ret := C.mdb_cursor_count(c._c, &_size)
 	if ret != success {
 		return 0, errno(ret)
 	}
