@@ -49,7 +49,7 @@ type Env struct {
 	_env *C.MDB_env
 }
 
-// NewEnv allocates and initialized an new Env.
+// NewEnv allocates and initializes a new Env.
 //
 // See mdb_env_create.
 func NewEnv() (*Env, error) {
