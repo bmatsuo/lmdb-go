@@ -77,7 +77,7 @@ func ExampleTxn_OpenDBI() {
 		fmt.Println("databases:")
 		for {
 			k, _, err := cursor.Get(nil, nil, lmdb.Next)
-			if err == lmdb.ErrNotFound {
+			if lmdb.IsNotFound(err) {
 				return nil
 			}
 			if err != nil {
@@ -88,8 +88,8 @@ func ExampleTxn_OpenDBI() {
 	})
 
 	// Output:
-	// db0 MDB_NOTFOUND: No matching key/data pair found
-	// db5 MDB_DBS_FULL: Environment maxdbs limit reached
+	// db0 mdb_dbi_open: MDB_NOTFOUND: No matching key/data pair found
+	// db5 mdb_dbi_open: MDB_DBS_FULL: Environment maxdbs limit reached
 	// databases:
 	//   db1
 	//   db2

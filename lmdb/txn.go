@@ -49,7 +49,7 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	}
 	ret := C.mdb_txn_begin(env._env, ptxn, C.uint(flags), &_txn)
 	if ret != success {
-		return nil, errno(ret)
+		return nil, operrno("mdb_txn_begin", ret)
 	}
 	txn := &Txn{
 		env:  env,
@@ -75,7 +75,7 @@ func (txn *Txn) commit() error {
 	if ret == success {
 		txn._txn = nil
 	}
-	return errno(ret)
+	return operrno("mdb_txn_commit", ret)
 }
 
 // Abort discards pending writes in the transaction.  A Txn cannot be used
@@ -127,7 +127,7 @@ func (txn *Txn) Renew() error {
 
 func (txn *Txn) renew() error {
 	ret := C.mdb_txn_renew(txn._txn)
-	return errno(ret)
+	return operrno("mdb_txn_renew", ret)
 }
 
 // OpenDBI opens a database in the environment.  An error is returned if name is empty.
@@ -153,7 +153,7 @@ func (txn *Txn) CreateDBI(name string) (DBI, error) {
 func (txn *Txn) Flags(dbi DBI) (uint, error) {
 	var cflags C.uint
 	ret := C.mdb_dbi_flags(txn._txn, C.MDB_dbi(dbi), (*C.uint)(&cflags))
-	return uint(cflags), errno(ret)
+	return uint(cflags), operrno("mdb_dbi_flags", ret)
 }
 
 // OpenRoot opens the root database.  Applications should not write to the root
@@ -167,7 +167,7 @@ func (txn *Txn) openDBI(cname *C.char, flags uint) (DBI, error) {
 	var dbi C.MDB_dbi
 	ret := C.mdb_dbi_open(txn._txn, cname, C.uint(flags), &dbi)
 	if ret != success {
-		return DBI(math.NaN()), errno(ret)
+		return DBI(math.NaN()), operrno("mdb_dbi_open", ret)
 	}
 	return DBI(dbi), nil
 }
@@ -179,7 +179,7 @@ func (txn *Txn) Stat(dbi DBI) (*Stat, error) {
 	var _stat C.MDB_stat
 	ret := C.mdb_stat(txn._txn, C.MDB_dbi(dbi), &_stat)
 	if ret != success {
-		return nil, errno(ret)
+		return nil, operrno("mdb_stat", ret)
 	}
 	stat := Stat{PSize: uint(_stat.ms_psize),
 		Depth:         uint(_stat.ms_depth),
@@ -196,7 +196,7 @@ func (txn *Txn) Stat(dbi DBI) (*Stat, error) {
 // See mdb_drop.
 func (txn *Txn) Drop(dbi DBI, del bool) error {
 	ret := C.mdb_drop(txn._txn, C.MDB_dbi(dbi), cbool(del))
-	return errno(ret)
+	return operrno("mdb_drop", ret)
 }
 
 // Sub executes fn in a subtransaction.  Sub commits the subtransaction iff no
@@ -251,7 +251,7 @@ func (txn *Txn) getVal(dbi DBI, key []byte) (*mdbVal, error) {
 	ckey := wrapVal(key)
 	var cval mdbVal
 	ret := C.mdb_get(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(&cval))
-	err := errno(ret)
+	err := operrno("mdb_get", ret)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
 	ckey := wrapVal(key)
 	cval := wrapVal(val)
 	ret := C.mdb_put(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags))
-	return errno(ret)
+	return operrno("mdb_put", ret)
 }
 
 // PutReserve returns a []byte of length n that can be written to, potentially
@@ -275,7 +275,7 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 	ckey := wrapVal(key)
 	cval := &mdbVal{mv_size: C.size_t(n)}
 	ret := C.mdb_put(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
-	err := errno(ret)
+	err := operrno("mdb_put", ret)
 	if err != nil {
 		return nil, err
 	}
@@ -289,11 +289,11 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 	ckey := wrapVal(key)
 	if val == nil {
 		ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), nil)
-		return errno(ret)
+		return operrno("mdb_del", ret)
 	}
 	cval := wrapVal(val)
 	ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval))
-	return errno(ret)
+	return operrno("mdb_del", ret)
 }
 
 // OpenCursor allocates and initializes a Cursor to database dbi.

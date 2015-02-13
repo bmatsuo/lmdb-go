@@ -72,69 +72,6 @@ package lmdb
 */
 import "C"
 
-import (
-	"fmt"
-	"syscall"
-)
-
-// Errno represents the class of error defined by LMDB.  The only values of
-// type Errno returned by the API are those declared as constants in this
-// package.  Other errors resulting from non-zero errno values will be of type
-// syscall.Errno.
-type Errno C.int
-
-// minimum and maximum values produced for the Errno type. syscall.Errnos of
-// other values may still be produced.
-const minErrno, maxErrno C.int = C.MDB_KEYEXIST, C.MDB_LAST_ERRCODE
-
-func (e Errno) Error() string {
-	s := C.GoString(C.mdb_strerror(C.int(e)))
-	if s == "" {
-		return fmt.Sprint("mdb errno:", int(e))
-	}
-	return s
-}
-
-// _errno is for use by tests that can't import C
-func _errno(ret int) error {
-	return errno(C.int(ret))
-}
-
-// errno transforms an integer returned by the LMDB C API into an error value,
-// which may be nil.
-func errno(ret C.int) error {
-	if ret == C.MDB_SUCCESS {
-		return nil
-	}
-	if minErrno <= ret && ret <= maxErrno {
-		return Errno(ret)
-	}
-	return syscall.Errno(ret)
-}
-
-// The set of error codes defined by LMDB are typed constants.
-// See the list of LMDB return codes for more information
-//
-//		http://symas.com/mdb/doc/group__errors.html
-const (
-	ErrKeyExist        Errno = C.MDB_KEYEXIST
-	ErrNotFound        Errno = C.MDB_NOTFOUND
-	ErrPageNotFound    Errno = C.MDB_PAGE_NOTFOUND
-	ErrCorrupted       Errno = C.MDB_CORRUPTED
-	ErrPanic           Errno = C.MDB_PANIC
-	ErrVersionMismatch Errno = C.MDB_VERSION_MISMATCH
-	ErrInvalid         Errno = C.MDB_INVALID
-	ErrMapFull         Errno = C.MDB_MAP_FULL
-	ErrDBsFull         Errno = C.MDB_DBS_FULL
-	ErrReadersFull     Errno = C.MDB_READERS_FULL
-	ErrTLSFull         Errno = C.MDB_TLS_FULL
-	ErrTxnFull         Errno = C.MDB_TXN_FULL
-	ErrCursorFull      Errno = C.MDB_CURSOR_FULL
-	ErrPageFull        Errno = C.MDB_PAGE_FULL
-	ErrMapResized      Errno = C.MDB_MAP_RESIZED
-	ErrIncompatibile   Errno = C.MDB_INCOMPATIBLE
-)
-
 // Version return the major, minor, and patch version numbers of the LMDB C
 // library and a string representation of the version.
 //

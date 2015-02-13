@@ -2,7 +2,6 @@ package lmdb
 
 import (
 	"runtime"
-	"syscall"
 	"testing"
 )
 
@@ -31,7 +30,7 @@ func TestCursorClose(t *testing.T) {
 	cur.Close()
 	cur.Close()
 	err = cur.Put([]byte("closedput"), []byte("shouldfail"), 0)
-	if err != syscall.EINVAL {
-		t.Fatalf("unexpected: %v", err)
+	if err == nil {
+		t.Fatalf("expected error: put on closed cursor")
 	}
 }

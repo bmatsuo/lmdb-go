@@ -65,7 +65,7 @@ func TestEnvOpen(t *testing.T) {
 	if err == nil {
 		t.Errorf("open: must exist")
 	}
-	if !os.IsNotExist(err) {
+	if !IsNotExist(err) {
 		t.Errorf("open: %v", err)
 	}
 

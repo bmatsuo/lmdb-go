@@ -59,7 +59,7 @@ func openCursor(txn *Txn, db DBI) (*Cursor, error) {
 	var _c *C.MDB_cursor
 	ret := C.mdb_cursor_open(txn._txn, C.MDB_dbi(db), &_c)
 	if ret != success {
-		return nil, errno(ret)
+		return nil, operrno("mdb_cursor_open", ret)
 	}
 	return &Cursor{txn, _c}, nil
 }
@@ -69,7 +69,7 @@ func openCursor(txn *Txn, db DBI) (*Cursor, error) {
 // See mdb_cursor_renew.
 func (c *Cursor) Renew(txn *Txn) error {
 	ret := C.mdb_cursor_renew(txn._txn, c._c)
-	return errno(ret)
+	return operrno("mdb_cursor_renew", ret)
 }
 
 // Close the cursor handle.  A runtime panic occurs if a the cursor is used
@@ -116,7 +116,7 @@ func (c *Cursor) getVal(setkey, setval []byte, op uint) (key, val *mdbVal, err e
 	key = wrapVal(setkey)
 	val = wrapVal(setval)
 	ret := C.mdb_cursor_get(c._c, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
-	return key, val, errno(ret)
+	return key, val, operrno("mdb_cursor_get", ret)
 }
 
 // Put stores an item in the database.
@@ -135,7 +135,7 @@ func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 	ckey := wrapVal(key)
 	cval := &mdbVal{mv_size: C.size_t(n)}
 	ret := C.mdb_cursor_put(c._c, (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
-	err := errno(ret)
+	err := operrno("mdb_cursor_put", ret)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 // See mdb_cursor_put.
 func (c *Cursor) putVal(key, val *mdbVal, flags uint) error {
 	ret := C.mdb_cursor_put(c._c, (*C.MDB_val)(key), (*C.MDB_val)(val), C.uint(flags))
-	return errno(ret)
+	return operrno("mdb_cursor_put", ret)
 }
 
 // Del deletes the item referred to by the cursor from the database.
@@ -169,7 +169,7 @@ func (c *Cursor) putVal(key, val *mdbVal, flags uint) error {
 // See mdb_cursor_del.
 func (c *Cursor) Del(flags uint) error {
 	ret := C.mdb_cursor_del(c._c, C.uint(flags))
-	return errno(ret)
+	return operrno("mdb_cursor_del", ret)
 }
 
 // Count returns the number of duplicates for the current key.
@@ -179,7 +179,7 @@ func (c *Cursor) Count() (uint64, error) {
 	var _size C.size_t
 	ret := C.mdb_cursor_count(c._c, &_size)
 	if ret != success {
-		return 0, errno(ret)
+		return 0, operrno("mdb_cursor_count", ret)
 	}
 	return uint64(_size), nil
 }

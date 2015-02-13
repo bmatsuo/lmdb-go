@@ -4,24 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"syscall"
 	"testing"
 )
-
-func TestErrno(t *testing.T) {
-	zeroerr := errno(0)
-	if zeroerr != nil {
-		t.Errorf("errno(0) != nil: %#v", zeroerr)
-	}
-	syserr := _errno(int(syscall.EINVAL))
-	if syserr != syscall.EINVAL { // fails if syserr is Errno(syscall.EINVAL)
-		t.Errorf("errno(syscall.EINVAL) != syscall.EINVAL: %#v", syserr)
-	}
-	mdberr := _errno(int(ErrKeyExist))
-	if mdberr != ErrKeyExist { // fails if syserr is Errno(syscall.EINVAL)
-		t.Errorf("errno(ErrKeyExist) != ErrKeyExist: %#v", syserr)
-	}
-}
 
 func TestTest1(t *testing.T) {
 	env, err := NewEnv()
@@ -94,7 +78,7 @@ func TestTest1(t *testing.T) {
 		var bNumVal int
 		for {
 			bkey, bval, err = cursor.Get(nil, nil, Next)
-			if err == ErrNotFound {
+			if IsNotFound(err) {
 				break
 			}
 			if err != nil {

@@ -73,7 +73,7 @@ func BenchmarkTxnGetReadonly(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := txn.Get(dbi, ps[rand.Intn(len(ps))])
-		if err == ErrNotFound {
+		if IsNotFound(err) {
 			continue
 		}
 		if err != nil {
@@ -112,7 +112,7 @@ func BenchmarkTxnGetValReadonly(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := txn.getVal(dbi, ps[rand.Intn(len(ps))])
-		if err == ErrNotFound {
+		if IsNotFound(err) {
 			continue
 		}
 		if err != nil {
@@ -157,7 +157,7 @@ func BenchmarkCursorScanReadonly(b *testing.B) {
 			var count int64
 			for {
 				_, _, err := cur.Get(nil, nil, Next)
-				if err == ErrNotFound {
+				if IsNotFound(err) {
 					return
 				}
 				if err != nil {
@@ -205,7 +205,7 @@ func BenchmarkCursorScanValReadonly(b *testing.B) {
 			var count int64
 			for {
 				_, _, err := cur.getVal(nil, nil, Next)
-				if err == ErrNotFound {
+				if IsNotFound(err) {
 					return
 				}
 				if err != nil {

@@ -56,7 +56,7 @@ func NewEnv() (*Env, error) {
 	var _env *C.MDB_env
 	ret := C.mdb_env_create(&_env)
 	if ret != success {
-		return nil, errno(ret)
+		return nil, operrno("mdb_env_create", ret)
 	}
 	return &Env{_env}, nil
 }
@@ -69,7 +69,7 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_open(env._env, cpath, C.uint(NoTLS|flags), C.mdb_mode_t(mode))
-	return errno(ret)
+	return operrno("mdb_env_open", ret)
 }
 
 // Close shuts down the environment and releases the memory map.
@@ -91,7 +91,7 @@ func (env *Env) Copy(path string) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_copy(env._env, cpath)
-	return errno(ret)
+	return operrno("mdb_env_copy", ret)
 }
 
 // CopyFlag copies the data in env to an environment at path created with flags.
@@ -101,7 +101,7 @@ func (env *Env) CopyFlag(path string, flags uint) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_copy2(env._env, cpath, C.uint(flags))
-	return errno(ret)
+	return operrno("mdb_env_copy2", ret)
 }
 
 // Statistics for a database in the environment
@@ -123,7 +123,7 @@ func (env *Env) Stat() (*Stat, error) {
 	var _stat C.MDB_stat
 	ret := C.mdb_env_stat(env._env, &_stat)
 	if ret != success {
-		return nil, errno(ret)
+		return nil, operrno("mdb_env_stat", ret)
 	}
 	stat := Stat{PSize: uint(_stat.ms_psize),
 		Depth:         uint(_stat.ms_depth),
@@ -152,7 +152,7 @@ func (env *Env) Info() (*EnvInfo, error) {
 	var _info C.MDB_envinfo
 	ret := C.mdb_env_info(env._env, &_info)
 	if ret != success {
-		return nil, errno(ret)
+		return nil, operrno("mdb_env_info", ret)
 	}
 	info := EnvInfo{
 		MapSize:    int64(_info.me_mapsize),
@@ -170,7 +170,7 @@ func (env *Env) Info() (*EnvInfo, error) {
 // See mdb_env_sync.
 func (env *Env) Sync(force bool) error {
 	ret := C.mdb_env_sync(env._env, cbool(force))
-	return errno(ret)
+	return operrno("mdb_env_sync", ret)
 }
 
 // SetFlags sets flags in the environment.
@@ -178,7 +178,7 @@ func (env *Env) Sync(force bool) error {
 // See mdb_env_set_flags.
 func (env *Env) SetFlags(flags uint) error {
 	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(1))
-	return errno(ret)
+	return operrno("mdb_env_set_flags", ret)
 }
 
 // UnsetFlags clears flags in the environment.
@@ -186,7 +186,7 @@ func (env *Env) SetFlags(flags uint) error {
 // See mdb_env_set_flags.
 func (env *Env) UnsetFlags(flags uint) error {
 	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(0))
-	return errno(ret)
+	return operrno("mdb_env_set_flags", ret)
 }
 
 // Flags returns the flags set in the environment.
@@ -196,7 +196,7 @@ func (env *Env) Flags() (uint, error) {
 	var _flags C.uint
 	ret := C.mdb_env_get_flags(env._env, &_flags)
 	if ret != success {
-		return 0, errno(ret)
+		return 0, operrno("mdb_env_get_flags", ret)
 	}
 	return uint(_flags), nil
 }
@@ -212,7 +212,7 @@ func (env *Env) Path() (string, error) {
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_get_path(env._env, &cpath)
 	if ret != success {
-		return "", errno(ret)
+		return "", operrno("mdb_env_get_path", ret)
 	}
 	if cpath == nil {
 		return "", fmt.Errorf("not open")
@@ -228,7 +228,7 @@ func (env *Env) SetMapSize(size int64) error {
 		return fmt.Errorf("negative size")
 	}
 	ret := C.mdb_env_set_mapsize(env._env, C.size_t(size))
-	return errno(ret)
+	return operrno("mdb_env_set_mapsize", ret)
 }
 
 // SetMaxReaders sets the maximum number of reader slots in the environment.
@@ -239,7 +239,7 @@ func (env *Env) SetMaxReaders(size int) error {
 		return fmt.Errorf("negative size")
 	}
 	ret := C.mdb_env_set_maxreaders(env._env, C.uint(size))
-	return errno(ret)
+	return operrno("mdb_env_set_maxreaders", ret)
 }
 
 // SetMaxDBs sets the maximum number of named databases for the environment.
@@ -250,7 +250,7 @@ func (env *Env) SetMaxDBs(size int) error {
 		return fmt.Errorf("negative size")
 	}
 	ret := C.mdb_env_set_maxdbs(env._env, C.MDB_dbi(size))
-	return errno(ret)
+	return operrno("mdb_env_set_maxdbs", ret)
 }
 
 // BeginTxn is a low-level (potentially dangerous) method to initialize a new

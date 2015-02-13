@@ -103,7 +103,7 @@ func ExampleTxn_dupFixed() {
 		for {
 			// move to the next key
 			name, phoneFirst, err := cur.Get(nil, nil, lmdb.NextNoDup)
-			if err == lmdb.ErrNotFound {
+			if lmdb.IsNotFound(err) {
 				break
 			}
 			if err != nil {
@@ -226,7 +226,7 @@ func ExampleTxn_dupSort() {
 		var nameprev, name, phone []byte
 		for {
 			name, phone, err = cur.Get(nil, nil, lmdb.Next)
-			if err == lmdb.ErrNotFound {
+			if lmdb.IsNotFound(err) {
 				// the database was exausted
 				return nil
 			} else if err != nil {
@@ -447,7 +447,7 @@ func ExampleCursor() {
 
 		for {
 			bkey, bval, err := cursor.Get(nil, nil, lmdb.Next)
-			if err == lmdb.ErrNotFound {
+			if lmdb.IsNotFound(err) {
 				break
 			}
 			if err != nil {
