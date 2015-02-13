@@ -13,15 +13,16 @@ import (
 	"unsafe"
 )
 
-// Database Flags for OpenDBI.
+// BUG(bmatsuo):
+// MDB_INTEGERKEY and MDB_INTEGERDUP aren't usable. I'm not sure they would be
+// faster with the cgo bridge.  They need to be tested and benchmarked.
 const (
-	ReverseKey = C.MDB_REVERSEKEY // use reverse string keys
-	DupSort    = C.MDB_DUPSORT    // use sorted duplicates
-	IntegerKey = C.MDB_INTEGERKEY // numeric keys in native byte order. The keys must all be of the same size.
-	DupFixed   = C.MDB_DUPFIXED   // with DUPSORT, sorted dup items have fixed size
-	IntegerDup = C.MDB_INTEGERDUP // with DUPSORT, dups are numeric in native byte order
-	ReverseDup = C.MDB_REVERSEDUP // with DUPSORT, use reverse string dups
-	Create     = C.MDB_CREATE     // create DB if not already existing
+	// Flags for Txn.OpenDBI.
+	ReverseKey = C.MDB_REVERSEKEY // Use reverse string keys.
+	DupSort    = C.MDB_DUPSORT    // Use sorted duplicates.
+	DupFixed   = C.MDB_DUPFIXED   // Duplicate items have a fixed size (DupSort).
+	ReverseDup = C.MDB_REVERSEDUP // Reverse duplicate values (DupSort).
+	Create     = C.MDB_CREATE     // Create DB if not already existing.
 )
 
 // Txn is a database transaction in an environment.

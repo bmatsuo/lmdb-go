@@ -19,16 +19,16 @@ import (
 // The functions in this API this behavior and its use is not required.
 const success = C.MDB_SUCCESS
 
-// Env flags.
-//
-// See mdb_env_open
 const (
+	// Flags for Env.Open.
+	//
+	// See mdb_env_open
 	FixedMap    = C.MDB_FIXEDMAP   // Danger zone. Map memory at a fixed address.
 	NoSubdir    = C.MDB_NOSUBDIR   // Argument to Open is a file, not a directory.
 	Readonly    = C.MDB_RDONLY     // Used in several functions to denote an object as readonly.
-	WriteMap    = C.MDB_WRITEMAP   // Use a writable memory map
-	NoMetaSync  = C.MDB_NOMETASYNC // Don't fsync metapage after commit
-	NoSync      = C.MDB_NOSYNC     // Don't fsync after commit
+	WriteMap    = C.MDB_WRITEMAP   // Use a writable memory map.
+	NoMetaSync  = C.MDB_NOMETASYNC // Don't fsync metapage after commit.
+	NoSync      = C.MDB_NOSYNC     // Don't fsync after commit.
 	MapAsync    = C.MDB_MAPASYNC   // Flush asynchronously when using the WriteMap flag.
 	NoTLS       = C.MDB_NOTLS      // Danger zone. Tie reader locktable slots to Txn objects instead of threads.
 	NoLock      = C.MDB_NOLOCK     // Danger zone. LMDB does not use any locks. All transactions must serialize.

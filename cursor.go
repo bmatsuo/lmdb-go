@@ -7,11 +7,10 @@ package lmdb
 */
 import "C"
 
-// Flags for the Get method on Cursors.  These flags modify the cursor position
-// and dictate behavior.
-//
-// See MDB_cursor_op.
 const (
+	// Flags for Cursor.Get
+	//
+	// See MDB_cursor_op.
 	First        = C.MDB_FIRST          // The first item.
 	FirstDup     = C.MDB_FIRST_DUP      // The first value of current key (DupSort).
 	GetBoth      = C.MDB_GET_BOTH       // Get the key as well as the value (DupSort).
@@ -22,7 +21,7 @@ const (
 	LastDup      = C.MDB_LAST_DUP       // Position at last value of current key (DupSort).
 	Next         = C.MDB_NEXT           // Next value.
 	NextDup      = C.MDB_NEXT_DUP       // Next value of the current key (DupSort).
-	NextMultiple = C.MDB_NEXT_MULTIPLE  // Get key and up to a page of values from the next cursor position (DupFixed)
+	NextMultiple = C.MDB_NEXT_MULTIPLE  // Get key and up to a page of values from the next cursor position (DupFixed).
 	NextNoDup    = C.MDB_NEXT_NODUP     // The first value of the next key (DupSort).
 	Prev         = C.MDB_PREV           // The previous item.
 	PrevDup      = C.MDB_PREV_DUP       // The previous item of the current key (DupSort).
@@ -32,22 +31,17 @@ const (
 	SetRange     = C.MDB_SET_RANGE      // The first key no less than the specified key.
 )
 
-// Flags for the Put method on Cursors.
-//
-// Importers of the package should not use the Multiple flag directly and
-// should instead use the specialized function, PutMulti.  In this area the C
-// API is dark and full of terrors.
-//
 // The MDB_MULTIPLE and MDB_RESERVE flags are special and do not fit the
 // calling pattern of other calls to Put.  They are not exported because they
-// require special methods PutMultiple and PutReserve in which the flag is
+// require special methods, PutMultiple and PutReserve in which the flag is
 // implied and does not need to be passed.
-//
-// See mdb_put and mdb_cursor_put.
 const (
-	Current     = C.MDB_CURRENT     // Replace the item at the current key position (Cursor only).
-	NoDupData   = C.MDB_NODUPDATA   // Store the key-value pair only if key is not present (DupSort)
-	NoOverwrite = C.MDB_NOOVERWRITE // Store a new key-value pair only if key is not present
+	// Flags for Txn.Put and Cursor.Put.
+	//
+	// See mdb_put and mdb_cursor_put.
+	Current     = C.MDB_CURRENT     // Replace the item at the current key position (Cursor only)
+	NoDupData   = C.MDB_NODUPDATA   // Store the key-value pair only if key is not present (DupSort).
+	NoOverwrite = C.MDB_NOOVERWRITE // Store a new key-value pair only if key is not present.
 	Append      = C.MDB_APPEND      // Append an item to the database.
 	AppendDup   = C.MDB_APPENDDUP   // Append an item to the database (DupSort).
 )
