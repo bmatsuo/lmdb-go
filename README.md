@@ -9,7 +9,7 @@ without notice. Several questions remain:
 
 - Should errors be abstracted more to provide better diagnostics? (edit(bmatsuo): probably, the `return err` convension makes it confusing quickly)
 - Is the `Cursor.PutMulti()` signature the right balance of performance and
-  usability?
+  usability? (edit(bmatsuo): i think so; any higher level method should make use of `Cursor.PutMulti`)
 
 ## Key Features
 
