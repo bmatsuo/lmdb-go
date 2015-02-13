@@ -10,6 +10,8 @@ without notice. Several questions remain:
 - Should errors be abstracted more to provide better diagnostics? (edit(bmatsuo): probably, the `return err` convension makes it confusing quickly)
 - Is the `Cursor.PutMulti()` signature the right balance of performance and
   usability? (edit(bmatsuo): i think so; any higher level method should make use of `Cursor.PutMulti`)
+- The Reset/Renew methods probably need tests that they are usable. Benchmarks
+  would be good as well. They might be removed for now.
 
 ## Key Features
 
