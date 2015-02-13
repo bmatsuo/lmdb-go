@@ -132,9 +132,6 @@ func (txn *Txn) renew() error {
 
 // OpenDBI opens a database in the environment.  An error is returned if name is empty.
 //
-// BUG:
-// DBI(math.NaN()) is returned on error which seems really wrong.
-//
 // See mdb_dbi_open.
 func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
 	if name == "" {
