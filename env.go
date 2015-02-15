@@ -309,6 +309,9 @@ func (env *Env) run(flags uint, fn TxnOp) error {
 	return txn.commit()
 }
 
+// runUpdate calls fn with a managed transaction on another goroutine.  The
+// transaction runs inside a goroutine so thread locking does not interact
+// negatively with other objects which would like to lock their thread.
 func (env *Env) runUpdate(flags uint, fn TxnOp) error {
 	errc := make(chan error)
 	go func() {
