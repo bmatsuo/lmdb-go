@@ -149,6 +149,13 @@ func (txn *Txn) CreateDBI(name string) (DBI, error) {
 	return txn.OpenDBI(name, Create)
 }
 
+// Flags returns the database flags for handle dbi.
+func (txn *Txn) Flags(dbi DBI) (uint, error) {
+	var cflags C.uint
+	ret := C.mdb_dbi_flags(txn._txn, C.MDB_dbi(dbi), (*C.uint)(&cflags))
+	return uint(cflags), errno(ret)
+}
+
 // OpenRoot opens the root database.  Applications should not write to the root
 // database if also using named databases as LMDB stores metadata in the root
 // database.

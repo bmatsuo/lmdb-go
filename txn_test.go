@@ -2,12 +2,13 @@ package lmdb
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
 
 func TestTxnUpdate(t *testing.T) {
 	env := setup(t)
-	defer env.Close()
+	defer clean(env, t)
 
 	var db DBI
 	err := env.Update(func(txn *Txn) (err error) {
@@ -44,7 +45,7 @@ func TestTxnUpdate(t *testing.T) {
 
 func TestTxnViewSub(t *testing.T) {
 	env := setup(t)
-	defer env.Close()
+	defer clean(env, t)
 
 	// view transactions cannot create subtransactions.  were it possible, they
 	// would provide no utility.
@@ -65,7 +66,7 @@ func TestTxnViewSub(t *testing.T) {
 
 func TestTxnUpdateSub(t *testing.T) {
 	env := setup(t)
-	defer env.Close()
+	defer clean(env, t)
 
 	var errSubAbort = fmt.Errorf("aborted subtransaction")
 	var db DBI
@@ -120,6 +121,108 @@ func TestTxnUpdateSub(t *testing.T) {
 	})
 	if err != nil {
 		t.Errorf("view: %v", err)
+		return
+	}
+}
+
+func TestTxnFlags(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+
+	dbflags := uint(ReverseKey | ReverseDup | DupSort | DupFixed)
+	err = env.Update(func(txn *Txn) (err error) {
+		db, err := txn.OpenDBI("testdb", dbflags|Create)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(db, []byte("bcd"), []byte("exval1"), 0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(db, []byte("abcda"), []byte("exval3"), 0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(db, []byte("abcda"), []byte("exval2"), 0)
+		if err != nil {
+			return err
+		}
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+		k, v, err := cur.Get(nil, nil, Next)
+		if err != nil {
+			return err
+		}
+		if string(k) != "abcda" { // ReverseKey does not do what one might expect
+			return fmt.Errorf("unexpected first key: %q", k)
+		}
+		if string(v) != "exval2" {
+			return fmt.Errorf("unexpected first value: %q", v)
+		}
+		return nil
+	})
+	env.Close()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// opening the database after it is created inherits the original flags.
+	env, err = NewEnv()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = env.SetMaxDBs(1)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer env.Close()
+	err = env.Open(path, 0, 0644)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = env.View(func(txn *Txn) (err error) {
+		db, err := txn.OpenDBI("testdb", 0)
+		if err != nil {
+			return err
+		}
+		flags, err := txn.Flags(db)
+		if err != nil {
+			return err
+		}
+		if flags != dbflags {
+			return fmt.Errorf("unexpected flags")
+		}
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		k, v, err := cur.Get(nil, nil, Next)
+		if err != nil {
+			return err
+		}
+		if string(k) != "abcda" {
+			return fmt.Errorf("unexpected first key: %q", k)
+		}
+		if string(v) != "exval2" {
+			return fmt.Errorf("unexpected first value: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
 		return
 	}
 }
