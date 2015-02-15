@@ -164,7 +164,8 @@ func (env *Env) Info() (*EnvInfo, error) {
 	return &info, nil
 }
 
-// Sync flushes buffers to disk.
+// Sync flushes buffers to disk.  If force is true a synchronous flush occurs
+// and ignores any NoSync or MapAsync flag on the environment.
 //
 // See mdb_env_sync.
 func (env *Env) Sync(force bool) error {
@@ -172,11 +173,19 @@ func (env *Env) Sync(force bool) error {
 	return errno(ret)
 }
 
-// SetFlags enables/disables flags in the environment.
+// SetFlags sets flags in the environment.
 //
 // See mdb_env_set_flags.
-func (env *Env) SetFlags(flags uint, onoff int) error {
-	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(onoff))
+func (env *Env) SetFlags(flags uint) error {
+	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(1))
+	return errno(ret)
+}
+
+// UnsetFlags clears flags in the environment.
+//
+// See mdb_env_set_flags.
+func (env *Env) UnsetFlags(flags uint) error {
+	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(0))
 	return errno(ret)
 }
 
