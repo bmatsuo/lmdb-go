@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/bmatsuo/lmdb.exp"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 const MB = 1 << 20

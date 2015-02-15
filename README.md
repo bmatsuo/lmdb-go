@@ -1,4 +1,4 @@
-#lmdb [![Build Status](https://travis-ci.org/bmatsuo/lmdb.exp.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb.exp)
+#lmdb [![Build Status](https://travis-ci.org/bmatsuo/lmdb-go.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb-go)
 
 Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
@@ -20,7 +20,7 @@ without notice. Several questions remain:
 
 #Build
 
-`go get github.com/bmatsuo/lmdb.exp`
+`go get github.com/bmatsuo/lmdb-go/lmdb`
 
 There is no dependency on LMDB dynamic library.
 

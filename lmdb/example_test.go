@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/bmatsuo/lmdb.exp"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 // These values shouldn't actually be assigned to.  The are used as stand-ins
