@@ -255,8 +255,8 @@ func (env *Env) SetMaxDBs(size int) error {
 
 // BeginTxn is a low-level (potentially dangerous) method to initialize a new
 // transaction on env.  BeginTxn does not attempt to serialize operations on
-// write transactions to the same OS thread and its use for write transactions
-// can cause undefined results without care.
+// write transactions to the same OS thread and without care its use for write
+// transactions can cause undefined results.
 //
 // Instead of BeginTxn users should call the View, Update, RunTxn methods.
 //

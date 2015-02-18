@@ -4,12 +4,14 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
 ## Experimental
 
-This package is experimental and the API signature or its behavior may change
+This package is experimental and the API signature and behavior may change
 without notice. Several questions remain:
 
-- Should errors be abstracted more to provide better diagnostics? (edit(bmatsuo): probably, the `return err` convension makes it confusing quickly)
+- Should errors be abstracted more to provide better diagnostics?
+  (edit(bmatsuo): probably, the `return err` convension gets confusing quickly)
 - The Reset/Renew methods probably need tests that they are usable. Benchmarks
   would be good as well. They might be removed for now.
+- How are runtime panics handled inside transaction goroutines?
 
 ## Key Features
 
