@@ -44,6 +44,42 @@ func BenchmarkTxnPut(b *testing.B) {
 	bMust(b, err, "commiting transaction")
 }
 
+// repeatedly put (overwrite) keys.
+func BenchmarkTxnPut_writemap(b *testing.B) {
+	initRandSource(b)
+	env, path := setupBenchDBFlags(b, WriteMap)
+	defer teardownBenchDB(b, env, path)
+
+	dbi := openBenchDBI(b, env)
+
+	var ps [][]byte
+
+	rc := newRandSourceCursor()
+	txn, err := env.BeginTxn(nil, 0)
+	bMust(b, err, "starting transaction")
+	for i := 0; i < benchDBNumKeys; i++ {
+		k := makeBenchDBKey(&rc)
+		v := makeBenchDBVal(&rc)
+		err := txn.Put(dbi, k, v, 0)
+		ps = append(ps, k, v)
+		bTxnMust(b, txn, err, "putting data")
+	}
+	err = txn.Commit()
+	bMust(b, err, "commiting transaction")
+
+	txn, err = env.BeginTxn(nil, 0)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		k := ps[rand.Intn(len(ps)/2)*2]
+		v := makeBenchDBVal(&rc)
+		err := txn.Put(dbi, k, v, 0)
+		bTxnMust(b, txn, err, "putting data")
+	}
+	b.StopTimer()
+	err = txn.Commit()
+	bMust(b, err, "commiting transaction")
+}
+
 // repeatedly get random keys.
 func BenchmarkTxnGetReadonly(b *testing.B) {
 	initRandSource(b)
@@ -219,6 +255,10 @@ func BenchmarkCursorScanValReadonly(b *testing.B) {
 }
 
 func setupBenchDB(b *testing.B) (*Env, string) {
+	return setupBenchDBFlags(b, 0)
+
+}
+func setupBenchDBFlags(b *testing.B, flags uint) (*Env, string) {
 	env, err := NewEnv()
 	bMust(b, err, "creating env")
 	err = env.SetMaxDBs(26)
@@ -227,7 +267,7 @@ func setupBenchDB(b *testing.B) (*Env, string) {
 	bMust(b, err, "sizing env")
 	path, err := ioutil.TempDir("", "mdb_test-bench-")
 	bMust(b, err, "creating temp directory")
-	err = env.Open(path, 0, 0644)
+	err = env.Open(path, flags, 0644)
 	if err != nil {
 		teardownBenchDB(b, env, path)
 	}
