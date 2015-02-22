@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"sync/atomic"
 	"testing"
 )
 
@@ -312,10 +313,10 @@ func bTxnMust(b *testing.B, txn *Txn, err error, action string) {
 	}
 }
 
-const randSourceSize = 500 << 20 // size of the 'entropy pool' for random byte generation.
-const benchDBNumKeys = 100000    // number of keys to store in benchmark databases
-const benchDBMaxKeyLen = 30      // maximum length for database keys (size is limited by MDB)
-const benchDBMaxValLen = 2000    // maximum lengh for database values
+const randSourceSize = 10 << 20 // size of the 'entropy pool' for random byte generation.
+const benchDBNumKeys = 100000   // number of keys to store in benchmark databases
+const benchDBMaxKeyLen = 30     // maximum length for database keys (size is limited by MDB)
+const benchDBMaxValLen = 2000   // maximum lengh for database values
 
 func makeBenchDBKey(c *randSourceCursor) []byte {
 	return c.NBytes(rand.Intn(benchDBMaxKeyLen) + 1)
@@ -325,18 +326,20 @@ func makeBenchDBVal(c *randSourceCursor) []byte {
 	return c.NBytes(rand.Intn(benchDBMaxValLen) + 1)
 }
 
-// holds a bunch of random bytes so repeated generation af 'random' slices is
+// holds a bunch of random bytes so repeated generation of 'random' slices is
 // cheap.  acts as a ring which can be read from (although doesn't implement io.Reader).
+var _initRand int32
 var randSource [randSourceSize]byte
 
 func initRandSource(b *testing.B) {
-	if randSource[0] == 0 && randSource[1] == 0 && randSource[2] == 0 && randSource[3] == 0 {
-		b.Logf("initializing random source data")
-		n, err := crand.Read(randSource[:])
-		bMust(b, err, "initializing random source")
-		if n < len(randSource) {
-			b.Fatalf("unable to read enough random source data %d", n)
-		}
+	if atomic.AddInt32(&_initRand, 1) > 1 {
+		return
+	}
+	b.Logf("initializing random source data")
+	n, err := crand.Read(randSource[:])
+	bMust(b, err, "initializing random source")
+	if n < len(randSource) {
+		b.Fatalf("unable to read enough random source data %d", n)
 	}
 }
 
