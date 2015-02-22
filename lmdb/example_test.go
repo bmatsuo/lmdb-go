@@ -128,14 +128,11 @@ func ExampleTxn_dupFixed() {
 			if err != nil {
 				return fmt.Errorf("getmultiple: %v", err)
 			}
-			m, err := lmdb.WrapMulti(page, len(phoneFirst))
-			if err != nil {
-				return fmt.Errorf("wrapmulti: %v", err)
-			}
 
 			// print the phone numbers for the person. the first number is
 			// printed on the same line as the person's name. others numbers of
 			// offset to the same depth as the primary number.
+			m := lmdb.WrapMulti(page, len(phoneFirst))
 			fmt.Printf("%s %s\n", name, m.Val(0))
 			offsetRest := bytes.Repeat([]byte{' '}, len(name))
 			for i, n := 1, m.Len(); i < n; i++ {

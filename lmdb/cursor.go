@@ -143,16 +143,13 @@ func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 }
 
 // PutMulti stores a set of contiguous items with stride size under key.
-// PutMulti returns an error if len(page) is not a multiple of stride.  The
-// cursor's database must be DupFixed and DupSort.
+// PutMulti panics if len(page) is not a multiple of stride.  The cursor's
+// database must be DupFixed and DupSort.
 //
 // See mdb_cursor_put.
 func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
 	ckey := wrapVal(key)
-	cval, err := WrapMulti(page, stride)
-	if err != nil {
-		return err
-	}
+	cval := WrapMulti(page, stride).val()
 	return c.putVal(ckey, cval.val(), flags|C.MDB_MULTIPLE)
 }
 

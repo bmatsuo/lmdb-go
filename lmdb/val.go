@@ -8,102 +8,98 @@ package lmdb
 import "C"
 
 import (
-	"fmt"
 	"reflect"
 	"unsafe"
 )
 
-// Multi is a type to hold a page of values retrieved from a database open
-// with DupSort|DupFixed.
-//
-// See mdb_cursor_put and MDB_MULTIPLE.
-type Multi [2]mdbVal
+type Multi struct {
+	page   []byte
+	stride int
+}
 
 // WrapMulti converts a page of contiguous values with stride size into a
-// Multi.  WrapMulti returns an error if len(page) is not a multiple of
-// stride.
-func WrapMulti(page []byte, stride int) (*Multi, error) {
-	if len(page) == 0 {
-		return new(Multi), nil
-	}
-
+// Multi.  WrapMulti panics if len(page) is not a multiple of stride.
+//
+//		_, val, _ := cursor.Get(nil, nil, lmdb.FirstDup)
+//		_, page, _ := cursor.Get(nil, nil, lmdb.GetMultiple)
+//		multi := lmdb.WrapMulti(page, len(val))
+//
+// See mdb_cursor_get and MDB_GET_MULTIPLE.
+func WrapMulti(page []byte, stride int) *Multi {
 	if len(page)%stride != 0 {
-		return nil, fmt.Errorf("incongruent arguments")
+		panic("incongruent arguments")
 	}
 
-	data := &Multi{
+	return &Multi{page: page, stride: stride}
+}
+
+// Vals returns a slice containing each value in m.
+func (m *Multi) Vals() [][]byte {
+	i, ps := 0, make([][]byte, m.Len())
+	for off := 0; off < len(m.page); off += m.stride {
+		ps[i] = m.page[off : off+m.stride]
+		i++
+	}
+	return ps
+}
+
+// Val returns the m at index i.  Val panics if i is out of range.
+func (m *Multi) Val(i int) []byte {
+	if i < 0 || m.Len() <= i {
+		panic("index out of range")
+	}
+	off := i * m.stride
+	return m.page[off : off+m.stride]
+}
+
+// Len returns the number of m in the Multi.
+func (m *Multi) Len() int {
+	return len(m.page) / m.stride
+}
+
+// Stride returns the length of an individual item in the Multi.
+func (m *Multi) Stride() int {
+	return m.stride
+}
+
+// Size returns the total size of the Multi data and is equim to
+//
+//		m.Len()*m.String()
+//
+func (m *Multi) Size() int {
+	return len(m.page)
+}
+
+// Page returns the Multi page data as a raw slice of bytes with length
+// m.Size().
+func (m *Multi) Page() []byte {
+	return m.page[:len(m.page):len(m.page)]
+}
+
+func (m *Multi) val() *multiVal {
+	return &multiVal{
 		mdbVal{
-			mv_size: C.size_t(stride),
-			mv_data: unsafe.Pointer(&page[0]),
+			mv_size: C.size_t(m.stride),
+			mv_data: unsafe.Pointer(&m.page[0]),
 		},
 		mdbVal{
-			mv_size: C.size_t(len(page) / stride),
+			mv_size: C.size_t(len(m.page) / m.stride),
 		},
 	}
-	return data, nil
 }
+
+// multiVal is a type to hold a page of values retrieved from a database
+// created with DupSort|DupFixed.
+//
+// See mdb_cursor_get and MDB_GET_MULTIPLE.
+type multiVal [2]mdbVal
 
 // val converts a Multi into a pointer to mdbVal.  This effectively creates a
 // C-style array of the Multi data.
 //
 // See mdb_cursor_put and MDB_MULTIPLE.
-func (val *Multi) val() *mdbVal {
+func (val *multiVal) val() *mdbVal {
 	return &val[0]
-}
-
-// Vals returns a slice containing each value in val.
-func (val *Multi) Vals() [][]byte {
-	ps := make([][]byte, 0, val.Len())
-	stride := val.Stride()
-	data := val.Page()
-	for off := 0; off < len(data); off += stride {
-		ps = append(ps, data[off:off+stride])
-	}
-	return ps
-}
-
-// Val returns the value at index i.
-func (val *Multi) Val(i int) []byte {
-	if i < 0 {
-		panic("index out of range")
-	}
-	if i >= val.Len() {
-		panic("index out of range")
-	}
-	stride := val.Stride()
-	off := i * stride
-	return val.Page()[off : off+stride]
-}
-
-// Len returns the number of values in the Multi.
-func (val *Multi) Len() int {
-	return int(val[1].mv_size)
-}
-
-// Stride returns the length of an individual item in the Multi.
-func (val *Multi) Stride() int {
-	return int(val[0].mv_size)
-}
-
-// Size returns the total size of the Multi data and is equivalent to
-//
-//		val.Len()*val.String()
-//
-// BUG:
-// Does not check oveflow.
-func (val *Multi) Size() int {
-	return val.Len() * val.Stride()
-}
-
-// Page returns the Multi page data as a raw slice of bytes with length val.Size().
-func (val *Multi) Page() []byte {
-	size := val.Size()
-	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(val[0].mv_data)),
-		Len:  size,
-		Cap:  size,
-	}
-	return *(*[]byte)(unsafe.Pointer(&hdr))
 }
 
 // MDB_val
