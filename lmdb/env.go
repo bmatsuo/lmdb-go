@@ -310,9 +310,9 @@ func (env *Env) run(flags uint, fn TxnOp) error {
 		return err
 	}
 	txn.managed = true
+	defer txn.abort()
 	err = fn(txn)
 	if err != nil {
-		txn.abort()
 		return err
 	}
 	return txn.commit()

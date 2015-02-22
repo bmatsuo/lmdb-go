@@ -70,11 +70,11 @@ func (txn *Txn) Commit() error {
 }
 
 func (txn *Txn) commit() error {
-	ret := C.mdb_txn_commit(txn._txn)
-	// The transaction handle is freed if there was no error
-	if ret == success {
-		txn._txn = nil
+	if txn._txn == nil {
+		return fmt.Errorf("txn already terminated")
 	}
+	ret := C.mdb_txn_commit(txn._txn)
+	txn._txn = nil
 	return operrno("mdb_txn_commit", ret)
 }
 
@@ -100,8 +100,8 @@ func (txn *Txn) abort() {
 }
 
 // Reset aborts the transaction clears internal state so the transaction may be
-// reused by calling Renew.  Reset panics if the transaction is managed by
-// Update, View, etc.
+// reused by calling Renew.  Reset panics if txn is managed by Update, View,
+// etc.
 //
 // See mdb_txn_reset.
 func (txn *Txn) Reset() {
@@ -115,7 +115,8 @@ func (txn *Txn) reset() {
 	C.mdb_txn_reset(txn._txn)
 }
 
-// Renew reuses a transaction that was previously reset.
+// Renew reuses a transaction that was previously reset.  Renew panics if txn
+// is managed by Update, View, etc.
 //
 // See mdb_txn_renew.
 func (txn *Txn) Renew() error {
@@ -130,7 +131,8 @@ func (txn *Txn) renew() error {
 	return operrno("mdb_txn_renew", ret)
 }
 
-// OpenDBI opens a database in the environment.  An error is returned if name is empty.
+// OpenDBI opens a named database in the environment.  An error is returned if
+// name is empty.
 //
 // See mdb_dbi_open.
 func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
@@ -172,7 +174,7 @@ func (txn *Txn) openDBI(cname *C.char, flags uint) (DBI, error) {
 	return DBI(dbi), nil
 }
 
-// Stat returns statistics for database handle dbi.
+// Stat returns a Stat describing the database dbi.
 //
 // See mdb_stat.
 func (txn *Txn) Stat(dbi DBI) (*Stat, error) {
@@ -199,9 +201,9 @@ func (txn *Txn) Drop(dbi DBI, del bool) error {
 	return operrno("mdb_drop", ret)
 }
 
-// Sub executes fn in a subtransaction.  Sub commits the subtransaction iff no
-// error is returned and otherwise aborts it.  Sub returns any error it
-// encounters.
+// Sub executes fn in a subtransaction.  Sub commits the subtransaction iff a
+// nil error is returned by fn and otherwise aborts it.  Sub returns any error
+// it encounters.
 //
 // Any call to Abort, Commit, Renew, or Reset on a Txn created by Sub will
 // panic.
@@ -217,15 +219,9 @@ func (txn *Txn) subFlag(flags uint, fn TxnOp) error {
 		return err
 	}
 	sub.managed = true
-	defer func() {
-		if e := recover(); e != nil {
-			sub.abort()
-			panic(e)
-		}
-	}()
+	defer sub.abort()
 	err = fn(sub)
 	if err != nil {
-		sub.abort()
 		return err
 	}
 	return sub.commit()
