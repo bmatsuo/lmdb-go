@@ -30,8 +30,8 @@ const (
 	NoMetaSync  = C.MDB_NOMETASYNC // Don't fsync metapage after commit.
 	NoSync      = C.MDB_NOSYNC     // Don't fsync after commit.
 	MapAsync    = C.MDB_MAPASYNC   // Flush asynchronously when using the WriteMap flag.
-	NoTLS       = C.MDB_NOTLS      // Danger zone. Tie reader locktable slots to Txn objects instead of threads.
-	NoLock      = C.MDB_NOLOCK     // Danger zone. LMDB does not use any locks. All transactions must serialize.
+	NoTLS       = C.MDB_NOTLS      // Danger zone. When unset reader locktable slots are tied to their thread.
+	NoLock      = C.MDB_NOLOCK     // Danger zone. LMDB does not use any locks.
 	NoReadahead = C.MDB_NORDAHEAD  // Disable readahead. Requires OS support.
 	NoMemInit   = C.MDB_NOMEMINIT  // Disable LMDB memory initialization.
 )
