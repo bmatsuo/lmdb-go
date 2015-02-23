@@ -1,8 +1,17 @@
 package lmdb
 
 import (
+	"reflect"
 	"testing"
 )
+
+func TestMultiVals(t *testing.T) {
+	m := WrapMulti([]byte("abc"), 1)
+	vals := m.Vals()
+	if !reflect.DeepEqual(vals, [][]byte{{'a'}, {'b'}, {'c'}}) {
+		t.Errorf("unexpected vals: %q", vals)
+	}
+}
 
 func TestVal(t *testing.T) {
 	orig := "hey hey"

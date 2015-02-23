@@ -115,3 +115,21 @@ func TestTest1(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestVersion(t *testing.T) {
+	maj, min, patch, str := Version()
+	if maj < 0 || min < 0 || patch < 0 {
+		t.Error("invalid version number: ", maj, min, patch)
+	}
+	if maj == 0 && min == 0 && patch == 0 {
+		t.Error("invalid version number: ", maj, min, patch)
+	}
+	if str == "" {
+		t.Error("empty version string")
+	}
+
+	str = VersionString()
+	if str == "" {
+		t.Error("empty version string")
+	}
+}

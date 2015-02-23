@@ -201,21 +201,18 @@ func (env *Env) Flags() (uint, error) {
 	return uint(_flags), nil
 }
 
-// Path returns the path argument passed to Open.  Path returns an error if the
-// Env was not opened previously.  Calling Path on a closed Env has undefined
-// results.
+// Path returns the path argument passed to Open.  Path returns a non-nil error
+// if env.Open() was not previously called.
 //
-// See mdb_env_path.
+// See mdb_env_get_path.
 func (env *Env) Path() (string, error) {
-	var path string
-	cpath := C.CString(path)
-	defer C.free(unsafe.Pointer(cpath))
+	var cpath *C.char
 	ret := C.mdb_env_get_path(env._env, &cpath)
 	if ret != success {
 		return "", operrno("mdb_env_get_path", ret)
 	}
 	if cpath == nil {
-		return "", fmt.Errorf("not open")
+		return "", fmt.Errorf("env not open")
 	}
 	return C.GoString(cpath), nil
 }
