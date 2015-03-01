@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestTxnUpdate(t *testing.T) {
+func TestTxn_Update(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -43,7 +43,7 @@ func TestTxnUpdate(t *testing.T) {
 	}
 }
 
-func TestTxnViewSub(t *testing.T) {
+func TestTxn_View_noSubTxn(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -64,7 +64,7 @@ func TestTxnViewSub(t *testing.T) {
 	}
 }
 
-func TestTxnUpdateSub(t *testing.T) {
+func TestTxn_Sub(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -125,7 +125,7 @@ func TestTxnUpdateSub(t *testing.T) {
 	}
 }
 
-func TestTxnFlags(t *testing.T) {
+func TestTxn_Flags(t *testing.T) {
 	env := setup(t)
 	path, err := env.Path()
 	if err != nil {
