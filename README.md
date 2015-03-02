@@ -7,7 +7,7 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 This package is experimental and the API signature and behavior may change
 without notice. Open questions:
 
-- How are runtime panics handled inside transaction goroutines?
+- How are runtime panics handled inside Update goroutines?
 
 ## Key Features
 
