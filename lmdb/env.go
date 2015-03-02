@@ -72,6 +72,16 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	return operrno("mdb_env_open", ret)
 }
 
+// ReaderCheck clears stale entries from the reader lock table and returns the
+// number of entries cleared.
+//
+// See mdb_reader_check()
+func (env *Env) ReaderCheck() (int, error) {
+	var _dead C.int
+	ret := C.mdb_reader_check(env._env, &_dead)
+	return int(_dead), operrno("mdb_reader_check", ret)
+}
+
 // Close shuts down the environment and releases the memory map.
 //
 // See mdb_env_close.
@@ -219,7 +229,7 @@ func (env *Env) Path() (string, error) {
 
 // SetMapSize sets the size of the environment memory map.
 //
-// See mdb_env_set_map_size.
+// See mdb_env_set_mapsize.
 func (env *Env) SetMapSize(size int64) error {
 	if size < 0 {
 		return fmt.Errorf("negative size")
@@ -230,13 +240,22 @@ func (env *Env) SetMapSize(size int64) error {
 
 // SetMaxReaders sets the maximum number of reader slots in the environment.
 //
-// See mdb_env_set_max_readers.
+// See mdb_env_set_maxreaders.
 func (env *Env) SetMaxReaders(size int) error {
 	if size < 0 {
 		return fmt.Errorf("negative size")
 	}
 	ret := C.mdb_env_set_maxreaders(env._env, C.uint(size))
 	return operrno("mdb_env_set_maxreaders", ret)
+}
+
+// MaxReaders returns the maximum number of reader slots for the environment.
+//
+// See mdb_env_get_maxreaders.
+func (env *Env) MaxReaders() (int, error) {
+	var max C.uint
+	ret := C.mdb_env_get_maxreaders(env._env, &max)
+	return int(max), operrno("mdb_env_get_maxreaders", ret)
 }
 
 // MaxKeySize returns the maximum allowed length for a key.
