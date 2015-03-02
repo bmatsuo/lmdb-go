@@ -239,6 +239,16 @@ func (env *Env) SetMaxReaders(size int) error {
 	return operrno("mdb_env_set_maxreaders", ret)
 }
 
+// MaxKeySize returns the maximum allowed length for a key.
+//
+// See mdb_env_get_maxkeysize.
+func (env *Env) MaxKeySize() int {
+	if env == nil {
+		return int(C.mdb_env_get_maxkeysize(nil))
+	}
+	return int(C.mdb_env_get_maxkeysize(env._env))
+}
+
 // SetMaxDBs sets the maximum number of named databases for the environment.
 //
 // See mdb_env_set_maxdbs.

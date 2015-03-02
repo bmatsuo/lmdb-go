@@ -184,3 +184,22 @@ func TestEnvCopy(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 }
+
+func TestEnv_MaxKeySize(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	n := env.MaxKeySize()
+	if n <= 0 {
+		t.Errorf("invaild maxkeysize: %d", n)
+	}
+}
+
+func TestEnv_MaxKeySize_nil(t *testing.T) {
+	var env *Env
+	n := env.MaxKeySize()
+	if n <= 0 {
+		t.Errorf("invaild maxkeysize: %d", n)
+	}
+	t.Logf("mdb_env_get_maxkeysize: %d", n)
+}
