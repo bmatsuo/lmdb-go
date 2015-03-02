@@ -180,3 +180,174 @@ func TestCursor_Count_noDupSort(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestCursor_Renew(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		put := func(k, v string) {
+			if err == nil {
+				err = txn.Put(db, []byte(k), []byte(v), 0)
+			}
+		}
+		put("k1", "v1")
+		put("k2", "v2")
+		put("k3", "v3")
+		return err
+	})
+	if err != nil {
+		t.Error("err")
+	}
+
+	var cur *Cursor
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err = txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+
+		k, v, err := cur.Get(nil, nil, Next)
+		if err != nil {
+			return err
+		}
+		if string(k) != "k1" {
+			return fmt.Errorf("key: %q", k)
+		}
+		if string(v) != "v1" {
+			return fmt.Errorf("val: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		err = cur.Renew(txn)
+		if err != nil {
+			return err
+		}
+
+		k, v, err := cur.Get(nil, nil, Next)
+		if err != nil {
+			return err
+		}
+		if string(k) != "k1" {
+			return fmt.Errorf("key: %q", k)
+		}
+		if string(v) != "v1" {
+			return fmt.Errorf("val: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func BenchmarkOpenCursor(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	var db DBI
+	var cur *Cursor
+	err := env.View(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		cur, err = txn.OpenCursor(db)
+		return err
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	txn, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	txn.Reset()
+	defer txn.Abort()
+
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err = txn.Renew()
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		b.StartTimer()
+
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		cur.Close()
+
+		b.StopTimer()
+		txn.Reset()
+	}
+}
+
+func BenchmarkCursor_Renew(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	var cur *Cursor
+	err := env.View(func(txn *Txn) (err error) {
+		db, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		cur, err = txn.OpenCursor(db)
+		return err
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	txn, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	txn.Reset()
+	defer txn.Abort()
+
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err = txn.Renew()
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		b.StartTimer()
+
+		err = cur.Renew(txn)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+
+		b.StopTimer()
+		txn.Reset()
+	}
+}
