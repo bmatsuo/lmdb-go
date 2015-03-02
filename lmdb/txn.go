@@ -270,7 +270,8 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 	return cval.Bytes(), nil
 }
 
-// Del deletes items from database dbi.
+// Del deletes an item from database dbi.  Del ignores val unless dbi has the
+// DupSort flag.
 //
 // See mdb_del.
 func (txn *Txn) Del(dbi DBI, key, val []byte) error {

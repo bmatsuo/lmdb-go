@@ -8,6 +8,179 @@ import (
 	"testing"
 )
 
+func TestTxn_Drop(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenDBI("db", Create)
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return txn.Put(db, []byte("k"), []byte("v"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return txn.Drop(db, false)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		_, err = txn.Get(db, []byte("k"))
+		return err
+	})
+	if !IsNotFound(err) {
+		t.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return txn.Drop(db, true)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		_, err = txn.Get(db, []byte("k"))
+		return err
+	})
+	if !IsErrnoSys(err, syscall.EINVAL) {
+		t.Errorf("mdb_get: %v", err)
+	}
+}
+
+func TestTxn_Del(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return txn.Put(db, []byte("k"), []byte("v"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return txn.Del(db, []byte("k"), []byte("valignored"))
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		_, err = txn.Get(db, []byte("k"))
+		return err
+	})
+	if !IsNotFound(err) {
+		t.Errorf("mdb_txn_get: %v", err)
+	}
+}
+
+func TestTxn_Del_dup(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(DupSort)
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return txn.Put(db, []byte("k"), []byte("v"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return txn.Del(db, []byte("k"), []byte("valignored"))
+	})
+	if !IsNotFound(err) {
+		t.Errorf("mdb_del: %v", err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		v, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if string(v) != "v" {
+			return fmt.Errorf("unexpected value: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTxn_PutReserve(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		val := "v"
+		p, err := txn.PutReserve(db, []byte("k"), len(val), 0)
+		if err != nil {
+			return err
+		}
+		copy(p, val)
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		v, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if string(v) != "v" {
+			return fmt.Errorf("value: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
 func TestTxn_OpenDBI(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
