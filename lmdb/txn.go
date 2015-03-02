@@ -8,7 +8,6 @@ package lmdb
 import "C"
 
 import (
-	"fmt"
 	"math"
 	"unsafe"
 )
@@ -133,10 +132,6 @@ func (txn *Txn) renew() error {
 //
 // See mdb_dbi_open.
 func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
-	if name == "" {
-		return 0, fmt.Errorf("database name cannot be empty")
-	}
-
 	cname := C.CString(name)
 	dbi, err := txn.openDBI(cname, flags)
 	C.free(unsafe.Pointer(cname))

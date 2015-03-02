@@ -8,6 +8,74 @@ import (
 	"testing"
 )
 
+func TestTxn_OpenDBI(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	err := env.View(func(txn *Txn) (err error) {
+		_, err = txn.OpenDBI("", 0)
+		return err
+	})
+	if !IsErrno(err, BadValSize) {
+		t.Errorf("mdb_dbi_open: %v", err)
+	}
+}
+
+func TestTxn_Commit_managed(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	err := env.View(func(txn *Txn) (err error) {
+		defer func() {
+			if e := recover(); e == nil {
+				t.Errorf("expected panic: %v", err)
+			}
+		}()
+		return txn.Commit()
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		defer func() {
+			if e := recover(); e == nil {
+				t.Errorf("expected panic: %v", err)
+			}
+		}()
+		txn.Abort()
+		return fmt.Errorf("abort")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		defer func() {
+			if e := recover(); e == nil {
+				t.Errorf("expected panic: %v", err)
+			}
+		}()
+		return txn.Renew()
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		defer func() {
+			if e := recover(); e == nil {
+				t.Errorf("expected panic: %v", err)
+			}
+		}()
+		txn.Reset()
+		return fmt.Errorf("reset")
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestTxn_Commit(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
