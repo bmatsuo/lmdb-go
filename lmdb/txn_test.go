@@ -3,6 +3,8 @@ package lmdb
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"syscall"
 	"testing"
 )
 
@@ -224,5 +226,224 @@ func TestTxn_Flags(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 		return
+	}
+}
+
+func TestTxn_Renew(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	var dbroot DBI
+	err = env.Update(func(txn *Txn) (err error) {
+		dbroot, err = txn.OpenRoot(0)
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	txn, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer txn.Abort()
+	val, err := txn.Get(dbroot, []byte("k"))
+	if !IsNotFound(err) {
+		t.Errorf("get: %v", err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		dbroot, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(dbroot, []byte("k"), []byte("v"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	val, err = txn.Get(dbroot, []byte("k"))
+	if !IsNotFound(err) {
+		t.Errorf("get: %v", err)
+	}
+	txn.Reset()
+
+	err = txn.Renew()
+	if err != nil {
+		t.Error(err)
+	}
+	val, err = txn.Get(dbroot, []byte("k"))
+	if err != nil {
+		t.Error(err)
+	}
+	if string(val) != "v" {
+		t.Errorf("unexpected value: %q", val)
+	}
+}
+
+func TestTxn_Renew_noReset(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	txn, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer txn.Abort()
+
+	err = txn.Renew()
+	if !IsErrnoSys(err, syscall.EINVAL) {
+		t.Errorf("renew: %v", err)
+	}
+}
+
+func TestTxn_Reset_doubleReset(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	txn, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer txn.Abort()
+
+	txn.Reset()
+	txn.Reset()
+}
+
+// This test demonstrates that Reset/Renew have no effect on writable
+// transactions. The transaction may be commited after Reset/Renew are called.
+func TestTxn_Reset_writeTxn(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	txn, err := env.BeginTxn(nil, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer txn.Abort()
+
+	db, err := txn.OpenRoot(0)
+	if err != nil {
+		t.Error(err)
+	}
+	err = txn.Put(db, []byte("k"), []byte("v"), 0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Reset is a noop and Renew will always error out.
+	txn.Reset()
+	err = txn.Renew()
+	if !IsErrnoSys(err, syscall.EINVAL) {
+		t.Errorf("renew: %v", err)
+	}
+
+	err = txn.Commit()
+	if err != nil {
+		t.Errorf("commit: %v", err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		val, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if string(val) != "v" {
+			return fmt.Errorf("unexpected value: %q", val)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func BenchmarkBeginTxn(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txn, err := env.BeginTxn(nil, Readonly)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Abort()
+	}
+}
+
+func BenchmarkTxn_Renew(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	txn, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	defer txn.Abort()
+	txn.Reset()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err = txn.Renew()
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Reset()
 	}
 }

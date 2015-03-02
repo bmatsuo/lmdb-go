@@ -133,7 +133,7 @@ func TestEnv_Flags(t *testing.T) {
 	}
 }
 
-func setup(t *testing.T) *Env {
+func setup(t T) *Env {
 	env, err := NewEnv()
 	if err != nil {
 		t.Fatalf("env: %s", err)
@@ -158,7 +158,12 @@ func setup(t *testing.T) *Env {
 	return env
 }
 
-func clean(env *Env, t *testing.T) {
+type T interface {
+	Errorf(format string, vals ...interface{})
+	Fatalf(format string, vals ...interface{})
+}
+
+func clean(env *Env, t T) {
 	path, err := env.Path()
 	if err != nil {
 		t.Errorf("path: %v", err)

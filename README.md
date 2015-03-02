@@ -5,10 +5,8 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 ## Experimental
 
 This package is experimental and the API signature and behavior may change
-without notice. Several questions remain:
+without notice. Open questions:
 
-- The Reset/Renew methods probably need tests that they are usable. Benchmarks
-  would be good as well. They might be removed for now.
 - How are runtime panics handled inside transaction goroutines?
 
 ## Key Features
