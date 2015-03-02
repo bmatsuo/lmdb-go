@@ -70,9 +70,6 @@ func (txn *Txn) Commit() error {
 }
 
 func (txn *Txn) commit() error {
-	if txn._txn == nil {
-		return fmt.Errorf("txn already terminated")
-	}
 	ret := C.mdb_txn_commit(txn._txn)
 	txn._txn = nil
 	return operrno("mdb_txn_commit", ret)

@@ -292,19 +292,17 @@ func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 }
 
 // Run creates a new Txn and calls fn with it as an argument.  Run commits the
-// transaction if fn returns nil otherwise the transaction is aborted.
+// transaction if fn returns nil otherwise the transaction is aborted.  Because
+// RunTxn terminates the transaction goroutines should not retain references to
+// it or its data after fn returns.
 //
-// Because Run terminates the transaction goroutines should not retain
-// references to it after fn returns.  Writable transactions (without the
-// Readonly flag) must not be used from any goroutines other than the one
-// running fn.
+// RunTxn does not lock the thread of the calling goroutine.  Unless the
+// Readonly flag is passed the calling goroutine should ensure it is locked to
+// its thread.
 //
 // See mdb_txn_begin.
 func (env *Env) RunTxn(flags uint, fn TxnOp) error {
-	if isReadonly(flags) {
-		return env.run(flags, fn)
-	}
-	return env.runUpdate(flags, fn)
+	return env.run(false, flags, fn)
 }
 
 // View creates a readonly transaction with a consistent view of the
@@ -317,20 +315,35 @@ func (env *Env) View(fn TxnOp) error {
 	return env.run(Readonly, fn)
 }
 
-// Update creates a writable transaction and passes it to fn.  Update commits
-// the transaction if fn returns without error otherwise Update aborts the
-// transaction and returns the error.
+// Update calls fn with a writable transaction.  Update commits the transaction
+// if fn returns a nil error otherwise Update aborts the transaction and
+// returns the error.
 //
-// The Txn passed to fn must not be used from multiple goroutines, even with
+// Update locks the calling goroutine to its thread and unlocks it after fn
+// returns.  The Txn must not be used from multiple goroutines, even with
 // synchronization.
 //
 // Any call to Commit, Abort, Reset or Renew on a Txn created by Update will
 // panic.
 func (env *Env) Update(fn TxnOp) error {
-	return env.runUpdate(0, fn)
+	return env.run(true, 0, fn)
 }
 
-func (env *Env) run(flags uint, fn TxnOp) error {
+// UpdateLocked behaves like Update but does not lock the calling goroutine to
+// its thread.  UpdateLocked should be used if the calling goroutine is already
+// locked to its thread for another purpose.
+//
+// Any call to Commit, Abort, Reset or Renew on a Txn created by Update will
+// panic.
+func (env *Env) UpdateLocked(fn TxnOp) error {
+	return env.run(false, 0, fn)
+}
+
+func (env *Env) run(lock bool, flags uint, fn TxnOp) error {
+	if lock {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+	}
 	txn, err := env.BeginTxn(nil, flags)
 	if err != nil {
 		return err
@@ -342,23 +355,6 @@ func (env *Env) run(flags uint, fn TxnOp) error {
 		return err
 	}
 	return txn.commit()
-}
-
-// runUpdate calls fn with a managed transaction on another goroutine.  The
-// transaction runs inside a goroutine so thread locking does not interact
-// negatively with other objects which would like to lock their thread.
-func (env *Env) runUpdate(flags uint, fn TxnOp) error {
-	errc := make(chan error)
-	go func() {
-		defer close(errc)
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		err := env.run(flags, fn)
-		if err != nil {
-			errc <- err
-		}
-	}()
-	return <-errc
 }
 
 // CloseDBI closes the database handle, db.  Normally calling CloseDBI

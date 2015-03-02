@@ -8,6 +8,25 @@ import (
 	"testing"
 )
 
+func TestTxn_Commit(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	txn, err := env.BeginTxn(nil, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	txn.Abort()
+	err = txn.Commit()
+	if !IsErrnoSys(err, syscall.EINVAL) {
+		t.Errorf("mdb_txn_commit: %v", err)
+	}
+}
+
 func TestTxn_Update(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
