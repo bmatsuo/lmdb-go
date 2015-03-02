@@ -25,4 +25,4 @@ reachable through the LMDB [homepage](http://symas.com/mdb/)
 
 Documentation specific to the Go bindings and how methods differ from their
 underlying C counterparts can be found on
-[godoc.org](http://godoc.org/github.com/bmatsuo/lmdb.exp).
+[godoc.org](http://godoc.org/github.com/bmatsuo/lmdb-go/lmdb).
