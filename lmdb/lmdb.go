@@ -6,12 +6,6 @@ reference.
 
 	http://symas.com/mdb/doc/group__mdb.html
 
-Experimental
-
-This package is experimental and the API is in flux while core development is
-being done and the spartan but volumnous LMDB docs are being completly
-deciphered.
-
 Environment
 
 An LMDB environment holds named databases (key-value stores).  An environment
