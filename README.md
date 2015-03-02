@@ -14,7 +14,6 @@ without notice. Open questions:
 - Zero-copy by default
 - API inspired by [BoltDB](https://github.com/boltdb/bolt)
 - Full-featured LMDB bindings with comprehensive examples
-- Serialized transactions safe for concurrent use
 
 #Build
 
