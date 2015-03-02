@@ -66,11 +66,7 @@ type Errno C.int
 const minErrno, maxErrno C.int = C.MDB_KEYEXIST, C.MDB_LAST_ERRCODE
 
 func (e Errno) Error() string {
-	s := C.GoString(C.mdb_strerror(C.int(e)))
-	if s == "" {
-		return fmt.Sprint("mdb errno:", int(e))
-	}
-	return s
+	return C.GoString(C.mdb_strerror(C.int(e)))
 }
 
 // _operrno is for use by tests that can't import C
