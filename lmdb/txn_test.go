@@ -181,7 +181,7 @@ func TestTxn_PutReserve(t *testing.T) {
 	}
 }
 
-func TestTxn_OpenDBI(t *testing.T) {
+func TestTxn_OpenDBI_emptyName(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -190,6 +190,23 @@ func TestTxn_OpenDBI(t *testing.T) {
 		return err
 	})
 	if !IsErrno(err, BadValSize) {
+		t.Errorf("mdb_dbi_open: %v", err)
+	}
+}
+
+func TestTxn_OpenDBI_zero(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	err := env.View(func(txn *Txn) (err error) {
+		_, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		_, err = txn.Get(0, []byte("k"))
+		return err
+	})
+	if !IsErrnoSys(err, syscall.EINVAL) {
 		t.Errorf("mdb_dbi_open: %v", err)
 	}
 }

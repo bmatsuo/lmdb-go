@@ -7,6 +7,74 @@ import (
 	"testing"
 )
 
+func TestCursor_Txn(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+
+		_txn := cur.Txn()
+		if _txn == nil {
+			t.Errorf("nil cursor txn")
+		}
+
+		cur.Close()
+
+		_txn = cur.Txn()
+		if _txn != nil {
+			t.Errorf("non-nil cursor txn")
+		}
+
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestCursor_DBI(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err := txn.OpenDBI("db", Create)
+		if err != nil {
+			return err
+		}
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		dbcur := cur.DBI()
+		if dbcur != db {
+			cur.Close()
+			return fmt.Errorf("unequal db: %v != %v", dbcur, db)
+		}
+		cur.Close()
+		dbcur = cur.DBI()
+		if dbcur == db {
+			return fmt.Errorf("db: %v", dbcur)
+		}
+		if dbcur != 0 {
+			return fmt.Errorf("db: %v", dbcur)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestCursor_Close(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)

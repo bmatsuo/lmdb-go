@@ -69,7 +69,12 @@ func openCursor(txn *Txn, db DBI) (*Cursor, error) {
 // See mdb_cursor_renew.
 func (c *Cursor) Renew(txn *Txn) error {
 	ret := C.mdb_cursor_renew(txn._txn, c._c)
-	return operrno("mdb_cursor_renew", ret)
+	err := operrno("mdb_cursor_renew", ret)
+	if err != nil {
+		return err
+	}
+	c.txn = txn
+	return nil
 }
 
 // Close the cursor handle.  A runtime panic occurs if a the cursor is used
@@ -81,6 +86,7 @@ func (c *Cursor) Renew(txn *Txn) error {
 // See mdb_cursor_close.
 func (c *Cursor) Close() {
 	C.mdb_cursor_close(c._c)
+	c.txn = nil
 	c._c = nil
 }
 
@@ -91,9 +97,11 @@ func (cursor *Cursor) Txn() *Txn {
 
 // DBI returns the cursor's database handle.
 func (c *Cursor) DBI() DBI {
-	var _dbi C.MDB_dbi
-	_dbi = C.mdb_cursor_dbi(c._c)
-	return DBI(_dbi)
+	// mdb_cursor_dbi segfaults when passed a nil value
+	if c._c == nil {
+		return 0
+	}
+	return DBI(C.mdb_cursor_dbi(c._c))
 }
 
 // Get retrieves items from the database. The slices returned by Get reference
