@@ -114,7 +114,7 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	if err != nil {
 		return nil, nil, err
 	}
-	return k.Bytes(), v.Bytes(), nil
+	return c.txn.bytes(k), c.txn.bytes(v), nil
 }
 
 // getVal retrieves items from the database.
