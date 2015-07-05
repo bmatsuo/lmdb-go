@@ -1,6 +1,8 @@
 package lmdb
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"runtime"
@@ -12,11 +14,7 @@ func TestTxn_Drop(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
-	var db DBI
-	err := env.Update(func(txn *Txn) (err error) {
-		db, err = txn.OpenDBI("db", Create)
-		return err
-	})
+	db, err := openDBI(env, "db", Create)
 	if err != nil {
 		t.Error(err)
 		return
@@ -68,13 +66,10 @@ func TestTxn_Del(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
-	var db DBI
-	err := env.Update(func(txn *Txn) (err error) {
-		db, err = txn.OpenRoot(0)
-		return err
-	})
+	db, err := openRoot(env, 0)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 
 	err = env.Update(func(txn *Txn) (err error) {
@@ -104,13 +99,10 @@ func TestTxn_Del_dup(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
-	var db DBI
-	err := env.Update(func(txn *Txn) (err error) {
-		db, err = txn.OpenRoot(DupSort)
-		return err
-	})
+	db, err := openRoot(env, DupSort)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 
 	err = env.Update(func(txn *Txn) (err error) {
@@ -172,6 +164,52 @@ func TestTxn_PutReserve(t *testing.T) {
 		}
 		if string(v) != "v" {
 			return fmt.Errorf("value: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestTxn_Put_overwrite(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	db, err := openRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		k := []byte("hello")
+		v := []byte("world")
+		err = txn.Put(db, k, v, 0)
+		if err != nil {
+			return err
+		}
+		copy(k, "bye!!")
+		copy(v, "toodles")
+		err = txn.Put(db, k, v, 0)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		v, err := txn.Get(db, []byte("hello"))
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(v, []byte("world")) {
+			return fmt.Errorf("unexpected value")
 		}
 		return nil
 	})
@@ -673,7 +711,83 @@ func TestTxn_Reset_writeTxn(t *testing.T) {
 	}
 }
 
-func BenchmarkBeginTxn(b *testing.B) {
+func BenchmarkTxn_Sub_commit(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	err = env.Update(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			err = txn.Sub(func(txn *Txn) (err error) { return nil })
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
+
+func BenchmarkTxn_Sub_abort(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	var e = fmt.Errorf("abort")
+
+	err = env.Update(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			txn.Sub(func(txn *Txn) (err error) { return e })
+			if e == nil {
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
+
+func BenchmarkTxn_abort(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	var e = fmt.Errorf("abort")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env.Update(func(txn *Txn) error { return e })
+	}
+}
+
+func BenchmarkTxn_commit(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
@@ -686,16 +800,36 @@ func BenchmarkBeginTxn(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		txn, err := env.BeginTxn(nil, Readonly)
+		err := env.Update(func(txn *Txn) error { return nil })
 		if err != nil {
 			b.Error(err)
 			return
 		}
-		txn.Abort()
 	}
 }
 
-func BenchmarkTxn_Renew(b *testing.B) {
+func BenchmarkTxn_ro(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := env.View(func(txn *Txn) error { return nil })
+		if err != nil {
+			b.Error(err)
+			return
+		}
+	}
+}
+
+func BenchmarkTxn_renew(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
@@ -712,15 +846,136 @@ func BenchmarkTxn_Renew(b *testing.B) {
 		return
 	}
 	defer txn.Abort()
-	txn.Reset()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		txn.Reset()
 		err = txn.Renew()
 		if err != nil {
 			b.Error(err)
 			return
 		}
-		txn.Reset()
 	}
+}
+
+func BenchmarkTxn_Put_append(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+	err = env.SetMapSize(2 << 30)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	var db DBI
+
+	err = env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		return err
+	})
+	if err != nil {
+		b.Errorf("dbi: %v", err)
+		return
+	}
+
+	b.ResetTimer()
+	err = env.Update(func(txn *Txn) (err error) {
+		for i := 0; i < b.N; i++ {
+			var k [8]byte
+			binary.BigEndian.PutUint64(k[:], uint64(i))
+			err = txn.Put(db, k[:], k[:], Append)
+			if err != nil {
+				return err
+			}
+		}
+
+		b.StopTimer()
+		defer b.StartTimer()
+
+		return txn.Drop(db, false)
+	})
+	if err != nil {
+		b.Errorf("put: %v", err)
+	}
+}
+
+func BenchmarkTxn_Put_append_noflag(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+	err = env.SetMapSize(2 << 30)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	var db DBI
+
+	err = env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		return err
+	})
+	if err != nil {
+		b.Errorf("dbi: %v", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		for i := 0; i < b.N; i++ {
+			var k [8]byte
+			binary.BigEndian.PutUint64(k[:], uint64(i))
+			err = txn.Put(db, k[:], k[:], 0)
+			if err != nil {
+				return err
+			}
+		}
+
+		b.StopTimer()
+		defer b.StartTimer()
+		return txn.Drop(db, false)
+	})
+	if err != nil {
+		b.Errorf("put: %v", err)
+	}
+}
+
+func openRoot(env *Env, flags uint) (DBI, error) {
+	var db DBI
+	dotxn := env.View
+	if flags != 0 {
+		dotxn = env.Update
+	}
+	err := dotxn(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(flags)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return db, nil
+}
+
+func openDBI(env *Env, key string, flags uint) (DBI, error) {
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenDBI(key, flags)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return db, nil
 }

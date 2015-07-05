@@ -10,43 +10,112 @@ import (
 )
 
 // repeatedly put (overwrite) keys.
-func BenchmarkTxnPut(b *testing.B) {
+func BenchmarkTxn_Put(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
 
 	dbi := openBenchDBI(b, env)
 
-	var ps [][]byte
+	rc := newRandSourceCursor()
+	ps, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
+	}
+
+	env.Update(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			k := ps[rand.Intn(len(ps)/2)*2]
+			v := makeBenchDBVal(&rc)
+			err := txn.Put(dbi, k, v, 0)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
+
+// repeatedly put (overwrite) keys using the PutReserve method.
+func BenchmarkTxn_PutReserve(b *testing.B) {
+	initRandSource(b)
+	env, path := setupBenchDB(b)
+	defer teardownBenchDB(b, env, path)
+
+	dbi := openBenchDBI(b, env)
 
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
-	bMust(b, err, "starting transaction")
-	for i := 0; i < benchDBNumKeys; i++ {
-		k := makeBenchDBKey(&rc)
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		ps = append(ps, k, v)
-		bTxnMust(b, txn, err, "putting data")
+	ps, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
 	}
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, 0)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		k := ps[rand.Intn(len(ps)/2)*2]
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		bTxnMust(b, txn, err, "putting data")
+	env.Update(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			k := ps[rand.Intn(len(ps)/2)*2]
+			v := makeBenchDBVal(&rc)
+			buf, err := txn.PutReserve(dbi, k, len(v), 0)
+			if err != nil {
+				return err
+			}
+			copy(buf, v)
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
 	}
-	b.StopTimer()
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
+}
+
+// repeatedly put (overwrite) keys using the PutReserve method on an
+// environment with WriteMap.
+func BenchmarkTxn_PutReserve_writemap(b *testing.B) {
+	initRandSource(b)
+	env, path := setupBenchDBFlags(b, WriteMap)
+	defer teardownBenchDB(b, env, path)
+
+	dbi := openBenchDBI(b, env)
+
+	rc := newRandSourceCursor()
+	ps, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
+	}
+
+	env.Update(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			k := ps[rand.Intn(len(ps)/2)*2]
+			v := makeBenchDBVal(&rc)
+			buf, err := txn.PutReserve(dbi, k, len(v), 0)
+			if err != nil {
+				return err
+			}
+			copy(buf, v)
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
 }
 
 // repeatedly put (overwrite) keys.
-func BenchmarkTxnPut_writemap(b *testing.B) {
+func BenchmarkTxn_Put_writemap(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDBFlags(b, WriteMap)
 	defer teardownBenchDB(b, env, path)
@@ -56,203 +125,201 @@ func BenchmarkTxnPut_writemap(b *testing.B) {
 	var ps [][]byte
 
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
-	bMust(b, err, "starting transaction")
-	for i := 0; i < benchDBNumKeys; i++ {
-		k := makeBenchDBKey(&rc)
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		ps = append(ps, k, v)
-		bTxnMust(b, txn, err, "putting data")
+	ps, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
 	}
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, 0)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		k := ps[rand.Intn(len(ps)/2)*2]
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		bTxnMust(b, txn, err, "putting data")
-	}
-	b.StopTimer()
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
+	err = env.Update(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			k := ps[rand.Intn(len(ps)/2)*2]
+			v := makeBenchDBVal(&rc)
+			err := txn.Put(dbi, k, v, 0)
+			bTxnMust(b, txn, err, "putting data")
+		}
+
+		return nil
+	})
 }
 
 // repeatedly get random keys.
-func BenchmarkTxnGetReadonly(b *testing.B) {
+func BenchmarkTxn_Get_ro(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
 
 	dbi := openBenchDBI(b, env)
 
-	var ps [][]byte
-
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
-	bMust(b, err, "starting transaction")
-	for i := 0; i < benchDBNumKeys; i++ {
-		k := makeBenchDBKey(&rc)
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		ps = append(ps, k, v)
-		bTxnMust(b, txn, err, "putting data")
+	ps, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
 	}
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, Readonly)
-	bMust(b, err, "starting transaction")
-	defer txn.Abort()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := txn.Get(dbi, ps[rand.Intn(len(ps))])
-		if IsNotFound(err) {
-			continue
+	err = env.View(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := txn.Get(dbi, ps[rand.Intn(len(ps))])
+			if IsNotFound(err) {
+				continue
+			}
+			if err != nil {
+				b.Fatalf("error getting data: %v", err)
+			}
 		}
-		if err != nil {
-			b.Fatalf("error getting data: %v", err)
-		}
-	}
-	b.StopTimer()
+
+		return nil
+	})
 }
 
-// like BenchmarkTxnGetReadonly, but txn.getVal() is called instead.
-func BenchmarkTxnGetValReadonly(b *testing.B) {
+// like BenchmarkTxnGetReadonly but txn.RawRead is set to true.
+func BenchmarkTxn_Get_raw_ro(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
 
 	dbi := openBenchDBI(b, env)
 
-	var ps [][]byte
-
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
-	bMust(b, err, "starting transaction")
-	for i := 0; i < benchDBNumKeys; i++ {
-		k := makeBenchDBKey(&rc)
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		ps = append(ps, k, v)
-		bTxnMust(b, txn, err, "putting data")
+	ps, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
 	}
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, Readonly)
-	bMust(b, err, "starting transaction")
-	defer txn.Abort()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := txn.getVal(dbi, ps[rand.Intn(len(ps))])
-		if IsNotFound(err) {
-			continue
+	err = env.View(func(txn *Txn) (err error) {
+		txn.RawRead = true
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := txn.Get(dbi, ps[rand.Intn(len(ps))])
+			if IsNotFound(err) {
+				continue
+			}
+			if err != nil {
+				b.Fatalf("error getting data: %v", err)
+			}
 		}
-		if err != nil {
-			b.Fatalf("error getting data: %v", err)
-		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
 	}
-	b.StopTimer()
 }
 
 // repeatedly scan all the values in a database.
-func BenchmarkCursorScanReadonly(b *testing.B) {
+func BenchmarkScan_ro(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
 
 	dbi := openBenchDBI(b, env)
 
-	var ps [][]byte
-
 	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
-	bMust(b, err, "starting transaction")
-	for i := 0; i < benchDBNumKeys; i++ {
-		k := makeBenchDBKey(&rc)
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		ps = append(ps, k, v)
-		bTxnMust(b, txn, err, "putting data")
+	_, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
 	}
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
 
-	txn, err = env.BeginTxn(nil, Readonly)
-	bMust(b, err, "starting transaction")
-	defer txn.Abort()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		func() {
-			cur, err := txn.OpenCursor(dbi)
-			bMust(b, err, "opening cursor")
-			defer cur.Close()
-			var count int64
-			for {
-				_, _, err := cur.Get(nil, nil, Next)
-				if IsNotFound(err) {
-					return
-				}
-				if err != nil {
-					b.Fatalf("error getting data: %v", err)
-				}
-				count++
+	err = env.View(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			err := benchmarkScanDBI(txn, dbi)
+			if err != nil {
+				return err
 			}
-		}()
+		}
+
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
 	}
-	b.StopTimer()
 }
 
-// like BenchmarkCursoreScanReadonly, but cursor.getVal() is called instead.
-func BenchmarkCursorScanValReadonly(b *testing.B) {
+// like BenchmarkCursoreScanReadonly but txn.RawRead is set to true.
+func BenchmarkScan_raw_ro(b *testing.B) {
 	initRandSource(b)
 	env, path := setupBenchDB(b)
 	defer teardownBenchDB(b, env, path)
 
 	dbi := openBenchDBI(b, env)
 
+	rc := newRandSourceCursor()
+	_, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		txn.RawRead = true
+
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			err := benchmarkScanDBI(txn, dbi)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		b.Errorf("benchmark: %v", err)
+		return
+	}
+}
+
+func populateBenchmarkDB(env *Env, dbi DBI, rc *randSourceCursor) ([][]byte, error) {
 	var ps [][]byte
 
-	rc := newRandSourceCursor()
-	txn, err := env.BeginTxn(nil, 0)
-	bMust(b, err, "starting transaction")
-	for i := 0; i < benchDBNumKeys; i++ {
-		k := makeBenchDBKey(&rc)
-		v := makeBenchDBVal(&rc)
-		err := txn.Put(dbi, k, v, 0)
-		ps = append(ps, k, v)
-		bTxnMust(b, txn, err, "putting data")
-	}
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
-
-	txn, err = env.BeginTxn(nil, Readonly)
-	bMust(b, err, "starting transaction")
-	defer txn.Abort()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		func() {
-			cur, err := txn.OpenCursor(dbi)
-			bMust(b, err, "opening cursor")
-			defer cur.Close()
-			var count int64
-			for {
-				_, _, err := cur.getVal(nil, nil, Next)
-				if IsNotFound(err) {
-					return
-				}
-				if err != nil {
-					b.Fatalf("error getting data: %v", err)
-				}
-				count++
+	err := env.Update(func(txn *Txn) (err error) {
+		for i := 0; i < benchDBNumKeys; i++ {
+			k := makeBenchDBKey(rc)
+			v := makeBenchDBVal(rc)
+			err := txn.Put(dbi, k, v, 0)
+			ps = append(ps, k, v)
+			if err != nil {
+				return err
 			}
-		}()
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	b.StopTimer()
+	return ps, nil
+}
+
+func benchmarkScanDBI(txn *Txn, dbi DBI) error {
+	cur, err := txn.OpenCursor(dbi)
+	if err != nil {
+		return err
+	}
+	defer cur.Close()
+
+	var count int64
+	for {
+		_, _, err := cur.Get(nil, nil, Next)
+		if IsNotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		count++
+	}
 }
 
 func setupBenchDB(b *testing.B) (*Env, string) {

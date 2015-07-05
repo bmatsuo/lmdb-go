@@ -324,52 +324,39 @@ func TestCursor_Renew(t *testing.T) {
 	}
 }
 
-func BenchmarkOpenCursor(b *testing.B) {
+func BenchmarkCursor(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
 	var db DBI
-	var cur *Cursor
 	err := env.View(func(txn *Txn) (err error) {
 		db, err = txn.OpenRoot(0)
 		if err != nil {
 			return err
 		}
-		cur, err = txn.OpenCursor(db)
-		return err
+		return nil
 	})
 	if err != nil {
 		b.Error(err)
 		return
 	}
 
-	txn, err := env.BeginTxn(nil, Readonly)
+	err = env.View(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+
+		for i := 0; i < b.N; i++ {
+			cur, err := txn.OpenCursor(db)
+			if err != nil {
+				return err
+			}
+			cur.Close()
+		}
+		return
+	})
 	if err != nil {
 		b.Error(err)
 		return
-	}
-	txn.Reset()
-	defer txn.Abort()
-
-	b.StopTimer()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		err = txn.Renew()
-		if err != nil {
-			b.Error(err)
-			return
-		}
-		b.StartTimer()
-
-		cur, err := txn.OpenCursor(db)
-		if err != nil {
-			b.Error(err)
-			return
-		}
-		cur.Close()
-
-		b.StopTimer()
-		txn.Reset()
 	}
 }
 
@@ -391,31 +378,17 @@ func BenchmarkCursor_Renew(b *testing.B) {
 		return
 	}
 
-	txn, err := env.BeginTxn(nil, Readonly)
-	if err != nil {
-		b.Error(err)
-		return
-	}
-	txn.Reset()
-	defer txn.Abort()
+	env.View(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
 
-	b.StopTimer()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		err = txn.Renew()
-		if err != nil {
-			b.Error(err)
-			return
-		}
-		b.StartTimer()
-
-		err = cur.Renew(txn)
-		if err != nil {
-			b.Error(err)
-			return
+		for i := 0; i < b.N; i++ {
+			err = cur.Renew(txn)
+			if err != nil {
+				return err
+			}
 		}
 
-		b.StopTimer()
-		txn.Reset()
-	}
+		return nil
+	})
 }
