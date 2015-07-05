@@ -101,8 +101,9 @@ func (txn *Txn) abort() {
 }
 
 // Reset aborts the transaction clears internal state so the transaction may be
-// reused by calling Renew.  Reset panics if txn is managed by Update, View,
-// etc.
+// reused by calling Renew.  If txn is not going to be reused txn.Abort() must
+// be called to release its slot in the lock table and free its memory.  Reset
+// panics if txn is managed by Update, View, etc.
 //
 // See mdb_txn_reset.
 func (txn *Txn) Reset() {
@@ -116,8 +117,8 @@ func (txn *Txn) reset() {
 	C.mdb_txn_reset(txn._txn)
 }
 
-// Renew reuses a transaction that was previously reset.  Renew panics if txn
-// is managed by Update, View, etc.
+// Renew reuses a transaction that was previously reset by calling txn.Reset().
+// Renew panics if txn is managed by Update, View, etc.
 //
 // See mdb_txn_renew.
 func (txn *Txn) Renew() error {
@@ -134,6 +135,10 @@ func (txn *Txn) renew() error {
 
 // OpenDBI opens a named database in the environment.  An error is returned if
 // name is empty.
+//
+// The C API uses null terminated strings for database names.  A consequence is
+// that names cannot contain null bytes themselves. OpenDBI does not check for
+// null bytes in the name argument.
 //
 // See mdb_dbi_open.
 func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
@@ -201,6 +206,9 @@ func (txn *Txn) Drop(dbi DBI, del bool) error {
 // Sub executes fn in a subtransaction.  Sub commits the subtransaction iff a
 // nil error is returned by fn and otherwise aborts it.  Sub returns any error
 // it encounters.
+//
+// Sub may only be called on an Update (a Txn created without the Readonly
+// flag).  Calling Sub on a View transaction will return an error.
 //
 // Any call to Abort, Commit, Renew, or Reset on a Txn created by Sub will
 // panic.
@@ -304,12 +312,12 @@ func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 	return openCursor(txn, dbi)
 }
 
-// TxnOp is an operation applied to a transaction.  The Txn passed to a TxnOp
-// is managed and the operation must not call Commit, Abort, Renew, or Reset on
-// it.
+// TxnOp is an operation applied to a managed transaction.  The Txn passed to a
+// TxnOp is managed and the operation must not call Commit, Abort, Renew, or
+// Reset on it.
 //
 // IMPORTANT:
 // TxnOps that write to the database (those passed to Update or BeginUpdate)
-// must not use the Txn in another goroutine (passing it directory otherwise
-// through closure). Doing so has undefined results.
+// must not use the Txn in another goroutine (passing it directly or otherwise
+// through closure).  Doing so has undefined results.
 type TxnOp func(txn *Txn) error
