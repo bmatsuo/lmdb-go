@@ -104,9 +104,9 @@ func (c *Cursor) DBI() DBI {
 	return DBI(C.mdb_cursor_dbi(c._c))
 }
 
-// Get retrieves items from the database. The slices returned by Get reference
-// readonly sections of memory and attempts to mutate the region of memory will
-// result in a panic.
+// Get retrieves items from the database. If c.Txn().RawRead is true the slices
+// returned by Get reference readonly sections of memory that must not be
+// accessed after the transaction has terminated.
 //
 // See mdb_cursor_get.
 func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
@@ -114,7 +114,7 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	if err != nil {
 		return nil, nil, err
 	}
-	return k.Bytes(), v.Bytes(), nil
+	return c.txn.bytes(k), c.txn.bytes(v), nil
 }
 
 // getVal retrieves items from the database.

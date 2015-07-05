@@ -4,9 +4,13 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
 ## Key Features
 
-- Zero-copy by default
-- API inspired by [BoltDB](https://github.com/boltdb/bolt)
-- Full-featured LMDB bindings with comprehensive examples
+- Fast zero-copy reads for applications with high performance requirements.
+
+- API inspired by [BoltDB](https://github.com/boltdb/bolt).  The goal of
+  lmdb-go is to provide idiomatic interaction without compromising the
+  flexibility of the C API.
+
+- Full-featured bindings to the LMDB library with comprehensive examples.
 
 #Build
 

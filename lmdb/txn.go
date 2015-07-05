@@ -31,6 +31,11 @@ const (
 //
 // See MDB_txn.
 type Txn struct {
+	// If RawRead is true []byte values retrieved from Get() calls on the Txn
+	// and its cursors will point directly into the memory-mapped structure.
+	// Such slices will be readonly and must only be referenced wthin the
+	// transaction's lifetime.
+	RawRead bool
 	env     *Env
 	_txn    *C.MDB_txn
 	managed bool
@@ -219,9 +224,16 @@ func (txn *Txn) subFlag(flags uint, fn TxnOp) error {
 	return sub.commit()
 }
 
-// Get retrieves items from database dbi.  The slice returned by Get references
-// a readonly section of memory and attempts to mutate region the memory will
-// result in a runtime panic.
+func (txn *Txn) bytes(val *mdbVal) []byte {
+	if txn.RawRead {
+		return val.Bytes()
+	}
+	return val.BytesCopy()
+}
+
+// Get retrieves items from database dbi.  If txn.RawRead is true the slice
+// returned by Get references a readonly section of memory that must not be
+// accessed after txn has terminated.
 //
 // See mdb_get.
 func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
@@ -229,7 +241,7 @@ func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return val.Bytes(), nil
+	return txn.bytes(val), nil
 }
 
 // getVal retrieves items from database dbi as a mdbVal.
