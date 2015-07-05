@@ -118,6 +118,19 @@ func wrapVal(p []byte) *mdbVal {
 	}
 }
 
+var sizeofInt = unsafe.Sizeof(C.int(0))
+
+func wrapValInt(x *int) *mdbVal {
+	return &mdbVal{
+		mv_size: C.size_t(sizeofInt),
+		mv_data: unsafe.Pointer(x),
+	}
+}
+
+func (val *mdbVal) Int() int {
+	return int(*(*C.int)(val.mv_data))
+}
+
 // BytesCopy returns a slice copied from the region pointed to by val.
 func (val *mdbVal) BytesCopy() []byte {
 	return C.GoBytes(val.mv_data, C.int(val.mv_size))

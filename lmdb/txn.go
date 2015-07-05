@@ -22,6 +22,8 @@ const (
 	DupFixed   = C.MDB_DUPFIXED   // Duplicate items have a fixed size (DupSort).
 	ReverseDup = C.MDB_REVERSEDUP // Reverse duplicate values (DupSort).
 	Create     = C.MDB_CREATE     // Create DB if not already existing.
+	IntegerKey = C.MDB_INTEGERKEY // Key values are ints.
+	IntegerDup = C.MDB_INTEGERDUP // Duplicate values should be sorted as ints.
 )
 
 // Txn is a database transaction in an environment.
@@ -242,6 +244,28 @@ func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return txn.bytes(val), nil
+}
+
+func (txn *Txn) GetInt(dbi DBI, i *int) ([]byte, error) {
+	ckey := wrapValInt(i)
+	var cval mdbVal
+	ret := C.mdb_get(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(&cval))
+	err := operrno("mdb_get", ret)
+	if err != nil {
+		return nil, err
+	}
+	return txn.bytes(&cval), nil
+}
+
+func (txn *Txn) GetInt2(dbi DBI, i *int) (int, error) {
+	ckey := wrapValInt(i)
+	var cval mdbVal
+	ret := C.mdb_get(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(&cval))
+	err := operrno("mdb_get", ret)
+	if err != nil {
+		return 0, err
+	}
+	return cval.Int(), nil
 }
 
 // getVal retrieves items from database dbi as a mdbVal.

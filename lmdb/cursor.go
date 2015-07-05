@@ -117,6 +117,38 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	return c.txn.bytes(k), c.txn.bytes(v), nil
 }
 
+// GetInt retrieves items from the database. The slices returned by Get reference
+// readonly sections of memory and attempts to mutate the region of memory will
+// result in a panic.
+//
+// See mdb_cursor_get.
+func (c *Cursor) GetInt(setkey *int, setval []byte, op uint) (key int, val []byte, err error) {
+	_key := wrapValInt(setkey)
+	_val := wrapVal(setval)
+	ret := C.mdb_cursor_get(c._c, (*C.MDB_val)(_key), (*C.MDB_val)(_val), C.MDB_cursor_op(op))
+	err = operrno("mdb_cursor_get", ret)
+	if err != nil {
+		return 0, nil, err
+	}
+	return _key.Int(), c.txn.bytes(_val), nil
+}
+
+// GetInt2 retrieves items from the database. The slices returned by Get
+// reference readonly sections of memory and attempts to mutate the region of
+// memory will result in a panic.
+//
+// See mdb_cursor_get.
+func (c *Cursor) GetInt2(setkey, setval *int, op uint) (key, val int, err error) {
+	_key := wrapValInt(setkey)
+	_val := wrapValInt(setval)
+	ret := C.mdb_cursor_get(c._c, (*C.MDB_val)(_key), (*C.MDB_val)(_val), C.MDB_cursor_op(op))
+	err = operrno("mdb_cursor_get", ret)
+	if err != nil {
+		return 0, 0, err
+	}
+	return _key.Int(), _val.Int(), nil
+}
+
 // getVal retrieves items from the database.
 //
 // See mdb_cursor_get.
@@ -136,11 +168,43 @@ func (c *Cursor) Put(key, val []byte, flags uint) error {
 	return c.putVal(ckey, cval, flags)
 }
 
+// PutInt stores an item in the database.
+//
+// See mdb_cursor_put.
+func (c *Cursor) PutInt(key int, val []byte, flags uint) error {
+	ckey := wrapValInt(&key)
+	cval := wrapVal(val)
+	return c.putVal(ckey, cval, flags)
+}
+
+// PutInt2 stores an item in the database.
+//
+// See mdb_cursor_put.
+func (c *Cursor) PutInt2(key, val int, flags uint) error {
+	ckey := wrapValInt(&key)
+	cval := wrapValInt(&val)
+	return c.putVal(ckey, cval, flags)
+}
+
 // PutReserve returns a []byte of length n that can be written to, potentially
 // avoiding a memcopy.  The returned byte slice is only valid in txn's thread,
 // before it has terminated.
 func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 	ckey := wrapVal(key)
+	cval := &mdbVal{mv_size: C.size_t(n)}
+	ret := C.mdb_cursor_put(c._c, (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
+	err := operrno("mdb_cursor_put", ret)
+	if err != nil {
+		return nil, err
+	}
+	return cval.Bytes(), nil
+}
+
+// PutReserveInt returns a []byte of length n that can be written to,
+// potentially avoiding a memcopy.  The returned byte slice is only valid in
+// txn's thread, before it has terminated.
+func (c *Cursor) PutReserveInt(key, n int, flags uint) ([]byte, error) {
+	ckey := wrapValInt(&key)
 	cval := &mdbVal{mv_size: C.size_t(n)}
 	ret := C.mdb_cursor_put(c._c, (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
 	err := operrno("mdb_cursor_put", ret)
