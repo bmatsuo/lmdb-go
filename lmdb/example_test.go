@@ -466,10 +466,38 @@ func ExampleCursor() {
 	// key2: val2
 }
 
+// Txn.OpenRoot does not need to be called with the lmdb.Create flag.
 func ExampleTxn_OpenRoot() {
 	err := EnvEx.Update(func(txn *lmdb.Txn) (err error) {
 		DBIEx, err = txn.OpenRoot(0)
 		return err
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Txn.OpenRoot may be called without flags inside View transactions.
+func ExampleTxn_OpenRoot_view() {
+	err = EnvEx.View(func(txn *lmdb.Txn) (err error) {
+		db, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		for {
+			k, v, err := cur.Get(nil, nil, lmdb.Next)
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("%s: %s", k, v)
+		}
 	})
 	if err != nil {
 		panic(err)

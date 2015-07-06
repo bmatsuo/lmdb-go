@@ -8,8 +8,6 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-const MB = 1 << 20
-
 func ExampleTxn_OpenDBI() {
 	dbpath, err := ioutil.TempDir("", "lmdb-test")
 	if err != nil {
@@ -24,7 +22,7 @@ func ExampleTxn_OpenDBI() {
 
 	// when using named databases SetMaxDBs is required to be at least the
 	// number of named databases needed.
-	if err = env.SetMaxDBs(4); err != nil {
+	if err = env.SetMaxDBs(1); err != nil {
 		panic(err)
 	}
 
@@ -34,7 +32,7 @@ func ExampleTxn_OpenDBI() {
 		panic(err)
 	}
 
-	var db1, db2, db3, db4 lmdb.DBI
+	var db1 lmdb.DBI
 	var dbroot lmdb.DBI
 	env.Update(func(txn *lmdb.Txn) (err error) {
 		_, err = txn.OpenDBI("db0", 0) // ErrNotFound
@@ -45,19 +43,7 @@ func ExampleTxn_OpenDBI() {
 		if err != nil {
 			fmt.Println("db1", err)
 		}
-		db2, err = txn.OpenDBI("db2", lmdb.Create)
-		if err != nil {
-			fmt.Println("db2", err)
-		}
-		db3, err = txn.OpenDBI("db3", lmdb.Create)
-		if err != nil {
-			fmt.Println("db3", err)
-		}
-		db4, err = txn.OpenDBI("db4", lmdb.Create)
-		if err != nil {
-			fmt.Println("db4", err)
-		}
-		_, err = txn.OpenDBI("db5", lmdb.Create) // ErrDBsFull
+		_, err = txn.OpenDBI("db2", lmdb.Create) // ErrDBsFull
 		if err != nil {
 			fmt.Println("db5", err)
 		}
@@ -92,7 +78,4 @@ func ExampleTxn_OpenDBI() {
 	// db5 mdb_dbi_open: MDB_DBS_FULL: Environment maxdbs limit reached
 	// databases:
 	//   db1
-	//   db2
-	//   db3
-	//   db4
 }

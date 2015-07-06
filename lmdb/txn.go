@@ -134,7 +134,11 @@ func (txn *Txn) renew() error {
 }
 
 // OpenDBI opens a named database in the environment.  An error is returned if
-// name is empty.
+// name is empty.  The DBI returned by OpenDBI can be used in other
+// transactions but not before Txn has terminated.
+//
+// OpenDBI can only be called after env.SetMaxDBs() has been called to set the
+// maximum number of named databases.
 //
 // The C API uses null terminated strings for database names.  A consequence is
 // that names cannot contain null bytes themselves. OpenDBI does not check for
@@ -160,9 +164,9 @@ func (txn *Txn) Flags(dbi DBI) (uint, error) {
 	return uint(cflags), operrno("mdb_dbi_flags", ret)
 }
 
-// OpenRoot opens the root database.  Applications should not write to the root
-// database if also using named databases as LMDB stores metadata in the root
-// database.
+// OpenRoot opens the root database.  OpenRoot behaves similarly to OpenDBI but
+// does not require env.SetMaxDBs() to be called beforehand.  And, OpenRoot can
+// be called without flags in a View transaction.
 func (txn *Txn) OpenRoot(flags uint) (DBI, error) {
 	return txn.openDBI(nil, flags)
 }
