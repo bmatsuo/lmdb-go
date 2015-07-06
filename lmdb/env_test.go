@@ -89,11 +89,11 @@ func TestEnv_Open(t *testing.T) {
 	}
 }
 
-func TestEnv_Flags(t *testing.T) {
+func TestEnv_Flag(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
-	flags, err := env.Flags()
+	flags, err := env.Flag()
 	if err != nil {
 		t.Error(err)
 		return
@@ -106,12 +106,12 @@ func TestEnv_Flags(t *testing.T) {
 		t.Errorf("NoSync is set")
 	}
 
-	err = env.SetFlags(NoSync)
+	err = env.SetFlag(NoSync)
 	if err != nil {
 		t.Error(err)
 	}
 
-	flags, err = env.Flags()
+	flags, err = env.Flag()
 	if err != nil {
 		t.Error(err)
 	}
@@ -119,12 +119,12 @@ func TestEnv_Flags(t *testing.T) {
 		t.Error("NoSync is not set")
 	}
 
-	err = env.UnsetFlags(NoSync)
+	err = env.UnsetFlag(NoSync)
 	if err != nil {
 		t.Error(err)
 	}
 
-	flags, err = env.Flags()
+	flags, err = env.Flag()
 	if err != nil {
 		t.Error(err)
 	}
@@ -146,7 +146,7 @@ func setup(t T) *Env {
 	if err != nil {
 		t.Fatalf("mkdir: %s", path)
 	}
-	err = env.SetMaxDBs(64 << 10)
+	err = env.SetMaxDB(64 << 10)
 	if err != nil {
 		t.Fatalf("setmaxdbs: %v", err)
 	}

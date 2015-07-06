@@ -97,7 +97,7 @@ func New(txn *lmdb.Txn, dbi lmdb.DBI) *Scanner {
 		dbi: dbi,
 		txn: txn,
 	}
-	s.dbflags, s.err = txn.Flags(dbi)
+	s.dbflags, s.err = txn.Flag(dbi)
 	if s.err != nil {
 		return s
 	}

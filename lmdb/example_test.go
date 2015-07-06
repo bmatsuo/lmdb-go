@@ -265,7 +265,7 @@ func ExampleEnv() {
 	if err != nil {
 		panic(err)
 	}
-	env.SetMaxDBs(1)
+	env.SetMaxDB(1)
 	env.Open(path, 0, 0664)
 	defer env.Close()
 
@@ -282,7 +282,7 @@ func ExampleEnv() {
 		if err != nil {
 			return err
 		}
-		fmt.Println(stat.Entries)
+		fmt.Println(stat.NumEntry)
 
 		// commit the transaction, writing an entry for the newly created
 		// database.
@@ -308,7 +308,7 @@ func ExampleTxn() {
 
 	// open the LMDB environment
 	env, _ := lmdb.NewEnv()
-	env.SetMaxDBs(1)
+	env.SetMaxDB(1)
 	env.Open(path, 0, 0664)
 	defer env.Close()
 
@@ -351,7 +351,7 @@ func ExampleTxn() {
 		if err != nil {
 			return err
 		}
-		fmt.Println(stat.Entries)
+		fmt.Println(stat.NumEntry)
 		return nil
 	})
 	if err != nil {
@@ -386,7 +386,7 @@ func ExampleCursor() {
 
 	// open the LMDB environment
 	env, _ := lmdb.NewEnv()
-	env.SetMaxDBs(1)
+	env.SetMaxDB(1)
 	env.Open(path, 0, 0664)
 	defer env.Close()
 
@@ -426,7 +426,7 @@ func ExampleCursor() {
 		if err != nil {
 			return err
 		}
-		fmt.Println(stat.Entries)
+		fmt.Println(stat.NumEntry)
 
 		return nil
 	})
@@ -479,7 +479,7 @@ func ExampleTxn_OpenRoot() {
 
 // Txn.OpenRoot may be called without flags inside View transactions.
 func ExampleTxn_OpenRoot_view() {
-	err = EnvEx.View(func(txn *lmdb.Txn) (err error) {
+	err := EnvEx.View(func(txn *lmdb.Txn) (err error) {
 		db, err := txn.OpenRoot(0)
 		if err != nil {
 			return err

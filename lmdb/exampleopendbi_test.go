@@ -20,9 +20,9 @@ func ExampleTxn_OpenDBI() {
 		panic(err)
 	}
 
-	// when using named databases SetMaxDBs is required to be at least the
+	// when using named databases SetMaxDB is required to be at least the
 	// number of named databases needed.
-	if err = env.SetMaxDBs(1); err != nil {
+	if err = env.SetMaxDB(1); err != nil {
 		panic(err)
 	}
 

@@ -117,6 +117,7 @@ func IsErrnoSys(err error, errno syscall.Errno) bool {
 	return IsErrnoFn(err, func(err error) bool { return err == errno })
 }
 
+// IsErrnoFn returns true if err's errno is matched by fn.
 func IsErrnoFn(err error, fn func(err error) bool) bool {
 	if err == nil {
 		return false

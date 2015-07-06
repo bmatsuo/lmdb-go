@@ -137,7 +137,7 @@ func (txn *Txn) renew() error {
 // name is empty.  The DBI returned by OpenDBI can be used in other
 // transactions but not before Txn has terminated.
 //
-// OpenDBI can only be called after env.SetMaxDBs() has been called to set the
+// OpenDBI can only be called after env.SetMaxDB() has been called to set the
 // maximum number of named databases.
 //
 // The C API uses null terminated strings for database names.  A consequence is
@@ -157,15 +157,15 @@ func (txn *Txn) CreateDBI(name string) (DBI, error) {
 	return txn.OpenDBI(name, Create)
 }
 
-// Flags returns the database flags for handle dbi.
-func (txn *Txn) Flags(dbi DBI) (uint, error) {
+// Flag returns the database flags for handle dbi.
+func (txn *Txn) Flag(dbi DBI) (uint, error) {
 	var cflags C.uint
 	ret := C.mdb_dbi_flags(txn._txn, C.MDB_dbi(dbi), (*C.uint)(&cflags))
 	return uint(cflags), operrno("mdb_dbi_flags", ret)
 }
 
 // OpenRoot opens the root database.  OpenRoot behaves similarly to OpenDBI but
-// does not require env.SetMaxDBs() to be called beforehand.  And, OpenRoot can
+// does not require env.SetMaxDB() to be called beforehand.  And, OpenRoot can
 // be called without flags in a View transaction.
 func (txn *Txn) OpenRoot(flags uint) (DBI, error) {
 	return txn.openDBI(nil, flags)
@@ -189,12 +189,14 @@ func (txn *Txn) Stat(dbi DBI) (*Stat, error) {
 	if ret != success {
 		return nil, operrno("mdb_stat", ret)
 	}
-	stat := Stat{PSize: uint(_stat.ms_psize),
-		Depth:         uint(_stat.ms_depth),
-		BranchPages:   uint64(_stat.ms_branch_pages),
-		LeafPages:     uint64(_stat.ms_leaf_pages),
-		OverflowPages: uint64(_stat.ms_overflow_pages),
-		Entries:       uint64(_stat.ms_entries)}
+	stat := Stat{
+		PSize:       uint(_stat.ms_psize),
+		Depth:       uint(_stat.ms_depth),
+		NumBranch:   uint64(_stat.ms_branch_pages),
+		NumLeaf:     uint64(_stat.ms_leaf_pages),
+		NumOverflow: uint64(_stat.ms_overflow_pages),
+		NumEntry:    uint64(_stat.ms_entries),
+	}
 	return &stat, nil
 }
 

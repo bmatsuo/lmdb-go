@@ -442,7 +442,7 @@ func TestTxn_Sub(t *testing.T) {
 	}
 }
 
-func TestTxn_Flags(t *testing.T) {
+func TestTxn_Flag(t *testing.T) {
 	env := setup(t)
 	path, err := env.Path()
 	if err != nil {
@@ -499,7 +499,7 @@ func TestTxn_Flags(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = env.SetMaxDBs(1)
+	err = env.SetMaxDB(1)
 	if err != nil {
 		t.Error(err)
 		return
@@ -515,7 +515,7 @@ func TestTxn_Flags(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		flags, err := txn.Flags(db)
+		flags, err := txn.Flag(db)
 		if err != nil {
 			return err
 		}

@@ -63,8 +63,8 @@ func TestTest1(t *testing.T) {
 	stat, err := env.Stat()
 	if err != nil {
 		t.Fatalf("Cannot get stat %s", err)
-	} else if stat.Entries != uint64(numEntries) {
-		t.Errorf("Less entry in the database than expected: %d <> %d", stat.Entries, numEntries)
+	} else if stat.NumEntry != uint64(numEntries) {
+		t.Errorf("Less entry in the database than expected: %d <> %d", stat.NumEntry, numEntries)
 	}
 	t.Logf("%#v", stat)
 

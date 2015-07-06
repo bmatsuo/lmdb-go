@@ -329,7 +329,7 @@ func setupBenchDB(b *testing.B) (*Env, string) {
 func setupBenchDBFlags(b *testing.B, flags uint) (*Env, string) {
 	env, err := NewEnv()
 	bMust(b, err, "creating env")
-	err = env.SetMaxDBs(26)
+	err = env.SetMaxDB(26)
 	bMust(b, err, "setting max dbs")
 	err = env.SetMapSize(1 << 30) // 1GB
 	bMust(b, err, "sizing env")

@@ -116,14 +116,15 @@ func (env *Env) CopyFlag(path string, flags uint) error {
 
 // Statistics for a database in the environment
 //
-// See MDB_stat.
+// See MDB_stat.  Note that the struct filed names are not identical to the C
+// struct.
 type Stat struct {
-	PSize         uint   // Size of a database page. This is currently the same for all databases.
-	Depth         uint   // Depth (height) of the B-tree
-	BranchPages   uint64 // Number of internal (non-leaf) pages
-	LeafPages     uint64 // Number of leaf pages
-	OverflowPages uint64 // Number of overflow pages
-	Entries       uint64 // Number of data items
+	PSize       uint   // Size of a database page. This is currently the same for all databases.
+	Depth       uint   // Depth (height) of the B-tree
+	NumBranch   uint64 // Number of internal (non-leaf) pages
+	NumLeaf     uint64 // Number of leaf pages
+	NumOverflow uint64 // Number of overflow pages
+	NumEntry    uint64 // Number of data items
 }
 
 // Stat returns statistics about the environment.
@@ -135,24 +136,26 @@ func (env *Env) Stat() (*Stat, error) {
 	if ret != success {
 		return nil, operrno("mdb_env_stat", ret)
 	}
-	stat := Stat{PSize: uint(_stat.ms_psize),
-		Depth:         uint(_stat.ms_depth),
-		BranchPages:   uint64(_stat.ms_branch_pages),
-		LeafPages:     uint64(_stat.ms_leaf_pages),
-		OverflowPages: uint64(_stat.ms_overflow_pages),
-		Entries:       uint64(_stat.ms_entries)}
+	stat := Stat{
+		PSize:       uint(_stat.ms_psize),
+		Depth:       uint(_stat.ms_depth),
+		NumBranch:   uint64(_stat.ms_branch_pages),
+		NumLeaf:     uint64(_stat.ms_leaf_pages),
+		NumOverflow: uint64(_stat.ms_overflow_pages),
+		NumEntry:    uint64(_stat.ms_entries),
+	}
 	return &stat, nil
 }
 
-// Information about the environment.
+// Information about an LMDB environment.
 //
-// See MDB_envinfo.
+// See MDB_envinfo.  Note that field names are not identical to the C struct.
 type EnvInfo struct {
-	MapSize    int64 // Size of the data memory map
-	LastPNO    int64 // ID of the last used page
-	LastTxnID  int64 // ID of the last committed transaction
-	MaxReaders uint  // maximum number of threads for the environment
-	NumReaders uint  // maximum number of threads used in the environment
+	MapSize   int64 // Size of the data memory map
+	LastPNO   int64 // ID of the last used page
+	LastTxnID int64 // ID of the last committed transaction
+	MaxReader uint  // maximum number of threads for the environment
+	NumReader uint  // maximum number of threads used in the environment
 }
 
 // Info returns information about the environment.
@@ -165,11 +168,11 @@ func (env *Env) Info() (*EnvInfo, error) {
 		return nil, operrno("mdb_env_info", ret)
 	}
 	info := EnvInfo{
-		MapSize:    int64(_info.me_mapsize),
-		LastPNO:    int64(_info.me_last_pgno),
-		LastTxnID:  int64(_info.me_last_txnid),
-		MaxReaders: uint(_info.me_maxreaders),
-		NumReaders: uint(_info.me_numreaders),
+		MapSize:   int64(_info.me_mapsize),
+		LastPNO:   int64(_info.me_last_pgno),
+		LastTxnID: int64(_info.me_last_txnid),
+		MaxReader: uint(_info.me_maxreaders),
+		NumReader: uint(_info.me_numreaders),
 	}
 	return &info, nil
 }
@@ -183,26 +186,28 @@ func (env *Env) Sync(force bool) error {
 	return operrno("mdb_env_sync", ret)
 }
 
-// SetFlags sets flags in the environment.
+// SetFlag sets flags in the environment.  To clear flags instead use
+// env.UnsetFlag().
 //
 // See mdb_env_set_flags.
-func (env *Env) SetFlags(flags uint) error {
+func (env *Env) SetFlag(flags uint) error {
 	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(1))
 	return operrno("mdb_env_set_flags", ret)
 }
 
-// UnsetFlags clears flags in the environment.
+// UnsetFlag clears flags in the environment.  To set flags instead use
+// env.SetFlag().
 //
 // See mdb_env_set_flags.
-func (env *Env) UnsetFlags(flags uint) error {
+func (env *Env) UnsetFlag(flags uint) error {
 	ret := C.mdb_env_set_flags(env._env, C.uint(flags), C.int(0))
 	return operrno("mdb_env_set_flags", ret)
 }
 
-// Flags returns the flags set in the environment.
+// Flag returns the flags set in the environment.
 //
 // See mdb_env_get_flags.
-func (env *Env) Flags() (uint, error) {
+func (env *Env) Flag() (uint, error) {
 	var _flags C.uint
 	ret := C.mdb_env_get_flags(env._env, &_flags)
 	if ret != success {
@@ -238,10 +243,10 @@ func (env *Env) SetMapSize(size int64) error {
 	return operrno("mdb_env_set_mapsize", ret)
 }
 
-// SetMaxReaders sets the maximum number of reader slots in the environment.
+// SetMaxReader sets the maximum number of reader slots in the environment.
 //
 // See mdb_env_set_maxreaders.
-func (env *Env) SetMaxReaders(size int) error {
+func (env *Env) SetMaxReader(size int) error {
 	if size < 0 {
 		return fmt.Errorf("negative size")
 	}
@@ -249,10 +254,10 @@ func (env *Env) SetMaxReaders(size int) error {
 	return operrno("mdb_env_set_maxreaders", ret)
 }
 
-// MaxReaders returns the maximum number of reader slots for the environment.
+// MaxReader returns the maximum number of reader slots for the environment.
 //
 // See mdb_env_get_maxreaders.
-func (env *Env) MaxReaders() (int, error) {
+func (env *Env) MaxReader() (int, error) {
 	var max C.uint
 	ret := C.mdb_env_get_maxreaders(env._env, &max)
 	return int(max), operrno("mdb_env_get_maxreaders", ret)
@@ -268,10 +273,10 @@ func (env *Env) MaxKeySize() int {
 	return int(C.mdb_env_get_maxkeysize(env._env))
 }
 
-// SetMaxDBs sets the maximum number of named databases for the environment.
+// SetMaxDB sets the maximum number of named databases for the environment.
 //
 // See mdb_env_set_maxdbs.
-func (env *Env) SetMaxDBs(size int) error {
+func (env *Env) SetMaxDB(size int) error {
 	if size < 0 {
 		return fmt.Errorf("negative size")
 	}
