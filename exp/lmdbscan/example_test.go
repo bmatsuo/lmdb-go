@@ -3,7 +3,6 @@ package lmdbscan_test
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"log"
 	"time"
 
@@ -14,9 +13,10 @@ import (
 var env *lmdb.Env
 
 // This example demonstrates basic usage of a Scanner to scan the root
-// database.
+// database.  It is important to always call scanner.Err() which will returned
+// any unexpected error which interrupted scanner.Scan().
 func ExampleScanner() {
-	env.View(func(txn *lmdb.Txn) (err error) {
+	err := env.View(func(txn *lmdb.Txn) (err error) {
 		dbroot, _ := txn.OpenRoot(0)
 
 		scanner := lmdbscan.New(txn, dbroot)
@@ -25,109 +25,112 @@ func ExampleScanner() {
 		for scanner.Scan() {
 			log.Printf("k=%q v=%q", scanner.Key(), scanner.Val())
 		}
-
-		// if iteration terminated normally scanner.Err() returns nil.
-		// otherwise a non-nil value is returned and the transaction is
-		// aborted.
 		return scanner.Err()
 	})
+	if err != nil {
+		panic(err)
+	}
 }
 
-// This example demonstrates scanning a key range in the root database.
+// This example demonstrates scanning a key range in the root database.  Set is
+// used to move the cursor's starting position to the desired prefix.
 func ExampleScanner_Set() {
 	keyprefix := []byte("users:")
-	env.View(func(txn *lmdb.Txn) (err error) {
+	err := env.View(func(txn *lmdb.Txn) (err error) {
 		dbroot, _ := txn.OpenRoot(0)
 
 		scanner := lmdbscan.New(txn, dbroot)
 		defer scanner.Close()
 
-		// Set is used to determine the cursor's starting position to the
-		// desired prefix. And lmdb.While is used to stop iteration once the
-		// Scanner has passed the prefix.
 		scanner.Set(keyprefix, nil, lmdb.SetRange)
-		scan := lmdbscan.While(func(k, v []byte) bool { return bytes.HasPrefix(k, keyprefix) })
-		for scanner.Scan(scan) {
+		for scanner.Scan(nil) {
+			if !bytes.HasPrefix(scanner.Key(), keyprefix) {
+				break
+			}
 			log.Printf("k=%q v=%q", scanner.Key(), scanner.Val())
 		}
-
-		// when Scan is passed an lmdb.Func any non-nil value other than
-		// Skip or Stop are returned by scanner.Err().
 		return scanner.Err()
 	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 // This example demonstrates scanning all values for a key in a root database
-// with the lmdb.DupSort flag set.
+// with the lmdb.DupSort flag set.  SetNext is used instead of Set to configure
+// Cursor the to return ErrNotFound (EOF) after all duplicate keys have been
+// iterated.
 func ExampleScanner_SetNext() {
 	key := []byte("userphone:123")
-	env.View(func(txn *lmdb.Txn) (err error) {
+	err := env.View(func(txn *lmdb.Txn) (err error) {
 		dbroot, _ := txn.OpenRoot(0)
 
 		scanner := lmdbscan.New(txn, dbroot)
 		defer scanner.Close()
 
-		// SetNext is used instead of Set to configure Cursor the to return
-		// ErrNotFound (EOF) after all duplicate keys have been iterated.
 		scanner.SetNext(key, nil, lmdb.GetBothRange, lmdb.NextDup)
 		for scanner.Scan() {
 			log.Printf("k=%q v=%q", scanner.Key(), scanner.Val())
 		}
-
 		return scanner.Err()
 	})
+	if err != nil {
+		panic(err)
+	}
 }
 
-func ExampleScanner_Scan() {
+// This (mildly contrived) example demonstrates how the features of lmdbscan
+// combine to effectively query a database.  In the example time series data is
+// being filtered.  The timestamp of each series entry is encoded in the
+// database key, prefixed with the bytes "data:".  This information is used
+// more efficiently filter keys.
+func Example() {
+	prefix := []byte("data:")
 	cutoff := time.Now().Add(-time.Minute)
 
-	timeVal := func(nsbytes []byte) time.Time {
-		ns := binary.BigEndian.Uint64(nsbytes)
-		return time.Unix(0, int64(ns))
-	}
-
-	env.View(func(txn *lmdb.Txn) (err error) {
+	err := env.View(func(txn *lmdb.Txn) (err error) {
 		dbroot, _ := txn.OpenRoot(0)
 
 		scanner := lmdbscan.New(txn, dbroot)
 		defer scanner.Close()
 
-		// Scan will accept multiple Funcs that can layer behavior.  Here
-		// timeSeries skips keys which do not look like timestamps, and
-		// beforeCutoff allows iteration to continue until the timestamp is
-		// after some the given cutoff.
-		timeSeries := lmdbscan.Select(func(k, v []byte) bool { return len(k) == 8 })
-		beforeCutoff := lmdbscan.While(func(k, v []byte) bool {
-			return !timeVal(v).After(cutoff)
+		scanner.SetNext(prefix, nil, lmdb.SetRange, lmdb.Next)
+		hasPrefix := lmdbscan.While(func(k, v []byte) bool { return bytes.HasPrefix(k, prefix) })
+		isTimeSeries := lmdbscan.Select(func(k, v []byte) bool { return len(k)-len(prefix) == 8 })
+		notCutOff := lmdbscan.Select(func(k, v []byte) bool {
+			nsbytes := k[len(prefix):]
+			ns := binary.BigEndian.Uint64(nsbytes)
+			t := time.Unix(0, int64(ns))
+			return t.After(cutoff)
 		})
-		for scanner.Scan(timeSeries, beforeCutoff) {
-			log.Printf("%s v=%q", timeVal(scanner.Key()), scanner.Val())
+		for scanner.Scan(hasPrefix, isTimeSeries, notCutOff) {
+			log.Print(scanner.Val())
+
+			// ... process the series entry
 		}
 
-		// when Scan is passed an lmdb.Func non-nil error values other than
-		// Skip or Stop are returned by scanner.Err().
 		return scanner.Err()
 	})
+	if err != nil {
+		panic(err)
+	}
 }
 
-func Example() {
-	env.View(func(txn *lmdb.Txn) (err error) {
+// This simple example shows how to iterate over a database that indexes json
+// document.
+func ExampleScanner_Scan() {
+	err := env.View(func(txn *lmdb.Txn) (err error) {
 		dbroot, _ := txn.OpenRoot(0)
 
 		scanner := lmdbscan.New(txn, dbroot)
 		defer scanner.Close()
 
-		var m map[string]interface{}
-		unmarshal := func(k, v []byte) error {
-			m = nil
-			return json.Unmarshal(v, &m)
+		for scanner.Scan(nil) {
+			log.Printf("%q=%q", scanner.Key(), scanner.Val())
 		}
-		for scanner.Scan(lmdbscan.Ignore(unmarshal)) {
-			log.Printf("id: %v", m["id"])
-		}
-
-		// when Scan is passed an lmdb.Func non-nil error values other than
-		// Skip or Stop are returned by scanner.Err().
 		return scanner.Err()
 	})
+	if err != nil {
+		panic(err)
+	}
 }

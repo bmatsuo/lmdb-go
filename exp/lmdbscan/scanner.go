@@ -131,7 +131,7 @@ func (s *Scanner) Set(k, v []byte, op uint) {
 }
 
 // Set determines the cursor behavior for subsequent calls to s.Scan().  The
-// immediately following follow to s.Scan() behaves as if s.Set(k,v,opset) was
+// immediately following call to s.Scan() behaves as if s.Set(k,v,opset) was
 // called.  Subsequent calls move the cursor as
 //		c.Get(nil, nil, opnext)
 func (s *Scanner) SetNext(k, v []byte, opset, opnext uint) {
