@@ -479,7 +479,7 @@ func ExampleTxn_OpenRoot() {
 
 // Txn.OpenRoot may be called without flags inside View transactions.
 func ExampleTxn_OpenRoot_view() {
-	err = EnvEx.View(func(txn *lmdb.Txn) (err error) {
+	err := EnvEx.View(func(txn *lmdb.Txn) (err error) {
 		db, err := txn.OpenRoot(0)
 		if err != nil {
 			return err
