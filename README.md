@@ -20,7 +20,7 @@ There is no dependency on LMDB dynamic library.
 
 On FreeBSD 10, you must explicitly set `CC` (otherwise it will fail with a cryptic error), for example:
 
-`CC=clang go test -v`
+    CC=clang go test -v ./...
 
 #Documentation
 
