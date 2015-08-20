@@ -18,13 +18,12 @@ var Stop = fmt.Errorf("stop")
 // current (k, v) pair.
 var Skip = fmt.Errorf("skip")
 
-// A Func is used to scan (k, v) pairs in an lmdb database.  A Func can be used
-// either as a filter or as a handler depending on context.
+// A Func is used to control iteration of (k, v) pairs in a database.
 type Func func(k, v []byte) error
 
-// Ignore returns a Func that calls fn(k, v) on pairs and returns Skip
+// SkipErr returns a Func that calls fn(k, v) on pairs and returns Skip
 // whenever any error is returned.
-func Ignore(fn Func) Func {
+func SkipErr(fn Func) Func {
 	return func(k, v []byte) error {
 		err := fn(k, v)
 		if err != nil {
