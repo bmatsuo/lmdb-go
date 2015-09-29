@@ -333,8 +333,8 @@ func (env *Env) Update(fn TxnOp) error {
 // its thread.  UpdateLocked should be used if the calling goroutine is already
 // locked to its thread for another purpose.
 //
-// Any call to Commit, Abort, Reset or Renew on a Txn created by Update will
-// panic.
+// Any call to Commit, Abort, Reset or Renew on a Txn created by UpdateLocked
+// will panic.
 func (env *Env) UpdateLocked(fn TxnOp) error {
 	return env.run(false, 0, fn)
 }
