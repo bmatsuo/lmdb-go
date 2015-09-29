@@ -5,22 +5,26 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 ## Key Features
 
 - Fast zero-copy reads for applications with high performance requirements.
-  Zero-copy behavior is specified at the transaction level to simplify
-  instrumentation.
+  Zero-copy behavior is specified at the transaction level to reduce
+  instrumentation overhead.
 
-    err := lmdb.View(func(txn *lmdb.Txn) error {
-        txn.RawRead = true
-        val, err := txn.Get(dbi, []byte("largevalue"), 0)
-        // ...
-    })
+```
+err := lmdb.View(func(txn *lmdb.Txn) error {
+    txn.RawRead = true
+    val, err := txn.Get(dbi, []byte("largevalue"), 0)
+    // ...
+})
+```
 
 - API inspired by [BoltDB](https://github.com/boltdb/bolt) with automatic
   commit/rollback of transactions.  The goal of lmdb-go is to provide
   idiomatic, safe database interactions without compromising the flexibility of
   the C API.
 
-- Full-featured bindings to the LMDB library accompanied by comprehensive
-  documentation and code examples.
+- Subtransactions are fully supported and safe to use with the same idiomatic
+  API.
+
+- Comprehensive documentation and code examples.
 
 #Build
 
