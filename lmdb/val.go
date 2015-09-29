@@ -12,6 +12,11 @@ import (
 	"unsafe"
 )
 
+// Multi is a wrapper for a contiguous page of sorted, fixed-length values
+// passed to Cursor.PutMulti or retrieved using Cursor.Get with the
+// GetMultiple/NextMultiple flag.
+//
+// Multi values are only useful in databases opened with DupSort|DupFixed.
 type Multi struct {
 	page   []byte
 	stride int
@@ -33,7 +38,8 @@ func WrapMulti(page []byte, stride int) *Multi {
 	return &Multi{page: page, stride: stride}
 }
 
-// Vals returns a slice containing each value in m.
+// Vals returns a slice containing the values in m.  The returned slice has
+// length m.Len() and each item has length m.Stride().
 func (m *Multi) Vals() [][]byte {
 	i, ps := 0, make([][]byte, m.Len())
 	for off := 0; off < len(m.page); off += m.stride {
@@ -43,7 +49,7 @@ func (m *Multi) Vals() [][]byte {
 	return ps
 }
 
-// Val returns the m at index i.  Val panics if i is out of range.
+// Val returns the value at index i.  Val panics if i is out of range.
 func (m *Multi) Val(i int) []byte {
 	if i < 0 || m.Len() <= i {
 		panic("index out of range")
@@ -52,19 +58,19 @@ func (m *Multi) Val(i int) []byte {
 	return m.page[off : off+m.stride]
 }
 
-// Len returns the number of m in the Multi.
+// Len returns the number of values in the Multi.
 func (m *Multi) Len() int {
 	return len(m.page) / m.stride
 }
 
-// Stride returns the length of an individual item in the Multi.
+// Stride returns the length of an individual value in the m.
 func (m *Multi) Stride() int {
 	return m.stride
 }
 
-// Size returns the total size of the Multi data and is equim to
+// Size returns the total size of the Multi data and is equal to
 //
-//		m.Len()*m.String()
+//		m.Len()*m.Stride()
 //
 func (m *Multi) Size() int {
 	return len(m.page)
