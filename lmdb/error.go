@@ -117,7 +117,10 @@ func IsErrnoSys(err error, errno syscall.Errno) bool {
 	return IsErrnoFn(err, func(err error) bool { return err == errno })
 }
 
-func IsErrnoFn(err error, fn func(err error) bool) bool {
+// IsErrnoFn calls fn on the error underlying err and returns the result.  If
+// err is an *OpError then err.Errno is passed to fn.  Otherwise err is passed
+// directly to fn.
+func IsErrnoFn(err error, fn func(error) bool) bool {
 	if err == nil {
 		return false
 	}
