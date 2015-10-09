@@ -366,7 +366,3 @@ func (env *Env) run(lock bool, flags uint, fn TxnOp) error {
 func (env *Env) CloseDBI(db DBI) {
 	C.mdb_dbi_close(env._env, C.MDB_dbi(db))
 }
-
-func isReadonly(flags uint) bool {
-	return flags&Readonly != 0
-}

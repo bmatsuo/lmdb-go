@@ -3,6 +3,7 @@ package lmdb
 import (
 	"io/ioutil"
 	"os"
+	"syscall"
 	"testing"
 )
 
@@ -130,6 +131,76 @@ func TestEnv_Flags(t *testing.T) {
 	}
 	if flags&NoSync != 0 {
 		t.Error("NoSync is set")
+	}
+}
+
+func TestEnv_SetMaxReader(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-env-setmaxreaders-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	env, err := NewEnv()
+	if err != nil {
+		t.Error(err)
+	}
+
+	maxreaders := 5
+	err = env.SetMaxReaders(maxreaders)
+	if err != nil {
+		t.Error(err)
+	}
+	_maxreaders, err := env.MaxReaders()
+	if err != nil {
+		t.Error(err)
+	}
+	if _maxreaders != maxreaders {
+		t.Errorf("unexpected MaxReaders: %v (!= %v)", _maxreaders, maxreaders)
+	}
+
+	err = env.Open(dir, 0, 0644)
+	defer env.Close()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+	}
+
+	err = env.SetMaxReaders(126)
+	if !IsErrnoSys(err, syscall.EINVAL) {
+		t.Errorf("unexpected error: %v (!= %v)", err, Invalid)
+	}
+	_maxreaders, err = env.MaxReaders()
+	if err != nil {
+		t.Error(err)
+	}
+	if _maxreaders != maxreaders {
+		t.Errorf("unexpected MaxReaders: %v (!= %v)", _maxreaders, maxreaders)
+	}
+}
+
+func TestEnv_SetMapSize(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	const minsize = 100 << 20 // 100MB
+	err := env.SetMapSize(minsize)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	info, err := env.Info()
+	if err != nil {
+		t.Error(err)
+	} else if info.MapSize < minsize {
+		t.Errorf("unexpected mapsize: %v (< %v)", info.MapSize, minsize)
 	}
 }
 
