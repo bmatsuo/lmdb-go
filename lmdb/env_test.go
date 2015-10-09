@@ -296,7 +296,34 @@ func testEnv_Copy(t *testing.T, flags uint, useflags bool) {
 	}
 }
 
+func TestEnv_Sync(t *testing.T) {
+	env := setupFlags(t, NoSync)
+	defer clean(env, t)
+
+	item := struct{ k, v []byte }{[]byte("k0"), []byte("v0")}
+
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(db, item.k, item.v, 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Sync(true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func setup(t T) *Env {
+	return setupFlags(t, 0)
+}
+
+func setupFlags(t T, flags uint) *Env {
 	env, err := NewEnv()
 	if err != nil {
 		t.Fatalf("env: %s", err)
@@ -313,7 +340,7 @@ func setup(t T) *Env {
 	if err != nil {
 		t.Fatalf("setmaxdbs: %v", err)
 	}
-	err = env.Open(path, 0, 0664)
+	err = env.Open(path, flags, 0664)
 	if err != nil {
 		t.Fatalf("open: %s", err)
 	}
