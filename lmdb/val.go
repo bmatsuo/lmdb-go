@@ -34,7 +34,6 @@ func WrapMulti(page []byte, stride int) *Multi {
 	if len(page)%stride != 0 {
 		panic("incongruent arguments")
 	}
-
 	return &Multi{page: page, stride: stride}
 }
 
@@ -51,9 +50,6 @@ func (m *Multi) Vals() [][]byte {
 
 // Val returns the value at index i.  Val panics if i is out of range.
 func (m *Multi) Val(i int) []byte {
-	if i < 0 || m.Len() <= i {
-		panic("index out of range")
-	}
 	off := i * m.stride
 	return m.page[off : off+m.stride]
 }
