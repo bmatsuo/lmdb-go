@@ -36,6 +36,13 @@ const (
 	NoMemInit   = C.MDB_NOMEMINIT  // Disable LMDB memory initialization.
 )
 
+const (
+	// Flags for Env.CopyFlags
+	//
+	// See mdb_env_copy2
+	CopyCompact = C.MDB_CP_COMPACT // Perform compaction while copying
+)
+
 // DBI is a handle for a database in an Env.
 //
 // See MDB_dbi

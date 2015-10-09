@@ -1,6 +1,8 @@
 package lmdb
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"syscall"
@@ -201,6 +203,96 @@ func TestEnv_SetMapSize(t *testing.T) {
 		t.Error(err)
 	} else if info.MapSize < minsize {
 		t.Errorf("unexpected mapsize: %v (< %v)", info.MapSize, minsize)
+	}
+}
+
+func TestEnv_ReaderCheck(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	numDead, err := env.ReaderCheck()
+	if err != nil {
+		t.Error(err)
+	}
+	if numDead != 0 {
+		t.Errorf("unexpected dead readers: %v (!= %v)", numDead, 0)
+	}
+}
+
+func TestEnv_Copy(t *testing.T) {
+	testEnv_Copy(t, 0, false)
+}
+
+func TestEnv_CopyFlags(t *testing.T) {
+	testEnv_Copy(t, CopyCompact, true)
+}
+
+func TestEnv_CopyFlags_zero(t *testing.T) {
+	testEnv_Copy(t, 0, true)
+}
+
+func testEnv_Copy(t *testing.T, flags uint, useflags bool) {
+	dircp, err := ioutil.TempDir("", "test-env-copy-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dircp)
+
+	env := setup(t)
+	defer clean(env, t)
+
+	item := struct{ k, v []byte }{
+		[]byte("k0"),
+		[]byte("v0"),
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		db, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(db, item.k, item.v, 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if useflags {
+		err = env.CopyFlag(dircp, flags)
+	} else {
+		err = env.Copy(dircp)
+	}
+	if err != nil {
+		t.Error(err)
+	}
+
+	envcp, err := NewEnv()
+	if err != nil {
+		t.Error(err)
+	}
+	err = envcp.Open(dircp, 0, 0644)
+	defer envcp.Close()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = envcp.View(func(txn *Txn) (err error) {
+		db, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		v, err := txn.Get(db, item.k)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(v, item.v) {
+			return fmt.Errorf("unexpected value: %q (!= %q)", v, "v0")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 
