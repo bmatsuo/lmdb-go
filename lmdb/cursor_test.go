@@ -3,6 +3,7 @@ package lmdb
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -148,6 +149,110 @@ func TestCursor_PutReserve(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCursor_Del(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	type Item struct{ k, v string }
+	items := []Item{
+		{"k0", "k0"},
+		{"k1", "k1"},
+		{"k2", "k2"},
+	}
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.CreateDBI("testing")
+		if err != nil {
+			return err
+		}
+
+		for _, item := range items {
+			err := txn.Put(db, []byte(item.k), []byte(item.v), 0)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		txn.RawRead = true
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+
+		item := items[1]
+		k, v, err := cur.Get([]byte(item.k), nil, SetKey)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(k, []byte(item.k)) {
+			return fmt.Errorf("found key %q (!= %q)", k, item.k)
+		}
+		if !bytes.Equal(v, []byte(item.v)) {
+			return fmt.Errorf("found value %q (!= %q)", k, item.v)
+		}
+
+		err = cur.Del(0)
+		if err != nil {
+			return err
+		}
+
+		k, v, err = cur.Get(nil, nil, Next)
+		if err != nil {
+			return fmt.Errorf("post-delete: %v", err)
+		}
+		item = items[2]
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(k, []byte(item.k)) {
+			return fmt.Errorf("found key %q (!= %q)", k, item.k)
+		}
+		if !bytes.Equal(v, []byte(item.v)) {
+			return fmt.Errorf("found value %q (!= %q)", k, item.v)
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	var newitems []Item
+	err = env.View(func(txn *Txn) (err error) {
+		txn.RawRead = true
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		next := func(cur *Cursor) (k, v []byte, err error) { return cur.Get(nil, nil, Next) }
+		for k, v, err := next(cur); !IsNotFound(err); k, v, err = next(cur) {
+			if err != nil {
+				return err
+			}
+			newitems = append(newitems, Item{string(k), string(v)})
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	expectitems := []Item{
+		items[0],
+		items[2],
+	}
+	if !reflect.DeepEqual(newitems, expectitems) {
+		t.Errorf("unexpected items %q (!= %q)", newitems, expectitems)
 	}
 }
 
