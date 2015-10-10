@@ -24,7 +24,7 @@ func BenchmarkTxn_Put(b *testing.B) {
 		return
 	}
 
-	env.Update(func(txn *Txn) (err error) {
+	err = env.Update(func(txn *Txn) (err error) {
 		b.ResetTimer()
 		defer b.StopTimer()
 		for i := 0; i < b.N; i++ {
@@ -58,7 +58,7 @@ func BenchmarkTxn_PutReserve(b *testing.B) {
 		return
 	}
 
-	env.Update(func(txn *Txn) (err error) {
+	err = env.Update(func(txn *Txn) (err error) {
 		b.ResetTimer()
 		defer b.StopTimer()
 		for i := 0; i < b.N; i++ {
@@ -94,7 +94,7 @@ func BenchmarkTxn_PutReserve_writemap(b *testing.B) {
 		return
 	}
 
-	env.Update(func(txn *Txn) (err error) {
+	err = env.Update(func(txn *Txn) (err error) {
 		b.ResetTimer()
 		defer b.StopTimer()
 		for i := 0; i < b.N; i++ {
@@ -175,6 +175,9 @@ func BenchmarkTxn_Get_ro(b *testing.B) {
 
 		return nil
 	})
+	if err != nil {
+		b.Error(err)
+	}
 }
 
 // like BenchmarkTxnGetReadonly but txn.RawRead is set to true.
