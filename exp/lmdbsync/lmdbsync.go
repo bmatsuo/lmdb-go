@@ -39,6 +39,15 @@ structures and is an experimental feature.  It is unclear what benefits this
 provides.
 
 See mdb_env_open and MDB_NOLOCK.
+
+MapFull
+
+The Env type does no special handling of the MapFull error.  If a call to
+Txn.Put() or Cursor.Put() returns lmdb.MapFull it is the application's
+prerogative to detect the error, call Env.SetMapSize, and retry the transaction
+as necessary.
+
+See mdb_env_set_mapsize and MDB_MAP_FULL.
 */
 package lmdbsync
 
