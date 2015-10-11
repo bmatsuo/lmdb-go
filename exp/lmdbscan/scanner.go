@@ -106,6 +106,14 @@ func New(txn *lmdb.Txn, dbi lmdb.DBI) *Scanner {
 	return s
 }
 
+// Del will delete the key at the current cursor location.
+func (s *Scanner) Del(flags uint) error {
+	if s.cur == nil {
+		return fmt.Errorf("scanner is closed")
+	}
+	return s.cur.Del(flags)
+}
+
 // Key returns the key read during the last call to Scan.
 func (s *Scanner) Key() []byte {
 	return s.key
