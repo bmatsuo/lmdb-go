@@ -17,6 +17,44 @@ import (
 var EnvEx *lmdb.Env
 var DBIEx lmdb.DBI
 
+// These values can only be used is code-only examples (no test output).
+var env *lmdb.Env
+var txn *lmdb.Txn
+var dbi *lmdb.DBI
+
+// These values can be used as no-op placeholders in examples.
+func doUpdate(txn *lmdb.Txn) error { return nil }
+func doView(txn *lmdb.Txn) error   { return nil }
+
+// This example demonstrates how to handle a MapResized error, encountered
+// after another process has called mdb_env_set_mapsize (Env.SetMapSize).
+// Applications which don't expect another process to resize the mmap don't
+// need to check for the MapResized error.
+//
+// This example is simplified for clarity.  Many real applications (those with
+// concurrent transactions) will need to synchronize calls to Env.SetMapSize
+// using something like a sync.RWMutex to ensure there are no active readonly
+// transactions (those opened successfully before MapResized was encountered).
+func Example_MapResized() {
+retry:
+	err := env.Update(doUpdate)
+	if lmdb.IsMapResized(err) {
+		// If concurrent read transactions are possible then a sync.RWMutex
+		// must be used here to ensure the have all terminated.
+		err = env.SetMapSize(0)
+		if err != nil {
+			panic(err)
+		}
+
+		// retry the update. a goto is not necessary but it simplifies error
+		// handling with minimal overhead.
+		goto retry
+	} else if err != nil {
+		// ...
+	}
+	// ...
+}
+
 // This complete example demonstrates populating and iterating a database with
 // the DupFixed|DupSort DBI flags.  The use case is probably too trivial to
 // warrant such optimization but it demonstrates the key points.
