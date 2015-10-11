@@ -31,16 +31,17 @@ func doView(txn *lmdb.Txn) error   { return nil }
 // Applications which don't expect another process to resize the mmap don't
 // need to check for the MapResized error.
 //
-// This example is simplified for clarity.  Many real applications (those with
-// concurrent transactions) will need to synchronize calls to Env.SetMapSize
-// using something like a sync.RWMutex to ensure there are no active readonly
-// transactions (those opened successfully before MapResized was encountered).
-func Example_MapResized() {
+// The example is simplified for clarity.  Many real applications will need to
+// synchronize calls to Env.SetMapSize using something like a sync.RWMutex to
+// ensure there are no active readonly transactions (those opened successfully
+// before MapResized was encountered).
+func Example_IsMapResized() {
 retry:
 	err := env.Update(doUpdate)
 	if lmdb.IsMapResized(err) {
 		// If concurrent read transactions are possible then a sync.RWMutex
-		// must be used here to ensure the have all terminated.
+		// must be used here to ensure they all terminate before calling
+		// env.SetMapSize().
 		err = env.SetMapSize(0)
 		if err != nil {
 			panic(err)
