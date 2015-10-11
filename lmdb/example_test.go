@@ -26,6 +26,29 @@ var dbi *lmdb.DBI
 func doUpdate(txn *lmdb.Txn) error { return nil }
 func doView(txn *lmdb.Txn) error   { return nil }
 
+// This example demonstrates how an application typically uses Env.SetMapSize.
+// The call to Env.SetMapSize() is made before calling env.Open().  Any calls
+// after calling Env.Open() must take special care to synchronize with other
+// goroutines.
+func ExampleEnv_SetMapSize() {
+	env, err := NewEnv()
+	if err != nil {
+		// ...
+	}
+
+	// set the memory map size (maximum database size) to 1GB.
+	err = env.SetMapSize(1 << 30)
+	if err != nil {
+		// ...
+	}
+
+	err = env.Open("mydb", 0, 0644)
+	if err != nil {
+		// ...
+	}
+	// ...
+}
+
 // This example demonstrates how to handle a MapResized error, encountered
 // after another process has called mdb_env_set_mapsize (Env.SetMapSize).
 // Applications which don't expect another process to resize the mmap don't
@@ -35,7 +58,7 @@ func doView(txn *lmdb.Txn) error   { return nil }
 // synchronize calls to Env.SetMapSize using something like a sync.RWMutex to
 // ensure there are no active readonly transactions (those opened successfully
 // before MapResized was encountered).
-func Example_IsMapResized() {
+func ExampleEnv_SetMapSize_mapResized() {
 retry:
 	err := env.Update(doUpdate)
 	if lmdb.IsMapResized(err) {
