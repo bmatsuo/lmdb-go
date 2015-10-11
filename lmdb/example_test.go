@@ -31,7 +31,7 @@ func doView(txn *lmdb.Txn) error   { return nil }
 // after calling Env.Open() must take special care to synchronize with other
 // goroutines.
 func ExampleEnv_SetMapSize() {
-	env, err := NewEnv()
+	env, err := lmdb.NewEnv()
 	if err != nil {
 		// ...
 	}
