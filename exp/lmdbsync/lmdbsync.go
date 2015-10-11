@@ -277,7 +277,7 @@ func (r *Env) retryResized(i int, err error) bool {
 
 	var delay time.Duration
 	if i > 0 {
-		delay = r.getDelayRepeatResize()
+		delay = r.getDelayRepeatResize(i)
 	}
 
 	err = r.setMapSize(0, delay)
