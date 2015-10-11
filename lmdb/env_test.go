@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"syscall"
 	"testing"
 )
@@ -203,6 +204,52 @@ func TestEnv_SetMapSize(t *testing.T) {
 		t.Error(err)
 	} else if info.MapSize < minsize {
 		t.Errorf("unexpected mapsize: %v (< %v)", info.MapSize, minsize)
+	}
+}
+
+func TestEnv_ReaderList(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var numreaders = 2
+
+	var fin sync.WaitGroup
+	defer fin.Wait()
+	ready := make(chan struct{})
+	done := make(chan struct{})
+	defer close(done)
+
+	t.Logf("starting")
+
+	for i := 0; i < numreaders; i++ {
+		fin.Add(1)
+		go func(i int) {
+			defer fin.Done()
+			err := env.View(func(txn *Txn) (err error) {
+				t.Logf("reader %v: ready", i)
+				ready <- struct{}{}
+
+				<-done
+				t.Logf("reader %v: done", i)
+				return nil
+			})
+			if err != nil {
+				t.Errorf("reader %d: %q", i, err)
+			}
+		}(i)
+
+		// wait for each reader to become ready
+		<-ready
+	}
+
+	var readers []string
+	env.ReaderList(func(msg string) error {
+		t.Logf("reader: %q", msg)
+		readers = append(readers, msg)
+		return nil
+	})
+	if len(readers) != numreaders+1 {
+		t.Errorf("unexpected reader list size: %d (!= %d)", len(readers), numreaders)
 	}
 }
 

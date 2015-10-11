@@ -4,6 +4,7 @@ package lmdb
 #include <stdlib.h>
 #include <stdio.h>
 #include "lmdb.h"
+#include "lmdbgo.h"
 */
 import "C"
 
@@ -76,6 +77,14 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_open(env._env, cpath, C.uint(NoTLS|flags), C.mdb_mode_t(mode))
+	return operrno("mdb_env_open", ret)
+}
+
+func (env *Env) ReaderList(fn func(string) error) error {
+	ctx := newMsgctx()
+	ctx.register(fn)
+	defer ctx.deregister()
+	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
 	return operrno("mdb_env_open", ret)
 }
 

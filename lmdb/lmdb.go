@@ -60,8 +60,15 @@ package lmdb
 #cgo netbsd CFLAGS: -DMDB_DSYNC=O_SYNC
 
 #include "lmdb.h"
+#include "lmdbgo.h"
 */
 import "C"
+import (
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"unsafe"
+)
 
 // Version return the major, minor, and patch version numbers of the LMDB C
 // library and a string representation of the version.
@@ -85,6 +92,46 @@ func VersionString() string {
 func cbool(b bool) C.int {
 	if b {
 		return 1
+	}
+	return 0
+}
+
+type msgfunc func(string) error
+type msgctx int64
+
+var msgctxn int64
+var msgctxm = map[msgctx]msgfunc{}
+var msgctxmlock sync.RWMutex
+
+func newMsgctx() *msgctx {
+	ctx := new(msgctx)
+	*ctx = msgctx(atomic.AddInt64(&msgctxn, 1))
+	return ctx
+}
+
+func (ctx *msgctx) register(fn msgfunc) {
+	msgctxmlock.Lock()
+	msgctxm[*ctx] = fn
+	msgctxmlock.Unlock()
+}
+
+func (ctx *msgctx) deregister() {
+	msgctxmlock.Lock()
+	delete(msgctxm, *ctx)
+	msgctxmlock.Unlock()
+}
+
+//export lmdbgo_mdb_msg_func_bridge
+func lmdbgo_mdb_msg_func_bridge(msg C.ConstCString, ctx unsafe.Pointer) C.int {
+	msgctxmlock.RLock()
+	fn := msgctxm[*(*msgctx)(ctx)]
+	msgctxmlock.RUnlock()
+	if fn == nil {
+		return 0
+	}
+	err := fn(C.GoString(msg.p))
+	if _, ok := err.(syscall.Errno); ok {
+		return -1
 	}
 	return 0
 }
