@@ -711,6 +711,89 @@ func TestTxn_Reset_writeTxn(t *testing.T) {
 	}
 }
 
+func TestTxn_UpdateLocked(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var dbi DBI
+	err = env.UpdateLocked(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(dbi, []byte("k0"), []byte("v0"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		v, err := txn.Get(dbi, []byte("k0"))
+		if err != nil {
+			return err
+		}
+		if string(v) != "v0" {
+			return fmt.Errorf("unexpected value: %q (!= %q)", v, "v0")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTxn_RunTxn(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	var dbi DBI
+	err = env.RunTxn(0, func(txn *Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(dbi, []byte("k0"), []byte("v0"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.RunTxn(Readonly, func(txn *Txn) (err error) {
+		v, err := txn.Get(dbi, []byte("k0"))
+		if err != nil {
+			return err
+		}
+		if string(v) != "v0" {
+			return fmt.Errorf("unexpected value: %q (!= %q)", v, "v0")
+		}
+		err = txn.Put(dbi, []byte("k1"), []byte("v1"), 0)
+		if err == nil {
+			return fmt.Errorf("allowed to Put in a readonly Txn")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func BenchmarkTxn_Sub_commit(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
