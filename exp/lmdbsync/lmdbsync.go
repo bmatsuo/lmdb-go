@@ -10,22 +10,35 @@ may produce undefined behavior from the LMDB C library.
 
 Resizing the environment
 
+The Env type synchronizes all calls to Env.SetMapSize so that it may be safely
+called in the presence of concurrent transactinos after an environment has been
+opened.  All running transactions complete before the method is called on the
+underlying lmdb.Env.
+
+However, appplications are recommended against attempting to change the memory
+map size for an open database.  It requires careful synchronization by all
+processes accessing the database file.  And, a large memory map will not affect
+disk usage on operating systems that support sparse files (e.g. Linux, not OS
+X).
+
+See mdb_env_set_mapsize.
+
+Multi-processing
+
 The Env type intercepts any MapResized error returned from a transaction and
 transparently handles it, retrying the transaction after the new size has been
 adopted.  All synchronization is handled so running transactions complete
 before SetMapSize is called on the underlying lmdb.Env.
 
-However, ppplications are recommended against attempting to change the memory
-map size for an open database.  It requires careful synchronization by all
-processes accessing the database file.  And, a large memory map will not affect
-disk usage on operating systems that support sparse files (e.g. Linux, not OS
-X).
+See mdb_txn_begin and MDB_MAP_RESIZED.
 
 NoLock
 
 The lmdb.NoLock flag performs all transaction synchronization with Go
 structures and is an experimental feature.  It is unclear what benefits this
 provides.
+
+See mdb_env_open and MDB_NOLOCK.
 */
 package lmdbsync
 
@@ -50,8 +63,8 @@ var DefaultRetryResize = 2
 // Env will stop attempting to run it and return MapResize to the caller.
 var DefaultDelayRepeatResize = time.Millisecond
 
-// Env wraps an *lmdb.Env, excepting the same methods, but provides transaction
-// management for advanced usage of LMDB.  Transactions run by Env handle
+// Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
+// provide transaction management.  Transactions run by an Env handle
 // lmdb.MapResized error transparently through additional synchronization.
 // Additionally, Env is safe to use on environments setting the lmdb.NoLock
 // flag.  When in NoLock mode write transactions block all read transactions
@@ -59,10 +72,10 @@ var DefaultDelayRepeatResize = time.Millisecond
 // lmdb.Env would).
 //
 // Env proxies several methods to provide synchronization required for safe
-// operation in advanced usage scenarios.  It is important not to call proxied
-// methods directly on the underlying lmdb.Env or synchronization may be
+// operation in some scenarios.  It is important not byprass proxies and call
+// the methods directly on the underlying lmdb.Env or synchronization may be
 // interfered with.  Calling proxied methods directly on the lmdb.Env may
-// result in poor transaction performance or undefined behavior in from the C
+// result in poor transaction performance or unspecified behavior in from the C
 // library.
 type Env struct {
 	*lmdb.Env
@@ -229,7 +242,6 @@ func (r *Env) runRetry(readonly bool, fn func() error) error {
 			return err
 		}
 	}
-	return err
 }
 
 func (r *Env) run(readonly bool, fn func() error) error {
