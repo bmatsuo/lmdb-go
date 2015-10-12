@@ -96,9 +96,11 @@ func New(txn *lmdb.Txn, dbi lmdb.DBI) *Scanner {
 		dbi: dbi,
 		txn: txn,
 	}
-	s.dbflags, s.err = txn.Flags(dbi)
-	if s.err != nil {
-		return s
+	if dbi != 0 {
+		s.dbflags, s.err = txn.Flags(dbi)
+		if s.err != nil {
+			return s
+		}
 	}
 	s.op = lmdb.Next
 
