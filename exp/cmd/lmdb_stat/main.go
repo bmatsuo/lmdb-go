@@ -110,6 +110,13 @@ func doMain(opt *Options) error {
 		}
 	}
 
+	if opt.PrintReaders || opt.PrintReadersCheck {
+		err = doPrintReaders(env, opt)
+		if err != nil {
+			return err
+		}
+	}
+
 	if opt.PrintFree || opt.PrintFreeSummary || opt.PrintFreeFull {
 		err = doPrintFree(env, opt)
 		if err != nil {
@@ -156,6 +163,10 @@ func doPrintInfo(env *lmdb.Env, opt *Options) error {
 	fmt.Println("  Number of readers used:", info.NumReaders)
 
 	return nil
+}
+
+func doPrintReaders(env *lmdb.Env, opt *Options) error {
+	return fmt.Errorf("TODO: implement Env.ReaderList")
 }
 
 func doPrintFree(env *lmdb.Env, opt *Options) error {
