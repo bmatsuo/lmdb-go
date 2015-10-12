@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
@@ -11,7 +15,13 @@ import (
 )
 
 func main() {
+	opt := &Options{}
+	flag.BoolVar(&opt.ReadIn, "i", false, "Read data from standard input and write it the specefied database.")
+	flag.BoolVar(&opt.KeyOnly, "k", false, "Do not write value data to standard output")
+	flag.BoolVar(&opt.ValOnly, "K", false, "Do not write key data to standard output")
+	flag.StringVar(&opt.Sep, "F", "=", "Key-value delimiter for items written to standard output, or read from standard output.")
 	flag.Parse()
+
 	dbs := flag.Args()
 	var specs []*catSpec
 	for _, db := range dbs {
@@ -21,10 +31,98 @@ func main() {
 		}
 		specs = append(specs, spec)
 	}
+
+	if opt.ReadIn {
+		if len(specs) > 1 || len(specs[0].DB) > 1 {
+			log.Fatalf("only one database may be specefied when -i is given")
+		}
+		if len(specs[0].DB) > 0 {
+			opt.DB = specs[0].DB[0]
+		}
+		if opt.KeyOnly || opt.ValOnly {
+			log.Fatal("flags -k and -K must be omitted when -i is given")
+		}
+		if opt.Sep == "" {
+			log.Fatal("delimiter -F cannot be empty when -i is given")
+		}
+
+		err := readIn(specs[0].Path, os.Stdin, opt)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	for _, spec := range specs {
-		opt := &Options{DB: spec.DB}
+		opt := &CatOptions{DB: spec.DB}
 		cat(spec.Path, opt)
 	}
+}
+
+type Options struct {
+	ReadIn  bool
+	KeyOnly bool
+	ValOnly bool
+	Sep     string
+	DB      string
+}
+
+func readIn(path string, r io.Reader, opt *Options) error {
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		return err
+	}
+	err = env.SetMapSize(100 << 10)
+	if err != nil {
+		return err
+	}
+	if opt != nil && opt.DB != "" {
+		err = env.SetMaxDBs(1)
+		if err != nil {
+			return err
+		}
+	}
+	err = env.Open(path, 0, 0644)
+	defer env.Close()
+	if err != nil {
+		return err
+	}
+	return env.Update(func(txn *lmdb.Txn) (err error) {
+		var dbi lmdb.DBI
+		if opt.DB == "" {
+			dbi, err = txn.OpenRoot(0)
+		} else {
+			dbi, err = txn.OpenDBI(opt.DB, lmdb.Create)
+		}
+		if err != nil {
+			return err
+		}
+
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		sep := []byte(opt.Sep)
+
+		numln := 0
+		s := bufio.NewScanner(r)
+		for s.Scan() {
+			numln++
+			ln := s.Bytes()
+			pieces := bytes.SplitN(ln, sep, 2)
+			if len(pieces) < 2 {
+				log.Printf("line %d: missing separator", numln)
+				continue
+			}
+			err = cur.Put(pieces[0], pieces[1], 0)
+			if err != nil {
+				return err
+			}
+		}
+		return s.Err()
+	})
 }
 
 type catSpec struct {
@@ -49,11 +147,11 @@ func parseCatSpec(s string) (*catSpec, error) {
 	return spec, nil
 }
 
-type Options struct {
+type CatOptions struct {
 	DB []string
 }
 
-func cat(path string, opt *Options) error {
+func cat(path string, opt *CatOptions) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		return err
