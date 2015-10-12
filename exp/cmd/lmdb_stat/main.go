@@ -1,11 +1,15 @@
 package main
 
+import "C"
+
 import (
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"reflect"
 	"strings"
+	"unsafe"
 
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -15,6 +19,9 @@ func main() {
 	opt := &Options{}
 	flag.BoolVar(&opt.PrintVersion, "V", false, "Write the library version to standard output, and exit.")
 	flag.BoolVar(&opt.PrintInfo, "e", false, "Display information about the database environment")
+	flag.BoolVar(&opt.PrintFree, "f", false, "Display freelist information")
+	flag.BoolVar(&opt.PrintFreeSummary, "ff", false, "Display freelist information")
+	flag.BoolVar(&opt.PrintFreeFull, "fff", false, "Display freelist information")
 	flag.BoolVar(&opt.PrintReaders, "r", false, strings.Join([]string{
 		"Display information about the environment reader table.",
 		"Shows the process ID, thread ID, and transaction ID for each active reader slot.",
@@ -69,6 +76,9 @@ type Options struct {
 	PrintInfo         bool
 	PrintReaders      bool
 	PrintReadersCheck bool
+	PrintFree         bool
+	PrintFreeSummary  bool
+	PrintFreeFull     bool
 	PrintStatAll      bool
 	PrintStatSub      string
 
@@ -98,6 +108,13 @@ func doMain(opt *Options) error {
 
 	if opt.PrintInfo {
 		err = doPrintInfo(env, opt)
+		if err != nil {
+			return err
+		}
+	}
+
+	if opt.PrintFree || opt.PrintFreeSummary || opt.PrintFreeFull {
+		err = doPrintFree(env, opt)
 		if err != nil {
 			return err
 		}
@@ -150,6 +167,81 @@ func doPrintInfo(env *lmdb.Env, opt *Options) error {
 	return nil
 }
 
+func doPrintFree(env *lmdb.Env, opt *Options) error {
+	return env.View(func(txn *lmdb.Txn) (err error) {
+		txn.RawRead = true
+
+		fmt.Println("Freelist status")
+
+		stat, err := txn.Stat(0)
+		if err != nil {
+			return err
+		}
+		printStat(stat, opt)
+
+		var numpages int64
+		s := lmdbscan.New(txn, 0)
+		defer s.Close()
+		for s.Scan() {
+			key := s.Val()
+			data := s.Val()
+			txid := *(*C.size_t)(unsafe.Pointer(&key[0]))
+			ipages := int64(*(*C.size_t)(unsafe.Pointer(&data[0])))
+			numpages += ipages
+			if opt.PrintFreeSummary || opt.PrintFreeFull {
+				bad := ""
+				hdr := reflect.SliceHeader{
+					Data: uintptr(unsafe.Pointer(&data[0])),
+					Len:  int(ipages) + 1,
+					Cap:  int(ipages) + 1,
+				}
+				pages := *(*[]C.size_t)(unsafe.Pointer(&hdr))
+				pages = pages[1:]
+				var span C.size_t
+				prev := C.size_t(1)
+				for i := ipages - 1; i >= 0; i-- {
+					pg := pages[i]
+					if pg < prev {
+						bad = " [bad sequence]"
+					}
+					prev = pg
+					pg += span
+					for i >= int64(span) && pages[i-int64(span)] == pg {
+						span++
+						pg++
+					}
+				}
+				fmt.Printf("    Transaction %x, %d pages, maxspan %d%s\n", txid, ipages, span, bad)
+
+				if opt.PrintFreeFull {
+					for j := ipages - 1; j >= 0; {
+						pg := pages[j]
+						j--
+						span := C.size_t(1)
+						for j >= 0 && pages[j] == pg+span {
+							j--
+							span++
+						}
+						if span > 1 {
+							fmt.Printf("     %9x[%d]\n", pg, span)
+						} else {
+							fmt.Printf("     %9x\n", pg)
+						}
+					}
+				}
+			}
+		}
+		err = s.Err()
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("  Free pages:", numpages)
+
+		return nil
+	})
+}
+
 func doPrintStatRoot(env *lmdb.Env, opt *Options) error {
 	stat, err := env.Stat()
 	if err != nil {
@@ -189,13 +281,19 @@ func printStatDB(env *lmdb.Env, txn *lmdb.Txn, db string, opt *Options) error {
 	}
 
 	fmt.Println("Status of", db)
+	printStat(stat, opt)
+
+	return err
+}
+
+func printStat(stat *lmdb.Stat, opt *Options) error {
 	fmt.Println("  Tree depth:", stat.Depth)
 	fmt.Println("  Branch pages:", stat.BranchPages)
 	fmt.Println("  Lead pages:", stat.LeafPages)
 	fmt.Println("  Overflow pages:", stat.OverflowPages)
 	fmt.Println("  Entries:", stat.Entries)
 
-	return err
+	return nil
 }
 
 func doPrintStatAll(env *lmdb.Env, opt *Options) error {
@@ -211,7 +309,7 @@ func doPrintStatAll(env *lmdb.Env, opt *Options) error {
 		for s.Scan() {
 			err = printStatDB(env, txn, string(s.Key()), opt)
 			if e, ok := err.(*lmdb.OpError); ok {
-				if e.Op == "mdb_dbi_open" && e.Errno == lmdb.Incompatible {
+				if e.Op == "mdb_dbi_open" {
 					continue
 				}
 			}
