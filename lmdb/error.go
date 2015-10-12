@@ -41,7 +41,7 @@ const (
 	CursorFull      Errno = C.MDB_CURSOR_FULL
 	PageFull        Errno = C.MDB_PAGE_FULL
 	MapResized      Errno = C.MDB_MAP_RESIZED
-	Incompatibile   Errno = C.MDB_INCOMPATIBLE
+	Incompatible    Errno = C.MDB_INCOMPATIBLE
 	BadRSlot        Errno = C.MDB_BAD_RSLOT
 	BadTxn          Errno = C.MDB_BAD_TXN
 	BadValSize      Errno = C.MDB_BAD_VALSIZE
