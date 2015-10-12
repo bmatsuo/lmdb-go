@@ -12,6 +12,7 @@ import (
 
 	"github.com/bmatsuo/lmdb-go/exp/cmd/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
+	"github.com/bmatsuo/lmdb-go/exp/lmdbsync"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
@@ -71,22 +72,28 @@ type Options struct {
 }
 
 func readIn(path string, r io.Reader, opt *Options) error {
-	env, err := lmdb.NewEnv()
+	_env, err := lmdb.NewEnv()
 	if err != nil {
 		return err
 	}
-	err = env.SetMapSize(100 << 10)
+	err = _env.SetMapSize(100 << 10)
 	if err != nil {
 		return err
 	}
 	if opt != nil && opt.DB != "" {
-		err = env.SetMaxDBs(1)
+		err = _env.SetMaxDBs(1)
 		if err != nil {
 			return err
 		}
 	}
-	err = env.Open(path, lmdbcmd.OpenFlag(), 0644)
-	defer env.Close()
+	err = _env.Open(path, lmdbcmd.OpenFlag(), 0644)
+	defer _env.Close()
+	if err != nil {
+		return err
+	}
+	doubleSize := func(size int64) (int64, bool) { return size * 2, true }
+	handler := lmdbsync.MapFullHandler(doubleSize)
+	env, err := lmdbsync.NewEnv(_env, handler)
 	if err != nil {
 		return err
 	}

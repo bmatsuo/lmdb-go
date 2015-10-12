@@ -60,17 +60,16 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-// The default number of times to retry a transaction that is returning
-// repeatedly MapResized. This signifies rapid database growth from another
-// process or some bug/corruption in memory.
-//
-// If DefaultRetryResize is less than zero the transaction will be retried
-// indefinitely.
-var DefaultRetryResize = 2
+type envBagKey int
 
-// If a transaction returns MapResize DefaultRetryResize times consequtively an
-// Env will stop attempting to run it and return MapResize to the caller.
-var DefaultDelayRepeatResize = time.Millisecond
+func BagEnv(b Bag) *Env {
+	env, _ := b.Value(envBagKey(0)).(*Env)
+	return env
+}
+
+func bagWithEnv(b Bag, env *Env) Bag {
+	return BagWith(b, envBagKey(0), env)
+}
 
 // Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
 // provide transaction management.  Transactions run by an Env handle
@@ -88,17 +87,15 @@ var DefaultDelayRepeatResize = time.Millisecond
 // library.
 type Env struct {
 	*lmdb.Env
-	// RetryResize overrides DefaultRetryResize for the Env.
-	RetryResize int
-	// DelayRepeateResize overrides DefaultDelayRetryResize for the Env.
-	DelayRepeatResize func(retry int) time.Duration
-	noLock            bool
-	txnlock           sync.RWMutex
+	Handlers HandlerChain
+	bag      Bag
+	noLock   bool
+	txnlock  sync.RWMutex
 }
 
 // NewEnv returns an newly allocated Env that wraps env.  If env is nil then
 // lmdb.NewEnv() will be called to allocate an lmdb.Env.
-func NewEnv(env *lmdb.Env) (*Env, error) {
+func NewEnv(env *lmdb.Env, h ...Handler) (*Env, error) {
 	var err error
 	if env == nil {
 		env, err = lmdb.NewEnv()
@@ -115,9 +112,13 @@ func NewEnv(env *lmdb.Env) (*Env, error) {
 	}
 	noLock := flags&lmdb.NoLock != 0
 
+	chain := append(HandlerChain(nil), h...)
+
 	_env := &Env{
-		Env:    env,
-		noLock: noLock,
+		Env:      env,
+		Handlers: chain,
+		noLock:   noLock,
+		bag:      Background(),
 	}
 	return _env, nil
 }
@@ -202,7 +203,7 @@ func (r *Env) setMapSize(size int64, delay time.Duration) error {
 // transaction handle.
 func (r *Env) RunTxn(flags uint, op lmdb.TxnOp) (err error) {
 	readonly := flags&lmdb.Readonly != 0
-	return r.runRetry(readonly, func() error { return r.Env.RunTxn(flags, op) })
+	return r.runHandler(readonly, func() error { return r.Env.RunTxn(flags, op) }, r.Handlers)
 }
 
 // View is a proxy for r.Env.RunTxn().
@@ -214,7 +215,7 @@ func (r *Env) RunTxn(flags uint, op lmdb.TxnOp) (err error) {
 // to the database and the calling process could not get a valid transaction
 // handle.
 func (r *Env) View(op lmdb.TxnOp) error {
-	return r.runRetry(true, func() error { return r.Env.View(op) })
+	return r.runHandler(true, func() error { return r.Env.View(op) }, r.Handlers)
 }
 
 // Update is a proxy for r.Env.RunTxn().
@@ -227,7 +228,7 @@ func (r *Env) View(op lmdb.TxnOp) error {
 // fast to the database and the calling process could not get a valid
 // transaction handle.
 func (r *Env) Update(op lmdb.TxnOp) error {
-	return r.runRetry(false, func() error { return r.Env.Update(op) })
+	return r.runHandler(false, func() error { return r.Env.Update(op) }, r.Handlers)
 }
 
 // UpdateLocked is a proxy for r.Env.RunTxn().
@@ -240,19 +241,28 @@ func (r *Env) Update(op lmdb.TxnOp) error {
 // too fast to the database and the calling process could not get a valid
 // transaction handle.
 func (r *Env) UpdateLocked(op lmdb.TxnOp) error {
-	return r.runRetry(false, func() error { return r.Env.UpdateLocked(op) })
+	return r.runHandler(false, func() error { return r.Env.UpdateLocked(op) }, r.Handlers)
 }
 
-func (r *Env) runRetry(readonly bool, fn func() error) error {
-	var err error
-	for i := 0; ; i++ {
-		err = r.run(readonly, fn)
-		if !r.retryResized(i, err) {
-			return err
-		}
+// WithHandler returns a TxnRunner than handles transaction errors r.Handlers
+// chained with h.
+func (r *Env) WithHandler(h Handler) TxnRunner {
+	return &handlerRunner{
+		env: r,
+		h:   r.Handlers.Append(h),
 	}
 }
 
+func (r *Env) runHandler(readonly bool, fn func() error, h Handler) error {
+	b := bagWithEnv(r.bag, r)
+	for {
+		err := r.run(readonly, fn)
+		b, err = h.HandleTxnErr(b, err)
+		if err == RetryTxn {
+			continue
+		}
+	}
+}
 func (r *Env) run(readonly bool, fn func() error) error {
 	var err error
 	if r.noLock && !readonly {
@@ -265,45 +275,4 @@ func (r *Env) run(readonly bool, fn func() error) error {
 		r.txnlock.RUnlock()
 	}
 	return err
-}
-
-func (r *Env) getRetryResize() int {
-	if r.RetryResize != 0 {
-		return r.RetryResize
-	}
-	return DefaultRetryResize
-}
-
-func (r *Env) getDelayRepeatResize(i int) time.Duration {
-	if r.DelayRepeatResize != nil {
-		return r.DelayRepeatResize(i)
-	}
-	return DefaultDelayRepeatResize
-}
-
-func (r *Env) retryResized(i int, err error) bool {
-	if !lmdb.IsMapResized(err) {
-		return false
-	}
-
-	// fail the transaction with MapResized error when too many attempts have
-	// been made.
-	maxRetry := r.getRetryResize()
-	if maxRetry <= 0 {
-		return false
-	}
-	if maxRetry < i {
-		return false
-	}
-
-	var delay time.Duration
-	if i > 0 {
-		delay = r.getDelayRepeatResize(i)
-	}
-
-	err = r.setMapSize(0, delay)
-	if err != nil {
-		panic(err)
-	}
-	return true
 }
