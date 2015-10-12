@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/bmatsuo/lmdb-go/exp/cmd/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -21,6 +22,8 @@ func main() {
 	flag.BoolVar(&opt.ValOnly, "K", false, "Do not write key data to standard output")
 	flag.StringVar(&opt.Sep, "F", "=", "Key-value delimiter for items written to standard output, or read from standard output.")
 	flag.Parse()
+
+	lmdbcmd.PrintVersion()
 
 	dbs := flag.Args()
 	var specs []*catSpec
@@ -82,7 +85,7 @@ func readIn(path string, r io.Reader, opt *Options) error {
 			return err
 		}
 	}
-	err = env.Open(path, 0, 0644)
+	err = env.Open(path, lmdbcmd.OpenFlag(), 0644)
 	defer env.Close()
 	if err != nil {
 		return err
@@ -166,7 +169,7 @@ func cat(path string, opt *CatOptions) error {
 	if err != nil {
 		return err
 	}
-	err = env.Open(path, 0, 644)
+	err = env.Open(path, lmdbcmd.OpenFlag(), 644)
 	defer env.Close()
 	if err != nil {
 		return err

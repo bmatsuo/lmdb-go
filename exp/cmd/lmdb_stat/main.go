@@ -11,13 +11,13 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/bmatsuo/lmdb-go/exp/cmd/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 func main() {
 	opt := &Options{}
-	flag.BoolVar(&opt.PrintVersion, "V", false, "Write the library version to standard output, and exit.")
 	flag.BoolVar(&opt.PrintInfo, "e", false, "Display information about the database environment")
 	flag.BoolVar(&opt.PrintFree, "f", false, "Display freelist information")
 	flag.BoolVar(&opt.PrintFreeSummary, "ff", false, "Display freelist information")
@@ -35,6 +35,8 @@ func main() {
 	flag.StringVar(&opt.PrintStatSub, "s", "", "Display the status of a specific subdatabase.")
 	flag.BoolVar(&opt.Debug, "D", false, "print debug information")
 	flag.Parse()
+
+	lmdbcmd.PrintVersion()
 
 	if opt.PrintStatAll && opt.PrintStatSub != "" {
 		log.Fatal("only one of -a and -s may be provided")
@@ -72,7 +74,6 @@ func main() {
 type Options struct {
 	Path string
 
-	PrintVersion      bool
 	PrintInfo         bool
 	PrintReaders      bool
 	PrintReadersCheck bool
@@ -86,10 +87,6 @@ type Options struct {
 }
 
 func doMain(opt *Options) error {
-	if opt.PrintVersion {
-		return doPrintVersion(opt)
-	}
-
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		return err
@@ -100,7 +97,7 @@ func doMain(opt *Options) error {
 			return err
 		}
 	}
-	err = env.Open(opt.Path, 0, 0644)
+	err = env.Open(opt.Path, lmdbcmd.OpenFlag(), 0644)
 	defer env.Close()
 	if err != nil {
 		return err
@@ -137,12 +134,6 @@ func doMain(opt *Options) error {
 		}
 	}
 
-	return nil
-}
-
-func doPrintVersion(opt *Options) error {
-	_, _, _, version := lmdb.Version()
-	fmt.Println(version)
 	return nil
 }
 
