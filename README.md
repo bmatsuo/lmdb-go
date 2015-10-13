@@ -4,33 +4,50 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
 ## Key Features
 
-- Fast zero-copy reads for applications with high performance requirements.
-  Zero-copy behavior is specified at the transaction level to reduce
-  instrumentation overhead.
+###Zero-copy reads
+
+Applications with high performance requirements can opt-in to fast, zero-copy
+reads at the cost of runtime safety.  Zero-copy behavior is specified at the
+transaction level to reduce instrumentation overhead.
 
 ```
 err := lmdb.View(func(txn *lmdb.Txn) error {
+    // RawRead enables zero-copy behavior with some serious caveats.
+    // Read the documentation carefully before using.
     txn.RawRead = true
+
     val, err := txn.Get(dbi, []byte("largevalue"), 0)
     // ...
 })
 ```
 
-- API inspired by [BoltDB](https://github.com/boltdb/bolt) with automatic
-  commit/rollback of transactions.  The goal of lmdb-go is to provide
-  idiomatic, safe database interactions without compromising the flexibility of
-  the C API.
+###Idiomatic API
 
-- Subtransactions are fully supported and safe to use with the same idiomatic
-  API.
+API inspired by [BoltDB](https://github.com/boltdb/bolt) with automatic
+commit/rollback of transactions.  The goal of lmdb-go is to provide idiomatic,
+safe database interactions without compromising the flexibility of the C API.
 
-- Comprehensive documentation and code examples.
+###API coverage
+
+The lmdb-go project aims for *complete* feature coverage for LMDB.
+Subtransactions are fully supported.  Databases utilizing the `MDB_DUPSORT` and
+`MDB_DUPFIXED` flags are supported.
+
+###Documentation
+
+Comprehensive documentation and examples are provided to demonstrate safe usage
+of lmdb.  In addition to godoc documentation, implementations of the standand
+LMDB commands (`mdb_stat`, etc) can be found in the [examples/] directory and
+some simple experimental commands can be found in the [exp/cmd/] directory.
+Aside from providing minor utility these programs are provided as examples of
+lmdb in practice.
 
 #Build
 
-`go get github.com/bmatsuo/lmdb-go/lmdb`
+There is no dependency on shared libraries.  So most users can simply install
+using `go get`.
 
-There is no dependency on LMDB dynamic library.
+`go get github.com/bmatsuo/lmdb-go/lmdb`
 
 On FreeBSD 10, you must explicitly set `CC` (otherwise it will fail with a
 cryptic error), for example:
