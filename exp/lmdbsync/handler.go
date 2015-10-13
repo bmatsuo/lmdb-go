@@ -38,7 +38,7 @@ func (c HandlerChain) Append(h ...Handler) HandlerChain {
 // When MapResizeHandler is in use transactions must not be nested inside other
 // transactions.  Adopting the new map size requires all transactions to
 // terminate first.  If any transactions wait for other transactions to
-// complete they may cause a deadlock in the presence of a MapResized error.
+// complete they may deadlock in the presence of a MapResized error.
 func MapResizedHandler(maxRetry int, repeatDelay func(retry int) time.Duration) Handler {
 	return &resizedHandler{
 		RetryResize:       maxRetry,
@@ -59,10 +59,9 @@ type MapFullFunc func(size int64) (int64, bool)
 // times in the occurrance of a MapFull error.
 //
 // When MapFullHandler is in use update transactions must not be nested inside
-// view transactions (subtransactions are OK).  Resizing the database requires
-// all transactions to terminate first.  If any transactions wait for update
-// transactions to complete they may cause a deadlock in the presence of a
-// MapFull error.
+// view transactions.  Resizing the database requires all transactions to
+// terminate first.  If any transactions wait for update transactions to
+// complete they may deadlock in the presence of a MapFull error.
 func MapFullHandler(fn MapFullFunc) Handler {
 	return &mapFullHandler{fn}
 }
