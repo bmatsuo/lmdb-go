@@ -36,11 +36,11 @@ Subtransactions are fully supported.  Databases utilizing the `MDB_DUPSORT` and
 ###Documentation
 
 Comprehensive documentation and examples are provided to demonstrate safe usage
-of lmdb.  In addition to godoc documentation, implementations of the standand
-LMDB commands (`mdb_stat`, etc) can be found in the [examples/] directory and
-some simple experimental commands can be found in the [exp/cmd/] directory.
-Aside from providing minor utility these programs are provided as examples of
-lmdb in practice.
+of lmdb.  In addition to [godoc](https://godoc.org/github.com/bmatsuo/lmdb-go)
+documentation, implementations of the standand LMDB commands (`mdb_stat`, etc)
+can be found in the [examples/] directory and some simple experimental commands
+can be found in the [exp/cmd/] directory.  Aside from providing minor utility
+these programs are provided as examples of lmdb in practice.
 
 #Build
 
@@ -61,4 +61,4 @@ reachable through the LMDB [homepage](http://symas.com/mdb/).
 
 Documentation specific to the Go bindings and how methods differ from their
 underlying C counterparts can be found on
-[godoc.org](http://godoc.org/github.com/bmatsuo/lmdb-go/lmdb).
+[godoc.org](https://godoc.org/github.com/bmatsuo/lmdb-go).
