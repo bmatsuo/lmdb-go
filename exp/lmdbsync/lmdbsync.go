@@ -188,7 +188,7 @@ func (r *Env) setMapSize(size int64, delay time.Duration) error {
 		// begin while waiting.
 		time.Sleep(delay)
 	}
-	err := r.Env.SetMapSize(0)
+	err := r.Env.SetMapSize(size)
 	r.txnlock.Unlock()
 	return err
 }
@@ -258,8 +258,8 @@ func (r *Env) runHandler(readonly bool, fn func() error, h Handler) error {
 	for {
 		err := r.run(readonly, fn)
 		b, err = h.HandleTxnErr(b, err)
-		if err == RetryTxn {
-			continue
+		if err != RetryTxn {
+			return err
 		}
 	}
 }

@@ -25,10 +25,10 @@ func (c HandlerChain) HandleTxnErr(b Bag, err error) (Bag, error) {
 	return b, err
 }
 
-func (c HandlerChain) Append(h Handler) HandlerChain {
-	_c := make(HandlerChain, len(c)+1)
+func (c HandlerChain) Append(h ...Handler) HandlerChain {
+	_c := make(HandlerChain, len(c)+len(h))
 	copy(_c, c)
-	_c[len(c)] = h
+	copy(_c[len(c):], h)
 	return _c
 }
 
