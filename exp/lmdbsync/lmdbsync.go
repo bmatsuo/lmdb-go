@@ -4,7 +4,7 @@ cost of performance.  The package provides a drop-in replacement for *lmdb.Env
 that can be used in situations where the database may be resized or where the
 flag lmdb.NoLock is used.
 
-Bypassing an Env's methods to access the underlying lmdb.Env is safe.  The
+Bypassing an Env's methods to access the underlying lmdb.Env is not safe.  The
 severity of such usage depends such behavior should be strictly avoided as it
 may produce undefined behavior from the LMDB C library.
 
@@ -15,39 +15,38 @@ called in the presence of concurrent transactinos after an environment has been
 opened.  All running transactions complete before the method is called on the
 underlying lmdb.Env.
 
-However, appplications are recommended against attempting to change the memory
+However, applications are recommended against attempting to change the memory
 map size for an open database.  It requires careful synchronization by all
 processes accessing the database file.  And, a large memory map will not affect
 disk usage on operating systems that support sparse files (e.g. Linux, not OS
 X).
 
-See mdb_env_set_mapsize.
+Multi-processing (MapResized)
 
-Multi-processing
-
-The Env type intercepts any MapResized error returned from a transaction and
-transparently handles it, retrying the transaction after the new size has been
-adopted.  All synchronization is handled so running transactions complete
-before SetMapSize is called on the underlying lmdb.Env.
+Using the Handler interface provided by the package MapResizedHandler can be
+used to automatically resize an enviornment when a MapResized error is
+encountered.  Usage of the MapResizedHandler puts important caveats on how one
+can safely work with transactions.  See the function documentation for more
+detailed information.
 
 See mdb_txn_begin and MDB_MAP_RESIZED.
 
-NoLock
-
-The lmdb.NoLock flag performs all transaction synchronization with Go
-structures and is an experimental feature.  It is unclear what benefits this
-provides.
-
-See mdb_env_open and MDB_NOLOCK.
-
 MapFull
 
-The Env type does no special handling of the MapFull error.  If a call to
-Txn.Put() or Cursor.Put() returns lmdb.MapFull it is the application's
-prerogative to detect the error, call Env.SetMapSize, and retry the transaction
-as necessary.
+Similar to the MapResizedHandler the MapFullHandler will automatically resize
+the map and retry transactions when a MapFull error is encountered.  Usage of
+the MapFullHandler puts important caveats on how one can safely work with
+transactions.  See the function documentation for more detailed information.
 
 See mdb_env_set_mapsize and MDB_MAP_FULL.
+
+NoLock
+
+When the lmdb.NoLock flag is set on an environment Env handles all transaction
+synchronization using Go structures and is an experimental feature.  It is
+unclear what benefits this provides.
+
+See mdb_env_open and MDB_NOLOCK.
 */
 package lmdbsync
 
