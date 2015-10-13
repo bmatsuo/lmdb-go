@@ -1,3 +1,12 @@
+/*
+Command lmdb_copy is a clone of mdb_copy that copies an LMDB environment.  A
+consistent copy is made even if the source database is in use.
+
+Command line flags mirror the flags for the original program.  For information
+about, run lmdb_copy with the -h flag.
+
+	lmdb_copy -h
+*/
 package main
 
 import (

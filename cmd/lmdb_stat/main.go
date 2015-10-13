@@ -1,3 +1,12 @@
+/*
+Command lmdb_stat is a clone of mdb_stat that displays the status an LMDB
+environment.
+
+Command line flags mirror the flags for the original program.  For information
+about, run lmdb_stat with the -h flag.
+
+	lmdb_stat -h
+*/
 package main
 
 import "C"
