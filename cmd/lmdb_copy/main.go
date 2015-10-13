@@ -11,8 +11,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
+	"os"
 
 	"github.com/bmatsuo/lmdb-go/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -25,12 +25,18 @@ func main() {
 
 	lmdbcmd.PrintVersion()
 
-	if flag.NArg() != 2 {
-		log.Fatalf("exactly two arguments must be specified")
+	if flag.NArg() > 2 {
+		log.Fatalf("too many arguments specified")
+	}
+	if flag.NArg() == 0 {
+		log.Fatalf("at least one argument must be specified")
 	}
 
-	srcpath := flag.Arg(0)
-	dstpath := flag.Arg(1)
+	var srcpath, dstpath string
+	srcpath = flag.Arg(0)
+	if flag.NArg() > 1 {
+		dstpath = flag.Arg(1)
+	}
 
 	copyEnv(srcpath, dstpath, opt)
 }
@@ -55,6 +61,7 @@ func copyEnv(srcpath, dstpath string, opt *Options) error {
 	if dstpath != "" {
 		return env.CopyFlag(dstpath, flags)
 	} else {
-		return fmt.Errorf("TODO: implement Env.CopyFD")
+		fd := os.Stdout.Fd()
+		return env.CopyFDFlag(fd, flags)
 	}
 }
