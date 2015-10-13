@@ -101,6 +101,22 @@ func (env *Env) Close() error {
 	return nil
 }
 
+// CopyFD copies env to the the file descriptor fd.
+//
+// See mdb_env_copyfd.
+func (env *Env) CopyFD(fd uintptr) error {
+	ret := C.mdb_env_copyfd(env._env, C.mdb_filehandle_t(fd))
+	return operrno("mdb_env_copyfd", ret)
+}
+
+// CopyFDFlag copies env to the file descriptor fd, with options.
+//
+// See mdb_env_copyfd2.
+func (env *Env) CopyFDFlag(fd uintptr, flags uint) error {
+	ret := C.mdb_env_copyfd2(env._env, C.mdb_filehandle_t(fd), C.uint(flags))
+	return operrno("mdb_env_copyfd2", ret)
+}
+
 // Copy copies the data in env to an environment at path.
 //
 // See mdb_env_copy.
