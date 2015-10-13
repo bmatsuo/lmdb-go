@@ -38,9 +38,10 @@ Subtransactions are fully supported.  Databases utilizing the `MDB_DUPSORT` and
 Comprehensive documentation and examples are provided to demonstrate safe usage
 of lmdb.  In addition to [godoc](https://godoc.org/github.com/bmatsuo/lmdb-go)
 documentation, implementations of the standand LMDB commands (`mdb_stat`, etc)
-can be found in the [examples/] directory and some simple experimental commands
-can be found in the [exp/cmd/] directory.  Aside from providing minor utility
-these programs are provided as examples of lmdb in practice.
+can be found in the [cmd/](cmd/) directory and some simple experimental
+commands can be found in the [exp/cmd/](exp/cmd) directory.  Aside from
+providing minor utility these programs are provided as examples of lmdb in
+practice.
 
 #Build
 
