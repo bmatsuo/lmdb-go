@@ -20,8 +20,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/bmatsuo/lmdb-go/exp/cmd/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
+	"github.com/bmatsuo/lmdb-go/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 

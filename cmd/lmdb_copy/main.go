@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bmatsuo/lmdb-go/exp/cmd/internal/lmdbcmd"
+	"github.com/bmatsuo/lmdb-go/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
