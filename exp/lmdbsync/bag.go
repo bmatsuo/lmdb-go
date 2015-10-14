@@ -2,15 +2,12 @@ package lmdbsync
 
 type Bag interface {
 	Value(key interface{}) interface{}
-	isbag()
 }
 
 type bag struct {
 	b Bag
 	m map[interface{}]interface{}
 }
-
-func (b *bag) isbag() {}
 
 func (b *bag) Value(key interface{}) interface{} {
 	v, ok := b.m[key]
