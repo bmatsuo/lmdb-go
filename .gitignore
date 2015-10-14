@@ -1,8 +1,7 @@
 /bin/
 
 # Test databases and benchmark data
-/benchdata/
-/dbs/
+testdata/
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
