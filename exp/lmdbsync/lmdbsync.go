@@ -78,6 +78,7 @@ See mdb_env_open and MDB_NOLOCK.
 package lmdbsync
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"syscall"
@@ -182,6 +183,12 @@ func (r *Env) setMapSize(size int64, delay time.Duration) error {
 	err := r.Env.SetMapSize(size)
 	r.txnlock.Unlock()
 	return err
+}
+
+// BeginTxn overrides the r.Env.BeginTxn and always returns an error.  An
+// unmanaged transaction.
+func (r *Env) BeginTxn(parent *lmdb.Txn, flags uint) (*lmdb.Txn, error) {
+	return nil, fmt.Errorf("lmdbsync: unmanaged transactions are not supported")
 }
 
 // RunTxn is a proxy for r.Env.RunTxn().

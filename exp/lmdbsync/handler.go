@@ -15,9 +15,16 @@ type Handler interface {
 // in the underlying slice when handling an error.
 type HandlerChain []Handler
 
+// HandleTxnError implements the Handler interface.  Each handler in c
+// processes the Bag and error returned by the previous handler.  If RetryTxn
+// is returned by a handler in c then processing stops and the current bag is
+// returned with the error.
 func (c HandlerChain) HandleTxnErr(b Bag, err error) (Bag, error) {
 	for _, h := range c {
 		b, err = h.HandleTxnErr(b, err)
+		if err == RetryTxn {
+			return b, err
+		}
 		if err == nil {
 			return b, nil
 		}
