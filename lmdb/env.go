@@ -80,6 +80,11 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	return operrno("mdb_env_open", ret)
 }
 
+// ReaderList dumps the contents of the reader lock table as text.  Readers
+// start on the second line as space-delimited fields described by the first
+// line.
+//
+// See mdb_reader_list.
 func (env *Env) ReaderList(fn func(string) error) error {
 	ctx := newMsgCtx(fn)
 	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
