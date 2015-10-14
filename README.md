@@ -33,6 +33,9 @@ The lmdb-go project aims for *complete* feature coverage for LMDB.
 Subtransactions are fully supported.  Databases utilizing the `MDB_DUPSORT` and
 `MDB_DUPFIXED` flags are supported.
 
+For tracking purposes a list of unsupported features is kept in an
+[issue](https://github.com/bmatsuo/lmdb-go/issues/1).
+
 ###Documentation
 
 Comprehensive documentation and examples are provided to demonstrate safe usage
