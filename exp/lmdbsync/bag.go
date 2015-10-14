@@ -13,7 +13,14 @@ type bag struct {
 func (b *bag) isbag() {}
 
 func (b *bag) Value(key interface{}) interface{} {
-	return b.m[key]
+	v, ok := b.m[key]
+	if ok {
+		return v
+	}
+	if b.b == nil {
+		return nil
+	}
+	return b.b.Value(key)
 }
 
 func Background() Bag {
