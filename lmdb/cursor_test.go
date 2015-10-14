@@ -3,6 +3,7 @@ package lmdb
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"reflect"
 	"runtime"
 	"testing"
@@ -149,6 +150,87 @@ func TestCursor_PutReserve(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCursor_Get_DupFixed(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	const datasize = 16
+	pagesize := os.Getpagesize()
+	numitems := (2 * pagesize / datasize) + 1
+
+	var dbi DBI
+	key := []byte("key")
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenRoot(DupSort | DupFixed)
+		if err != nil {
+			return err
+		}
+
+		for i := int64(0); i < int64(numitems); i++ {
+			err = txn.Put(dbi, key, []byte(fmt.Sprintf("%016x", i)), 0)
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	var items [][]byte
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, first, err := cur.Get(nil, nil, NextNoDup)
+			if IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			if string(k) != string(key) {
+				return fmt.Errorf("key: %s", k)
+			}
+
+			stride := len(first)
+
+			for {
+				_, v, err := cur.Get(nil, nil, NextMultiple)
+				if IsNotFound(err) {
+					break
+				}
+				if err != nil {
+					return err
+				}
+
+				multi := WrapMulti(v, stride)
+				for i := 0; i < multi.Len(); i++ {
+					items = append(items, multi.Val(i))
+				}
+			}
+		}
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(items) != numitems {
+		t.Errorf("unexpected number of items: %d (!= %d)", len(items), numitems)
+	}
+
+	for i, b := range items {
+		expect := fmt.Sprintf("%016x", i)
+		if string(b) != expect {
+			t.Errorf("unexpected value: %q (!= %q)", b, expect)
+		}
 	}
 }
 

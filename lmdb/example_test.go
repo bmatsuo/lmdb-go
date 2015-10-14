@@ -530,6 +530,34 @@ func ExampleCursor() {
 	// key2: val2
 }
 
+// This example demonstrates how to iterate a database opened with lmdb.DupSort
+// and get the number of values present for each unique key.
+func ExampleCursor_Count() {
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, _, err := cur.Get(nil, nil, lmdb.NextNoDup)
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			numdup, err := cur.Count()
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%d values for key %q", numdup, k)
+		}
+	})
+}
+
 // This simple example shows how to iterate a database.  The lmdb.Next flag may
 // be used without an initial call using lmdb.First.
 func ExampleCursor_Get() {
@@ -579,6 +607,46 @@ func ExampleCursor_Get_reverse() {
 	})
 }
 
+// This simple example shows how to iterate a database opened with the
+// DupSort|DupSort flags.  It is not necessary to use the GetMultiple flag
+// before passing the NextMultiple flag.
+func ExampleCursor_Get_DupFixed() {
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, first, err := cur.Get(nil, nil, lmdb.NextNoDup)
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			stride := len(first)
+
+			for {
+				_, v, err := cur.Get(nil, nil, lmdb.NextMultiple)
+				if lmdb.IsNotFound(err) {
+					break
+				}
+				if err != nil {
+					return err
+				}
+
+				multi := lmdb.WrapMulti(v, stride)
+				for i := 0; i < multi.Len(); i++ {
+					fmt.Printf("%s %s\n", k, multi.Val(i))
+				}
+			}
+		}
+	})
+}
+
 // This example shows how to write a page of contiguous, fixed-size values to a
 // database opened with DupSort|DupFixed.  It doesn't matter if the values are
 // sorted.  Values will be stored in sorted order.
@@ -615,7 +683,7 @@ func ExampleCursor_Del() {
 		defer cur.Close()
 
 		for {
-			k, v, err := cur.Get(nil, nil, lmdb.Next)
+			k, _, err := cur.Get(nil, nil, lmdb.Next)
 			if lmdb.IsNotFound(err) {
 				return nil
 			}
