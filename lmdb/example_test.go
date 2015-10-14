@@ -610,7 +610,7 @@ func ExampleCursor_Get_reverse() {
 // This simple example shows how to iterate a database opened with the
 // DupSort|DupSort flags.  It is not necessary to use the GetMultiple flag
 // before passing the NextMultiple flag.
-func ExampleCursor_Get_DupFixed() {
+func ExampleCursor_Get_dupFixed() {
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		cur, err := txn.OpenCursor(dbi)
 		if err != nil {
