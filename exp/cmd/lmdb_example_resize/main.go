@@ -55,7 +55,7 @@ func WriteRandomItems(path string, numitem, chunksize int64) error {
 	}
 	env.Handlers = env.Handlers.Append(
 		lmdbsync.MapResizedHandler(2, func(int) time.Duration { return 100 * time.Microsecond }),
-		lmdbsync.HandlerFunc(mapFullLogger),
+		handlerFunc(mapFullLogger),
 		lmdbsync.MapFullHandler(func(size int64) (int64, bool) {
 			newsize := size * 2
 			log.Printf("oldsize=%d newsize=%d", size, newsize)
@@ -112,4 +112,10 @@ func OpenEnv(path string) (*lmdbsync.Env, error) {
 		return nil, err
 	}
 	return env, nil
+}
+
+type handlerFunc func(b lmdbsync.Bag, err error)
+
+func (fn HandlerFunc) HandleTxnError(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
+	return fn(b, err)
 }
