@@ -40,10 +40,10 @@ func WrapMulti(page []byte, stride int) *Multi {
 // Vals returns a slice containing the values in m.  The returned slice has
 // length m.Len() and each item has length m.Stride().
 func (m *Multi) Vals() [][]byte {
-	i, ps := 0, make([][]byte, m.Len())
-	for off := 0; off < len(m.page); off += m.stride {
-		ps[i] = m.page[off : off+m.stride]
-		i++
+	n := m.Len()
+	ps := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		ps[i] = m.Val(i)
 	}
 	return ps
 }
