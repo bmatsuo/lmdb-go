@@ -66,7 +66,6 @@ import "C"
 import (
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"unsafe"
 )
 
@@ -101,6 +100,7 @@ type msgctx int64
 
 var msgctxn int64
 var msgctxm = map[msgctx]msgfunc{}
+var msgctxe = map[msgctx]error{}
 var msgctxmlock sync.RWMutex
 
 func newMsgctx() *msgctx {
@@ -118,19 +118,41 @@ func (ctx *msgctx) register(fn msgfunc) {
 func (ctx *msgctx) deregister() {
 	msgctxmlock.Lock()
 	delete(msgctxm, *ctx)
+	delete(msgctxe, *ctx)
+	msgctxmlock.Unlock()
+}
+
+func (ctx *msgctx) fn() msgfunc {
+	msgctxmlock.Lock()
+	fn := msgctxm[*ctx]
+	msgctxmlock.Unlock()
+	return fn
+}
+
+func (ctx *msgctx) err() error {
+	msgctxmlock.Lock()
+	err := msgctxe[*ctx]
+	msgctxmlock.Unlock()
+	return err
+}
+
+func (ctx *msgctx) seterr(err error) {
+	msgctxmlock.Lock()
+	msgctxe[*ctx] = err
 	msgctxmlock.Unlock()
 }
 
 //export lmdbgo_mdb_msg_func_bridge
-func lmdbgo_mdb_msg_func_bridge(msg C.ConstCString, ctx unsafe.Pointer) C.int {
-	msgctxmlock.RLock()
-	fn := msgctxm[*(*msgctx)(ctx)]
-	msgctxmlock.RUnlock()
+func lmdbgo_mdb_msg_func_bridge(msg C.ConstCString, _ctx unsafe.Pointer) C.int {
+	ctx := (*msgctx)(_ctx)
+	fn := ctx.fn()
 	if fn == nil {
 		return 0
 	}
+
 	err := fn(C.GoString(msg.p))
-	if _, ok := err.(syscall.Errno); ok {
+	if err != nil {
+		ctx.seterr(err)
 		return -1
 	}
 	return 0

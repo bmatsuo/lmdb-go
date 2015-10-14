@@ -253,6 +253,58 @@ func TestEnv_ReaderList(t *testing.T) {
 	}
 }
 
+func TestEnv_ReaderList_error(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var numreaders = 2
+
+	var fin sync.WaitGroup
+	defer fin.Wait()
+	ready := make(chan struct{})
+	done := make(chan struct{})
+	defer close(done)
+
+	t.Logf("starting")
+
+	for i := 0; i < numreaders; i++ {
+		fin.Add(1)
+		go func(i int) {
+			defer fin.Done()
+			err := env.View(func(txn *Txn) (err error) {
+				t.Logf("reader %v: ready", i)
+				ready <- struct{}{}
+
+				<-done
+				t.Logf("reader %v: done", i)
+				return nil
+			})
+			if err != nil {
+				t.Errorf("reader %d: %q", i, err)
+			}
+		}(i)
+
+		// wait for each reader to become ready
+		<-ready
+	}
+
+	e := fmt.Errorf("testerror")
+	var readers []string
+	err := env.ReaderList(func(msg string) error {
+		readers = append(readers, msg)
+		return e
+	})
+	if err == nil {
+		t.Errorf("expected error")
+	}
+	if err != e {
+		t.Errorf("unexpected error: %q (!= %q)", err, e)
+	}
+	if len(readers) != 1 {
+		t.Errorf("unexpected reader list size: %d (!= %d)", len(readers), 1)
+	}
+}
+
 func TestEnv_ReaderCheck(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)

@@ -85,7 +85,16 @@ func (env *Env) ReaderList(fn func(string) error) error {
 	ctx.register(fn)
 	defer ctx.deregister()
 	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
-	return operrno("mdb_env_open", ret)
+	if ret >= 0 {
+		return nil
+	}
+	if ret < 0 {
+		err := ctx.err()
+		if err != nil {
+			return err
+		}
+	}
+	return operrno("mdb_reader_list", ret)
 }
 
 // ReaderCheck clears stale entries from the reader lock table and returns the
