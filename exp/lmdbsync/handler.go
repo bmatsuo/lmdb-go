@@ -246,9 +246,3 @@ func (h *resizedHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
 	}
 	return b, RetryTxn
 }
-
-type HandlerFunc func(c Bag, err error) (Bag, error)
-
-func (fn HandlerFunc) HandleTxnErr(c Bag, err error) (Bag, error) {
-	return fn(c, err)
-}
