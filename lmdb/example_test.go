@@ -603,6 +603,38 @@ func ExampleCursor_PutMulti() {
 	})
 }
 
+// This example demonstrates how to delete all elements in a database with a
+// key less than a given value (an RFC3339 timestamp in this case).
+func ExampleCursor_Del() {
+	before := []byte("2014-05-06T03:04:02Z")
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, v, err := cur.Get(nil, nil, lmdb.Next)
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			if bytes.Compare(k, before) != -1 {
+				return nil
+			}
+
+			err = cur.Del(0)
+			if err != nil {
+				return err
+			}
+		}
+	})
+}
+
 // Txn.OpenRoot does not need to be called with the lmdb.Create flag.
 func ExampleTxn_OpenRoot() {
 	err := EnvEx.Update(func(txn *lmdb.Txn) (err error) {
