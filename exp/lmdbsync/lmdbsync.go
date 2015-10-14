@@ -10,24 +10,41 @@ may produce undefined behavior from the LMDB C library.
 
 Resizing the environment
 
-The Env type synchronizes all calls to Env.SetMapSize so that it may be safely
-called in the presence of concurrent transactinos after an environment has been
-opened.  All running transactions complete before the method is called on the
-underlying lmdb.Env.
+The Env type synchronizes all calls to Env.SetMapSize so that it may, with some
+caveats, be safely called in the presence of concurrent transactions after an
+environment has been opened.  All running transactions must complete before the
+method will be called on the underlying lmdb.Env.
 
-However, applications are recommended against attempting to change the memory
-map size for an open database.  It requires careful synchronization by all
-processes accessing the database file.  And, a large memory map will not affect
-disk usage on operating systems that support sparse files (e.g. Linux, not OS
-X).
+If an open transaction depends on a change in map size then the database will
+deadlock and block all future transactions in the environment.  Put simply, all
+transactions must terminate independently of other transactions.
+
+In the simplest example, a function in view transaction that attempts an update
+will deadlock database if the map is full and an increase of the map size is
+attempted so the transaction can be retried.  Instead the update should be
+prepared inside the view and then executed following the termination of the
+view.
+
+The developers of LMDB officially recommend against applications changing the
+memory map size for an open database.  It requires careful synchronization by
+all processes accessing the database file.  And, a large memory map will not
+affect disk usage on operating systems that support sparse files (e.g. Linux,
+not OS X).
+
+See mdb_env_set_mapsize.
 
 Multi-processing (MapResized)
 
 Using the Handler interface provided by the package MapResizedHandler can be
-used to automatically resize an enviornment when a MapResized error is
+used to automatically resize an enviornment when a lmdb.MapResized error is
 encountered.  Usage of the MapResizedHandler puts important caveats on how one
 can safely work with transactions.  See the function documentation for more
 detailed information.
+
+When other processes may change an environment's map size it is extremely
+important to ensure that transactions terminate independent of all other
+transactions.  The MapResized error may be returned at the beginning of any
+transaction.
 
 See mdb_txn_begin and MDB_MAP_RESIZED.
 
@@ -38,6 +55,11 @@ the map and retry transactions when a MapFull error is encountered.  Usage of
 the MapFullHandler puts important caveats on how one can safely work with
 transactions.  See the function documentation for more detailed information.
 
+The caveats on transactions are lessened if lmdb.MapFull is the only error
+being handled (when multi-processing is not a concern).  The only requirement
+then is that view transactions not depend on the termination of updates
+transactions.
+
 See mdb_env_set_mapsize and MDB_MAP_FULL.
 
 NoLock
@@ -45,6 +67,11 @@ NoLock
 When the lmdb.NoLock flag is set on an environment Env handles all transaction
 synchronization using Go structures and is an experimental feature.  It is
 unclear what benefits this provides.
+
+Usage of lmdb.NoLock requires that update transactions acquire an exclusive
+lock on the environment.  In such cases it is required that view transactions
+execute independently of update transactions, a requirement more strict than
+that from handling MapFull.
 
 See mdb_env_open and MDB_NOLOCK.
 */
