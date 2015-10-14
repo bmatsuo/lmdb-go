@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"syscall"
 	"testing"
 	"time"
 
@@ -75,6 +76,41 @@ func TestNewEnv(t *testing.T) {
 	}
 	if info.MapSize <= 0 {
 		t.Errorf("bad mapsize: %v", info.MapSize)
+	}
+}
+
+func TestEnv_Open(t *testing.T) {
+	dir, err := ioutil.TempDir("", "lmdbsync-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	env, err := NewEnv(nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer env.Close()
+	err = env.Open(dir, 0, 0644)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if env.noLock {
+		t.Error("flag lmdb.NoLock detected incorrectly")
+	}
+
+	// calling Open on an open environment will fail.  env.noLock should not be
+	// set on a failing call to Open.
+	err = env.Open(dir, lmdb.NoLock, 0644)
+	if !lmdb.IsErrnoSys(err, syscall.EINVAL) {
+		t.Error(err)
+	}
+
+	if env.noLock {
+		t.Error("flag lmdb.NoLock detected incorrectly")
 	}
 }
 
@@ -337,6 +373,34 @@ func TestEnv_RunTxn(t *testing.T) {
 	testRunTxn(t, env)
 }
 
+func TestEnv_View_NoLock(t *testing.T) {
+	env := newEnv(t, lmdb.NoLock)
+	defer cleanEnv(t, env)
+
+	testView(t, env)
+}
+
+func TestEnv_Update_NoLock(t *testing.T) {
+	env := newEnv(t, lmdb.NoLock)
+	defer cleanEnv(t, env)
+
+	testUpdate(t, env)
+}
+
+func TestEnv_UpdateLocked_NoLock(t *testing.T) {
+	env := newEnv(t, lmdb.NoLock)
+	defer cleanEnv(t, env)
+
+	testUpdateLocked(t, env)
+}
+
+func TestEnv_RunTxn_NoLock(t *testing.T) {
+	env := newEnv(t, lmdb.NoLock)
+	defer cleanEnv(t, env)
+
+	testRunTxn(t, env)
+}
+
 func TestEnv_WithHandler_View(t *testing.T) {
 	env := newEnv(t, 0)
 	defer cleanEnv(t, env)
@@ -346,6 +410,9 @@ func TestEnv_WithHandler_View(t *testing.T) {
 
 	testView(t, runner)
 
+	if BagEnv(handler.bag) != env {
+		t.Errorf("handler does not include original env")
+	}
 	if !handler.called {
 		t.Errorf("handler was not called")
 	}
@@ -360,6 +427,9 @@ func TestEnv_WithHandler_Update(t *testing.T) {
 
 	testUpdate(t, runner)
 
+	if BagEnv(handler.bag) != env {
+		t.Errorf("handler does not include original env")
+	}
 	if !handler.called {
 		t.Errorf("handler was not called")
 	}
@@ -374,6 +444,9 @@ func TestEnv_WithHandler_UpdateLocked(t *testing.T) {
 
 	testUpdateLocked(t, runner)
 
+	if BagEnv(handler.bag) != env {
+		t.Errorf("handler does not include original env")
+	}
 	if !handler.called {
 		t.Errorf("handler was not called")
 	}
@@ -388,20 +461,10 @@ func TestEnv_WithHandler_RunTxn(t *testing.T) {
 
 	testRunTxn(t, runner)
 
+	if BagEnv(handler.bag) != env {
+		t.Errorf("handler does not include original env")
+	}
 	if !handler.called {
 		t.Errorf("handler was not called")
 	}
-}
-
-type testHandler struct {
-	called bool
-	bag    Bag
-	err    error
-}
-
-func (h *testHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
-	h.called = true
-	h.bag = b
-	h.err = err
-	return b, err
 }
