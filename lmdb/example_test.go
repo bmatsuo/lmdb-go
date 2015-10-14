@@ -21,6 +21,7 @@ var DBIEx lmdb.DBI
 var env *lmdb.Env
 var txn *lmdb.Txn
 var dbi lmdb.DBI
+var dbname string
 var err error
 
 // These values can be used as no-op placeholders in examples.
@@ -575,6 +576,30 @@ func ExampleCursor_Get_reverse() {
 
 			fmt.Printf("%s %s\n", k, v)
 		}
+	})
+}
+
+// This example shows how to write a page of contiguous, fixed-size values to a
+// database opened with DupSort|DupFixed.  It doesn't matter if the values are
+// sorted.  Values will be stored in sorted order.
+func ExampleCursor_PutMulti() {
+	key := []byte("k")
+	items := [][]byte{
+		[]byte("v0"),
+		[]byte("v2"),
+		[]byte("v1"),
+	}
+	page := bytes.Join(items, nil)
+	stride := 2
+
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		return cur.PutMulti(key, page, stride, 0)
 	})
 }
 
