@@ -20,7 +20,8 @@ var DBIEx lmdb.DBI
 // These values can only be used is code-only examples (no test output).
 var env *lmdb.Env
 var txn *lmdb.Txn
-var dbi *lmdb.DBI
+var dbi lmdb.DBI
+var err error
 
 // These values can be used as no-op placeholders in examples.
 func doUpdate(txn *lmdb.Txn) error { return nil }
@@ -526,6 +527,55 @@ func ExampleCursor() {
 	// key0: val0
 	// key1: val1
 	// key2: val2
+}
+
+// This simple example shows how to iterate a database.  The lmdb.Next flag may
+// be used without an initial call using lmdb.First.
+func ExampleCursor_Get() {
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, v, err := cur.Get(nil, nil, lmdb.Next)
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("%s %s\n", k, v)
+		}
+	})
+}
+
+// This simple example shows how to iterate a database in reverse.  As when
+// calling lmdb.Next, the lmdb.Prev flag may be used without an initial call
+// using lmdb.Last.
+func ExampleCursor_Get_reverse() {
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, v, err := cur.Get(nil, nil, lmdb.Prev)
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("%s %s\n", k, v)
+		}
+	})
 }
 
 // Txn.OpenRoot does not need to be called with the lmdb.Create flag.

@@ -152,6 +152,64 @@ func TestCursor_PutReserve(t *testing.T) {
 	}
 }
 
+func TestCursor_Get_reverse(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("k0"), []byte("v0"), 0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("k1"), []byte("v1"), 0)
+		if err != nil {
+			return err
+		}
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	type Item struct{ k, v []byte }
+	var items []Item
+
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, v, err := cur.Get(nil, nil, Prev)
+			if IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			items = append(items, Item{k, v})
+		}
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	expect := []Item{
+		{[]byte("k1"), []byte("v1")},
+		{[]byte("k0"), []byte("v0")},
+	}
+	if !reflect.DeepEqual(items, expect) {
+		t.Errorf("unexpected items %q (!= %q)", items, expect)
+	}
+}
+
 func TestCursor_Del(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
