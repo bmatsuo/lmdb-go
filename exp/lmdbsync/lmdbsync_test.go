@@ -3,6 +3,7 @@ package lmdbsync
 import (
 	"io/ioutil"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -177,4 +178,230 @@ func TestEnv_SetMapSize(t *testing.T) {
 		t.Error(err)
 	}
 
+}
+
+func TestEnv_BeginTxn(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	txn, err := env.BeginTxn(nil, 0)
+	if err == nil {
+		t.Error("transaction was created")
+		txn.Abort()
+	}
+}
+
+func testView(t *testing.T, env TxnRunner) {
+	err := env.View(func(txn *lmdb.Txn) (err error) {
+		dbi, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("k"), []byte("v"), 0)
+		if err == nil {
+			t.Error("put allowed inside view transaction")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func testUpdate(t *testing.T, env TxnRunner) {
+	var dbi lmdb.DBI
+	err := env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(dbi, []byte("k"), []byte("v"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		v, err := txn.Get(dbi, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if string(v) != "v" {
+			t.Errorf("unexpected value: %q (!= %q)", v, "v")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func testUpdateLocked(t *testing.T, env TxnRunner) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	var dbi lmdb.DBI
+	err := env.UpdateLocked(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(dbi, []byte("k"), []byte("v"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		v, err := txn.Get(dbi, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if string(v) != "v" {
+			t.Errorf("unexpected value: %q (!= %q)", v, "v")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func testRunTxn(t *testing.T, env TxnRunner) {
+	var dbi lmdb.DBI
+	err := env.RunTxn(0, func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.Put(dbi, []byte("k"), []byte("v"), 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.RunTxn(lmdb.Readonly, func(txn *lmdb.Txn) (err error) {
+		dbi, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("k"), []byte("V"), 0)
+		if err == nil {
+			t.Error("put allowed inside view transaction")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		v, err := txn.Get(dbi, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if string(v) != "v" {
+			t.Errorf("unexpected value: %q (!= %q)", v, "v")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestEnv_View(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	testView(t, env)
+}
+
+func TestEnv_Update(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	testUpdate(t, env)
+}
+
+func TestEnv_UpdateLocked(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	testUpdateLocked(t, env)
+}
+
+func TestEnv_RunTxn(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	testRunTxn(t, env)
+}
+
+func TestEnv_WithHandler_View(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	handler := &testHandler{}
+	runner := env.WithHandler(handler)
+
+	testView(t, runner)
+
+	if !handler.called {
+		t.Errorf("handler was not called")
+	}
+}
+
+func TestEnv_WithHandler_Update(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	handler := &testHandler{}
+	runner := env.WithHandler(handler)
+
+	testUpdate(t, runner)
+
+	if !handler.called {
+		t.Errorf("handler was not called")
+	}
+}
+
+func TestEnv_WithHandler_UpdateLocked(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	handler := &testHandler{}
+	runner := env.WithHandler(handler)
+
+	testUpdateLocked(t, runner)
+
+	if !handler.called {
+		t.Errorf("handler was not called")
+	}
+}
+
+func TestEnv_WithHandler_RunTxn(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+
+	handler := &testHandler{}
+	runner := env.WithHandler(handler)
+
+	testRunTxn(t, runner)
+
+	if !handler.called {
+		t.Errorf("handler was not called")
+	}
+}
+
+type testHandler struct {
+	called bool
+	bag    Bag
+	err    error
+}
+
+func (h *testHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
+	h.called = true
+	h.bag = b
+	h.err = err
+	return b, err
 }
