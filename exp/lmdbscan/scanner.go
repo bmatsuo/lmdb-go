@@ -55,25 +55,6 @@ func Select(fn func(k, v []byte) bool) Func {
 	}
 }
 
-// Each scans dbi in reverse order and calls fn(k, v) for each (k, v) pair.
-func EachReverse(txn *lmdb.Txn, dbi lmdb.DBI, fn Func) error {
-	s := New(txn, dbi)
-	defer s.Close()
-	s.SetNext(nil, nil, lmdb.Last, lmdb.Prev)
-	for s.Scan(fn) {
-	}
-	return s.Err()
-}
-
-// Each scans dbi in order and calls fn(k, v) for each (k ,v) pair.
-func Each(txn *lmdb.Txn, dbi lmdb.DBI, fn Func) error {
-	s := New(txn, dbi)
-	defer s.Close()
-	for s.Scan(fn) {
-	}
-	return s.Err()
-}
-
 // Scanner is a low level construct for scanning databases inside a
 // transaction.
 type Scanner struct {
