@@ -81,7 +81,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -132,9 +131,7 @@ func NewEnv(env *lmdb.Env, h ...Handler) (*Env, error) {
 	}
 
 	flags, err := env.Flags()
-	if lmdb.IsErrnoSys(err, syscall.EINVAL) {
-		err = nil
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 	noLock := flags&lmdb.NoLock != 0
