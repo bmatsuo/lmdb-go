@@ -146,6 +146,48 @@ func TestNewEnv_noLock(t *testing.T) {
 	}
 }
 
+func TestNewEnv_arg(t *testing.T) {
+	dir, err := ioutil.TempDir("", "lmdbsync-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	_env, err := lmdb.NewEnv()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	env, err := NewEnv(_env)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer env.Close()
+
+	if env.noLock {
+		t.Errorf("flag lmdb.NoLock detected incorrectly")
+	}
+
+	err = env.Open(dir, lmdb.NoLock, 0644)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if !env.noLock {
+		t.Errorf("flag lmdb.NoLock not detected correctly")
+	}
+
+	info, err := env.Info()
+	if err != nil {
+		t.Error(err)
+	}
+	if info.MapSize <= 0 {
+		t.Errorf("bad mapsize: %v", info.MapSize)
+	}
+}
+
 func TestNewEnv_noLock_arg(t *testing.T) {
 	dir, err := ioutil.TempDir("", "lmdbsync-test-")
 	if err != nil {
