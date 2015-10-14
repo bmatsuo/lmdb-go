@@ -21,6 +21,46 @@ func (h *testHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
 	return b, err
 }
 
+func TestHandlerChain(t *testing.T) {
+	env := newEnv(t, 0)
+	defer cleanEnv(t, env)
+	b := bagWithEnv(Background(), env)
+
+	var chain1 HandlerChain
+	errother := fmt.Errorf("testerr")
+
+	b1, err := chain1.HandleTxnErr(b, errother)
+	if err != errother {
+		t.Error(err)
+	}
+	if b1 != b {
+		t.Errorf("unexpected bag: %#v (!= %#v)", b1, b)
+	}
+
+	chain2 := chain1.Append(&passthroughHandler{})
+	b2, err := chain2.HandleTxnErr(b, errother)
+	if err != errother {
+		t.Error(err)
+	}
+	if b2 != b {
+		t.Errorf("unexpected bag: %#v (!= %#v)", b2, b)
+	}
+}
+
+type retryHandler struct{}
+
+func (*retryHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
+	return b, RetryTxn
+
+}
+
+type passthroughHandler struct{}
+
+func (*passthroughHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
+	return b, err
+
+}
+
 func TestMapFullHandler(t *testing.T) {
 	env := newEnv(t, 0)
 	defer cleanEnv(t, env)
