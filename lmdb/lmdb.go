@@ -63,11 +63,7 @@ package lmdb
 #include "lmdbgo.h"
 */
 import "C"
-import (
-	"sync"
-	"sync/atomic"
-	"unsafe"
-)
+import "unsafe"
 
 // Version return the major, minor, and patch version numbers of the LMDB C
 // library and a string representation of the version.
@@ -95,64 +91,25 @@ func cbool(b bool) C.int {
 	return 0
 }
 
+type msgCtx struct {
+	fn  msgfunc
+	err error
+}
 type msgfunc func(string) error
-type msgctx int64
 
-var msgctxn int64
-var msgctxm = map[msgctx]msgfunc{}
-var msgctxe = map[msgctx]error{}
-var msgctxmlock sync.RWMutex
-
-func newMsgctx() *msgctx {
-	ctx := new(msgctx)
-	*ctx = msgctx(atomic.AddInt64(&msgctxn, 1))
-	return ctx
-}
-
-func (ctx *msgctx) register(fn msgfunc) {
-	msgctxmlock.Lock()
-	msgctxm[*ctx] = fn
-	msgctxmlock.Unlock()
-}
-
-func (ctx *msgctx) deregister() {
-	msgctxmlock.Lock()
-	delete(msgctxm, *ctx)
-	delete(msgctxe, *ctx)
-	msgctxmlock.Unlock()
-}
-
-func (ctx *msgctx) fn() msgfunc {
-	msgctxmlock.Lock()
-	fn := msgctxm[*ctx]
-	msgctxmlock.Unlock()
-	return fn
-}
-
-func (ctx *msgctx) err() error {
-	msgctxmlock.Lock()
-	err := msgctxe[*ctx]
-	msgctxmlock.Unlock()
-	return err
-}
-
-func (ctx *msgctx) seterr(err error) {
-	msgctxmlock.Lock()
-	msgctxe[*ctx] = err
-	msgctxmlock.Unlock()
-}
+func newMsgCtx(fn msgfunc) *msgCtx { return &msgCtx{fn: fn} }
 
 //export lmdbgo_mdb_msg_func_bridge
-func lmdbgo_mdb_msg_func_bridge(msg C.ConstCString, _ctx unsafe.Pointer) C.int {
-	ctx := (*msgctx)(_ctx)
-	fn := ctx.fn()
+func lmdbgo_mdb_msg_func_bridge(msg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
+	ctx := (*msgCtx)(_ctx)
+	fn := ctx.fn
 	if fn == nil {
 		return 0
 	}
 
 	err := fn(C.GoString(msg.p))
 	if err != nil {
-		ctx.seterr(err)
+		ctx.err = err
 		return -1
 	}
 	return 0

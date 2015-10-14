@@ -81,17 +81,14 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 }
 
 func (env *Env) ReaderList(fn func(string) error) error {
-	ctx := newMsgctx()
-	ctx.register(fn)
-	defer ctx.deregister()
+	ctx := newMsgCtx(fn)
 	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
 	if ret >= 0 {
 		return nil
 	}
 	if ret < 0 {
-		err := ctx.err()
-		if err != nil {
-			return err
+		if ctx.err != nil {
+			return ctx.err
 		}
 	}
 	return operrno("mdb_reader_list", ret)
