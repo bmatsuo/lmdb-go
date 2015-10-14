@@ -165,45 +165,10 @@ func (r *Env) Open(path string, flags uint, mode os.FileMode) error {
 	return nil
 }
 
-// SetFlags is a proxy for r.Env.SetFlags() that detects the lmdb.NoLock flag
-// to properly manage transaction synchronization.
-func (r *Env) SetFlags(flags uint) error {
-	err := r.Env.SetFlags(flags)
-	if err != nil {
-		// no update to flags occurred
-		return err
-	}
-
-	if flags&lmdb.NoLock != 0 {
-		r.noLock = true
-	}
-
-	return nil
-}
-
-// UnsetFlags is a proxy for r.Env.UnsetFlags() that detects the lmdb.NoLock flag
-// to properly manage transaction synchronization.
-func (r *Env) UnsetFlags(flags uint) error {
-	err := r.Env.UnsetFlags(flags)
-	if err != nil {
-		// no update to flags occurred
-		return err
-	}
-
-	if flags&lmdb.NoLock != 0 {
-		r.noLock = false
-	}
-
-	return nil
-}
-
 // SetMapSize is a proxy for r.Env.SetMapSize() that blocks while concurrent
 // transactions are in progress.
 func (r *Env) SetMapSize(size int64) error {
-	r.txnlock.Lock()
-	err := r.setMapSize(size, 0)
-	r.txnlock.Unlock()
-	return err
+	return r.setMapSize(size, 0)
 }
 
 func (r *Env) setMapSize(size int64, delay time.Duration) error {
