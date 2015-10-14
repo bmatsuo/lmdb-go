@@ -114,8 +114,8 @@ func OpenEnv(path string) (*lmdbsync.Env, error) {
 	return env, nil
 }
 
-type handlerFunc func(b lmdbsync.Bag, err error)
+type handlerFunc func(b lmdbsync.Bag, err error) (lmdbsync.Bag, error)
 
-func (fn HandlerFunc) HandleTxnError(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
+func (fn handlerFunc) HandleTxnErr(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
 	return fn(b, err)
 }
