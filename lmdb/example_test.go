@@ -647,6 +647,62 @@ func ExampleCursor_Get_dupFixed() {
 	})
 }
 
+// This example shows a trivial case using Renew to service read requests on a
+// database.  Close must be called when the cursor will no longer be renewed.
+// Before using Renew benchmark your application to understand its benefits.
+func ExampleCursor_Renew() {
+	var cur *lmdb.Cursor
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		dbi, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		cur, err = txn.OpenCursor(dbi)
+		return err
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	keys := make(chan []byte)
+	go func() {
+
+		// Close must called when the cursor is no longer needed.
+		defer cur.Close()
+
+		for key := range keys {
+			err := env.View(func(txn *lmdb.Txn) (err error) {
+				err = cur.Renew(txn)
+				if err != nil {
+					return err
+				}
+
+				// retrieve the number of items in the database with the given
+				// key (lmdb.DupSort).
+				count := uint64(0)
+				_, _, err = cur.Get(key, nil, lmdb.SetKey)
+				if lmdb.IsNotFound(err) {
+					err = nil
+				} else if err == nil {
+					count, err = cur.Count()
+				}
+				if err != nil {
+					return err
+				}
+
+				log.Printf("%d %q", count, key)
+
+				return nil
+			})
+			if err != nil {
+				panic(err)
+			}
+		}
+	}()
+
+	// ...
+}
+
 // This example shows how to write a page of contiguous, fixed-size values to a
 // database opened with DupSort|DupFixed.  It doesn't matter if the values are
 // sorted.  Values will be stored in sorted order.

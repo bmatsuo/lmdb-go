@@ -77,8 +77,9 @@ func (c *Cursor) Renew(txn *Txn) error {
 	return nil
 }
 
-// Close the cursor handle.  A runtime panic occurs if a the cursor is used
-// after Close is called.
+// Close the cursor handle.  Close must be called when the cursor is no longer
+// needed to avoid a memory leak.  A runtime panic occurs if a the cursor is
+// used after Close is called.
 //
 // Cursors in write transactions must be closed before their transaction is
 // terminated.
