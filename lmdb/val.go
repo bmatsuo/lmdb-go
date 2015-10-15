@@ -120,6 +120,37 @@ func wrapVal(p []byte) *mdbVal {
 	}
 }
 
+var sizetBytes = unsafe.Sizeof(C.size_t(0))
+var uintBytes = unsafe.Sizeof(C.uint(0))
+
+func wrapValU(x *C.uint) *mdbVal {
+	return &mdbVal{
+		mv_size: C.size_t(uintBytes),
+		mv_data: unsafe.Pointer(x),
+	}
+}
+
+func wrapValZ(x *C.size_t) *mdbVal {
+	return &mdbVal{
+		mv_size: C.size_t(sizetBytes),
+		mv_data: unsafe.Pointer(x),
+	}
+}
+
+func (val *mdbVal) Uint() uint {
+	if val.mv_size != C.size_t(uintBytes) {
+		panic("val is not uint")
+	}
+	return uint(*(*C.uint)(val.mv_data))
+}
+
+func (val *mdbVal) Uint64() uint64 {
+	if val.mv_size != C.size_t(sizetBytes) {
+		panic("val is not size_t")
+	}
+	return uint64(*(*C.size_t)(val.mv_data))
+}
+
 // BytesCopy returns a slice copied from the region pointed to by val.
 func (val *mdbVal) BytesCopy() []byte {
 	return C.GoBytes(val.mv_data, C.int(val.mv_size))
