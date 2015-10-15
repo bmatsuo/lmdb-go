@@ -255,7 +255,7 @@ func (r *Env) runHandler(readonly bool, fn func() error, h Handler) error {
 	for {
 		err := r.run(readonly, fn)
 		b, err = h.HandleTxnErr(b, err)
-		if err != RetryTxn {
+		if err != ErrTxnRetry {
 			return err
 		}
 	}

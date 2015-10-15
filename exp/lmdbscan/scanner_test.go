@@ -1,7 +1,6 @@
 package lmdbscan
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -12,72 +11,7 @@ import (
 
 type errcheck func(err error) (ok bool)
 
-var pIsSkip = func(err error) bool { return err == Skip }
-var pIsStop = func(err error) bool { return err == Stop }
 var pIsNil = func(err error) bool { return err == nil }
-
-func TestSelect(t *testing.T) {
-	var ret bool
-	fn := Select(func(k, v []byte) bool { return ret })
-
-	for i, step := range []struct {
-		ret bool
-		errcheck
-	}{
-		{true, pIsNil},
-		{false, pIsSkip},
-		{true, pIsNil},
-		{false, pIsSkip},
-	} {
-		ret = step.ret
-		err := fn(nil, nil)
-		if !step.errcheck(err) {
-			t.Errorf("step %d: unexpected error: %v", i, err)
-		}
-	}
-}
-
-func TestWhile(t *testing.T) {
-	var ret bool
-	fn := While(func(k, v []byte) bool { return ret })
-
-	for i, step := range []struct {
-		ret bool
-		errcheck
-	}{
-		{true, pIsNil},
-		{true, pIsNil},
-		{false, pIsStop},
-	} {
-		ret = step.ret
-		err := fn(nil, nil)
-		if !step.errcheck(err) {
-			t.Errorf("step %d: unexpected error: %v", i, err)
-		}
-	}
-}
-
-func TestSkipErr(t *testing.T) {
-	var ret error
-	fn := SkipErr(func(_, _ []byte) error { return ret })
-
-	testerr := fmt.Errorf("testerror")
-	for i, step := range []struct {
-		ret error
-		errcheck
-	}{
-		{nil, pIsNil},
-		{testerr, pIsSkip},
-		{nil, pIsNil},
-		{testerr, pIsSkip},
-	} {
-		ret = step.ret
-		err := fn(nil, nil)
-		if !step.errcheck(err) {
-			t.Errorf("step %d: unexpected error: %v", i, err)
-		}
-	}
-}
 
 func TestScanner_Scan(t *testing.T) {
 	env := testEnv(t)
@@ -91,46 +25,15 @@ func TestScanner_Scan(t *testing.T) {
 	}
 	loadTestData(t, env, items)
 	for i, test := range []struct {
-		filters  Func
 		filtered []simpleitem
 		errcheck
 	}{
 		{
-			func(k, v []byte) error { return nil },
 			items,
 			nil,
 		},
-		{
-			func(k, v []byte) error { return Stop },
-			nil,
-			nil,
-		},
-		{
-			func(k, v []byte) error { return Skip },
-			nil,
-			nil,
-		},
-		{
-			func() Func {
-				var i int
-				return func(k, v []byte) error {
-					if i > 4 {
-						return Stop
-					}
-					if i++; i%2 == 1 {
-						return Skip
-					}
-					return nil
-				}
-			}(),
-			[]simpleitem{
-				{"k1", "v1"},
-				{"k3", "v3"},
-			},
-			nil,
-		},
 	} {
-		filtered, err := simplescan(env, test.filters)
+		filtered, err := simplescan(env)
 		if err != nil {
 			t.Errorf("test %d: %v", i, err)
 		}
@@ -161,7 +64,7 @@ func loadTestData(t *testing.T, env *lmdb.Env, items []simpleitem) {
 	}
 }
 
-func simplescan(env *lmdb.Env, fn Func) (items []simpleitem, err error) {
+func simplescan(env *lmdb.Env) (items []simpleitem, err error) {
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		db, err := txn.OpenRoot(0)
 		if err != nil {
@@ -171,11 +74,7 @@ func simplescan(env *lmdb.Env, fn Func) (items []simpleitem, err error) {
 		s := New(txn, db)
 		defer s.Close()
 
-		var filter []Func
-		if fn != nil {
-			filter = []Func{fn}
-		}
-		for s.Scan(filter...) {
+		for s.Scan() {
 			items = append(items, simpleitem{string(s.Key()), string(s.Val())})
 		}
 		return s.Err()

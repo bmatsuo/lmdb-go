@@ -10,51 +10,6 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-// Stop is returned by a Func to signal that Scanner.Scan should terminate and
-// return false.
-var Stop = fmt.Errorf("stop")
-
-// Skip is returned by a Func to signal that Scanner.Scan should not yield the
-// current (k, v) pair.
-var Skip = fmt.Errorf("skip")
-
-// A Func is used to control iteration of (k, v) pairs in a database.
-type Func func(k, v []byte) error
-
-// SkipErr returns a Func that calls fn(k, v) on pairs and returns Skip
-// whenever any error is returned.
-func SkipErr(fn Func) Func {
-	return func(k, v []byte) error {
-		err := fn(k, v)
-		if err != nil {
-			return Skip
-		}
-		return nil
-	}
-}
-
-// While returns a Func  that returns nil for all (k, v) pairs that fn(k,v)
-// returns true and Stop otherwise.
-func While(fn func(k, v []byte) bool) Func {
-	return func(k, v []byte) error {
-		if fn(k, v) {
-			return nil
-		}
-		return Stop
-	}
-}
-
-// Select returns a Func that returns nil for all (k, v) pairs that fn(k,v)
-// returns true and Stop otherwise.
-func Select(fn func(k, v []byte) bool) Func {
-	return func(k, v []byte) error {
-		if fn(k, v) {
-			return nil
-		}
-		return Skip
-	}
-}
-
 // Scanner is a low level construct for scanning databases inside a
 // transaction.
 type Scanner struct {
@@ -131,11 +86,9 @@ func (s *Scanner) SetNext(k, v []byte, opset, opnext uint) {
 
 // Scan gets key-value successive pairs with the underlying cursor until one
 // matches the supplied filters.  If all filters return a nil error for the
-// current pair, true is returned.  Scan automatically gets the next pair if
-// any filter returns Skip.  Scan returns false if all key-value pairs where
-// exhausted or another non-nil error was returned by a filter.
-func (s *Scanner) Scan(filter ...Func) bool {
-move:
+// current pair, true is returned.  Scan returns false if all key-value pairs
+// where exhausted.
+func (s *Scanner) Scan() bool {
 	if s.setop == nil {
 		s.key, s.val, s.err = s.cur.Get(nil, nil, s.op)
 	} else {
@@ -144,30 +97,13 @@ move:
 		s.setval = nil
 		s.setop = nil
 	}
-	if s.err != nil {
-		return false
-	}
-
-	for _, fn := range filter {
-		s.err = fn(s.key, s.val)
-		if s.err == Skip {
-			goto move
-		}
-		if s.err != nil {
-			return false
-		}
-	}
-
-	return true
+	return s.err == nil
 }
 
 // Err returns a non-nil error if and only if the previous call to s.Scan()
-// resulted in an error other than Stop or lmdb.ErrNotFound.
+// resulted in an error other than lmdb.ErrNotFound.
 func (s *Scanner) Err() error {
 	if lmdb.IsNotFound(s.err) {
-		return nil
-	}
-	if s.err == Stop {
 		return nil
 	}
 	return s.err

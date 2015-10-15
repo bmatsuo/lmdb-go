@@ -11,4 +11,4 @@ test: bin
 
 check:
 	find . -name '*.go' | xargs goimports -d | tee /dev/stderr | wc -l | xargs test 0 -eq
-	golint ./... | tee /dev/stderr | wc -l | xargs test 0 -ne
+	golint ./... | tee /dev/stderr | wc -l | xargs test 0 -eq
