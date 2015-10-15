@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -23,6 +24,7 @@ var txn *lmdb.Txn
 var dbi lmdb.DBI
 var dbname string
 var err error
+var stop chan struct{}
 
 // These values can be used as no-op placeholders in examples.
 func doUpdate(txn *lmdb.Txn) error { return nil }
@@ -79,6 +81,32 @@ retry:
 		// ...
 	}
 	// ...
+}
+
+func backupFailed(err error) {}
+
+// This example uses env.Copy to periodically create atomic backups of an
+// environment.  A real implementation would need to solve problems with
+// failures, remote persistence, purging old backups, etc.  But the core loop
+// would have the same form.
+func ExampleEnv_Copy() {
+	go func(backup <-chan time.Time) {
+		for {
+			select {
+			case <-backup:
+				now := time.Now().UTC()
+				backup := fmt.Sprintf("backup-%s", now.Format(time.RFC3339))
+				os.Mkdir(backup, 0755)
+				err = env.Copy(backup)
+				if err != nil {
+					// ...
+					continue
+				}
+			case <-stop:
+				return
+			}
+		}
+	}(time.Tick(time.Hour))
 }
 
 // This complete example demonstrates populating and iterating a database with
