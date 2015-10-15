@@ -2,9 +2,7 @@ package lmdbscan_test
 
 import (
 	"bytes"
-	"encoding/binary"
 	"log"
-	"time"
 
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -43,7 +41,7 @@ func ExampleScanner_Set() {
 		defer scanner.Close()
 
 		scanner.Set(keyprefix, nil, lmdb.SetRange)
-		for scanner.Scan(nil) {
+		for scanner.Scan() {
 			if !bytes.HasPrefix(scanner.Key(), keyprefix) {
 				break
 			}
@@ -71,62 +69,6 @@ func ExampleScanner_SetNext() {
 		scanner.SetNext(key, nil, lmdb.GetBothRange, lmdb.NextDup)
 		for scanner.Scan() {
 			log.Printf("k=%q v=%q", scanner.Key(), scanner.Val())
-		}
-		return scanner.Err()
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
-// This (mildly contrived) example demonstrates how the features of lmdbscan
-// combine to effectively query a database.  In the example time series data is
-// being filtered.  The timestamp of each series entry is encoded in the
-// database key, prefixed with the bytes "data:".  This information is used
-// more efficiently filter keys.
-func Example() {
-	prefix := []byte("data:")
-	cutoff := time.Now().Add(-time.Minute)
-
-	err := env.View(func(txn *lmdb.Txn) (err error) {
-		dbroot, _ := txn.OpenRoot(0)
-
-		scanner := lmdbscan.New(txn, dbroot)
-		defer scanner.Close()
-
-		scanner.SetNext(prefix, nil, lmdb.SetRange, lmdb.Next)
-		hasPrefix := lmdbscan.While(func(k, v []byte) bool { return bytes.HasPrefix(k, prefix) })
-		isTimeSeries := lmdbscan.Select(func(k, v []byte) bool { return len(k)-len(prefix) == 8 })
-		notCutOff := lmdbscan.Select(func(k, v []byte) bool {
-			nsbytes := k[len(prefix):]
-			ns := binary.BigEndian.Uint64(nsbytes)
-			t := time.Unix(0, int64(ns))
-			return t.After(cutoff)
-		})
-		for scanner.Scan(hasPrefix, isTimeSeries, notCutOff) {
-			log.Print(scanner.Val())
-
-			// ... process the series entry
-		}
-
-		return scanner.Err()
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
-// This simple example shows how to iterate over a database that indexes json
-// document.
-func ExampleScanner_Scan() {
-	err := env.View(func(txn *lmdb.Txn) (err error) {
-		dbroot, _ := txn.OpenRoot(0)
-
-		scanner := lmdbscan.New(txn, dbroot)
-		defer scanner.Close()
-
-		for scanner.Scan(nil) {
-			log.Printf("%q=%q", scanner.Key(), scanner.Val())
 		}
 		return scanner.Err()
 	})
