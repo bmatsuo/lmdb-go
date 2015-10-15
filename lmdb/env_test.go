@@ -319,18 +319,18 @@ func TestEnv_ReaderCheck(t *testing.T) {
 }
 
 func TestEnv_Copy(t *testing.T) {
-	testEnv_Copy(t, 0, false)
+	testEnvCopy(t, 0, false)
 }
 
 func TestEnv_CopyFlags(t *testing.T) {
-	testEnv_Copy(t, CopyCompact, true)
+	testEnvCopy(t, CopyCompact, true)
 }
 
 func TestEnv_CopyFlags_zero(t *testing.T) {
-	testEnv_Copy(t, 0, true)
+	testEnvCopy(t, 0, true)
 }
 
-func testEnv_Copy(t *testing.T, flags uint, useflags bool) {
+func testEnvCopy(t *testing.T, flags uint, useflags bool) {
 	dircp, err := ioutil.TempDir("", "test-env-copy-")
 	if err != nil {
 		t.Fatal(err)

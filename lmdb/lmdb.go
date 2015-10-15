@@ -71,8 +71,8 @@ import "unsafe"
 // See mdb_version.
 func Version() (major, minor, patch int, s string) {
 	var maj, min, pat C.int
-	ver_str := C.mdb_version(&maj, &min, &pat)
-	return int(maj), int(min), int(pat), C.GoString(ver_str)
+	verstr := C.mdb_version(&maj, &min, &pat)
+	return int(maj), int(min), int(pat), C.GoString(verstr)
 }
 
 // VersionString returns a string representation of the LMDB C library version.
@@ -80,8 +80,8 @@ func Version() (major, minor, patch int, s string) {
 // See mdb_version.
 func VersionString() string {
 	var maj, min, pat C.int
-	ver_str := C.mdb_version(&maj, &min, &pat)
-	return C.GoString(ver_str)
+	verstr := C.mdb_version(&maj, &min, &pat)
+	return C.GoString(verstr)
 }
 
 func cbool(b bool) C.int {
@@ -99,8 +99,8 @@ type msgfunc func(string) error
 
 func newMsgCtx(fn msgfunc) *msgCtx { return &msgCtx{fn: fn} }
 
-//export lmdbgo_mdb_msg_func_bridge
-func lmdbgo_mdb_msg_func_bridge(msg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
+//export lmdbgoMDBMsgFuncBridge
+func lmdbgoMDBMsgFuncBridge(msg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
 	ctx := (*msgCtx)(_ctx)
 	fn := ctx.fn
 	if fn == nil {

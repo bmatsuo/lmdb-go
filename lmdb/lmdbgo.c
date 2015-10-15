@@ -11,7 +11,7 @@ int lmdbgo_mdb_msg_func_proxy(const char *msg, void *ctx) {
     //  wrap msg and call the bridge function exported from lmdb.go.
     lmdbgo_ConstCString s;
     s.p = msg;
-    return lmdbgo_mdb_msg_func_bridge(s, ctx);
+    return lmdbgoMDBMsgFuncBridge(s, ctx);
 }
 
 int lmdbgo_mdb_reader_list(MDB_env *env, void *ctx) {

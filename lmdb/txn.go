@@ -12,11 +12,16 @@ import (
 	"unsafe"
 )
 
+// This flags are used exclusively for Txn.OpenDBI and Txn.OpenRoot.  The
+// Create flag must always be supplied when opening a non-root DBI for the
+// first time.
+//
 // BUG(bmatsuo):
 // MDB_INTEGERKEY and MDB_INTEGERDUP aren't usable. I'm not sure they would be
 // faster with the cgo bridge.  They need to be tested and benchmarked.
 const (
 	// Flags for Txn.OpenDBI.
+
 	ReverseKey = C.MDB_REVERSEKEY // Use reverse string keys.
 	DupSort    = C.MDB_DUPSORT    // Use sorted duplicates.
 	DupFixed   = C.MDB_DUPFIXED   // Duplicate items have a fixed size (DupSort).

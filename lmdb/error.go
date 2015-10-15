@@ -11,15 +11,23 @@ import (
 	"syscall"
 )
 
+// OpError is an error returned by the C API.  Not all errors returned by
+// lmdb-go but typically they are.  The Errno field type will either be Errno
+// or syscall.Errno.
 type OpError struct {
 	Op    string
 	Errno error
 }
 
+// Error implements the error interface.
 func (err *OpError) Error() string {
 	return fmt.Sprintf("%s: %s", err.Op, err.Errno)
 }
 
+// The most common error codes do not need to be handled explicity.  Errors can
+// be checked through helper functions IsNotFound, IsMapFull, etc, Otherwise
+// they should be checked using the IsErrno function instead of direct
+// comparison because they will typically be wrapped with an OpError.
 const (
 	// Error codes defined by LMDB.  See the list of LMDB return codes for more
 	// information about each
@@ -102,7 +110,8 @@ func IsMapFull(err error) bool {
 	return IsErrno(err, MapFull)
 }
 
-// IsResized returns true if the environment has grown.
+// IsMapResized returns true if the environment has grown too large for the
+// current map after being resized by another process.
 func IsMapResized(err error) bool {
 	return IsErrno(err, MapResized)
 }

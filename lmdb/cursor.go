@@ -7,10 +7,12 @@ package lmdb
 */
 import "C"
 
+// These flags are used exclusively for Cursor.Get.
 const (
 	// Flags for Cursor.Get
 	//
 	// See MDB_cursor_op.
+
 	First        = C.MDB_FIRST          // The first item.
 	FirstDup     = C.MDB_FIRST_DUP      // The first value of current key (DupSort).
 	GetBoth      = C.MDB_GET_BOTH       // Get the key as well as the value (DupSort).
@@ -39,6 +41,7 @@ const (
 	// Flags for Txn.Put and Cursor.Put.
 	//
 	// See mdb_put and mdb_cursor_put.
+
 	Current     = C.MDB_CURRENT     // Replace the item at the current key position (Cursor only)
 	NoDupData   = C.MDB_NODUPDATA   // Store the key-value pair only if key is not present (DupSort).
 	NoOverwrite = C.MDB_NOOVERWRITE // Store a new key-value pair only if key is not present.
@@ -92,8 +95,8 @@ func (c *Cursor) Close() {
 }
 
 // Txn returns the cursor's transaction.
-func (cursor *Cursor) Txn() *Txn {
-	return cursor.txn
+func (c *Cursor) Txn() *Txn {
+	return c.txn
 }
 
 // DBI returns the cursor's database handle.

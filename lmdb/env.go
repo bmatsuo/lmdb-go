@@ -20,10 +20,15 @@ import (
 // The functions in this API this behavior and its use is not required.
 const success = C.MDB_SUCCESS
 
+// These flags are used exclusively for Env types and are set with Env.Open.
+// Some flags may be set/unset later using Env.Set/.Unset methods.  Others will
+// produce syscall.EINVAL.  Refer to the C documentation for detailed
+// information.
 const (
 	// Flags for Env.Open.
 	//
 	// See mdb_env_open
+
 	FixedMap    = C.MDB_FIXEDMAP   // Danger zone. Map memory at a fixed address.
 	NoSubdir    = C.MDB_NOSUBDIR   // Argument to Open is a file, not a directory.
 	Readonly    = C.MDB_RDONLY     // Used in several functions to denote an object as readonly.
@@ -37,10 +42,13 @@ const (
 	NoMemInit   = C.MDB_NOMEMINIT  // Disable LMDB memory initialization.
 )
 
+// These flags are exclusively used in the Env.CopyFlags and Env.CopyFDFlags
+// methods.
 const (
 	// Flags for Env.CopyFlags
 	//
 	// See mdb_env_copy2
+
 	CopyCompact = C.MDB_CP_COMPACT // Perform compaction while copying
 )
 
@@ -157,7 +165,7 @@ func (env *Env) CopyFlag(path string, flags uint) error {
 	return operrno("mdb_env_copy2", ret)
 }
 
-// Statistics for a database in the environment
+// Stat contains database status information.
 //
 // See MDB_stat.
 type Stat struct {
@@ -187,7 +195,7 @@ func (env *Env) Stat() (*Stat, error) {
 	return &stat, nil
 }
 
-// Information about the environment.
+// EnvInfo contains information an environment.
 //
 // See MDB_envinfo.
 type EnvInfo struct {
@@ -334,10 +342,10 @@ func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	return beginTxn(env, parent, flags)
 }
 
-// Run creates a new Txn and calls fn with it as an argument.  Run commits the
-// transaction if fn returns nil otherwise the transaction is aborted.  Because
-// RunTxn terminates the transaction goroutines should not retain references to
-// it or its data after fn returns.
+// RunTxn creates a new Txn and calls fn with it as an argument.  Run commits
+// the transaction if fn returns nil otherwise the transaction is aborted.
+// Because RunTxn terminates the transaction goroutines should not retain
+// references to it or its data after fn returns.
 //
 // RunTxn does not lock the thread of the calling goroutine.  Unless the
 // Readonly flag is passed the calling goroutine should ensure it is locked to
