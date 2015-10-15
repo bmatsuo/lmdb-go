@@ -1,14 +1,14 @@
 /* lmdbgo.h
  * Helper utilities for github.com/bmatsuo/lmdb-go/lmdb.
  * */
-#ifndef __LMDBGO_H__
-#define __LMDBGO_H__
+#ifndef _LMDBGO_H_
+#define _LMDBGO_H_
 
 #include "lmdb.h"
 
-/*ConstCString wraps a null-terminated (const char *) because Go's type system
+/* ConstCString wraps a null-terminated (const char *) because Go's type system
  * does not represent the 'cosnt' qualifier directly on a function argument and
- * causes warnings to be emitted during C compilation.
+ * causes warnings to be emitted during linking.
  * */
 typedef struct{ const char *p; } lmdbgo_ConstCString;
 
