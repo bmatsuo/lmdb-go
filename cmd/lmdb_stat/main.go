@@ -12,8 +12,10 @@ package main
 import "C"
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"reflect"
@@ -175,7 +177,39 @@ func doPrintInfo(env *lmdb.Env, opt *Options) error {
 }
 
 func doPrintReaders(env *lmdb.Env, opt *Options) error {
-	return fmt.Errorf("TODO: implement Env.ReaderList")
+	fmt.Println("Reader Table Status")
+	w := bufio.NewWriter(os.Stdout)
+	err := printReaders(env, w, opt)
+	if err == nil {
+		err = w.Flush()
+	}
+	if err != nil {
+		return err
+	}
+
+	if opt.PrintReadersCheck {
+		numstale, err := env.ReaderCheck()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("  %d stale readers cleared.\n", numstale)
+		err = printReaders(env, w, opt)
+		if err == nil {
+			err = w.Flush()
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func printReaders(env *lmdb.Env, w io.Writer, opt *Options) error {
+	return env.ReaderList(func(msg string) error {
+		_, err := fmt.Fprint(w, msg)
+		return err
+	})
 }
 
 func doPrintFree(env *lmdb.Env, opt *Options) error {

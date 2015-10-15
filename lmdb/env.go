@@ -4,6 +4,7 @@ package lmdb
 #include <stdlib.h>
 #include <stdio.h>
 #include "lmdb.h"
+#include "lmdbgo.h"
 */
 import "C"
 
@@ -77,6 +78,25 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	defer C.free(unsafe.Pointer(cpath))
 	ret := C.mdb_env_open(env._env, cpath, C.uint(NoTLS|flags), C.mdb_mode_t(mode))
 	return operrno("mdb_env_open", ret)
+}
+
+// ReaderList dumps the contents of the reader lock table as text.  Readers
+// start on the second line as space-delimited fields described by the first
+// line.
+//
+// See mdb_reader_list.
+func (env *Env) ReaderList(fn func(string) error) error {
+	ctx := newMsgCtx(fn)
+	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
+	if ret >= 0 {
+		return nil
+	}
+	if ret < 0 {
+		if ctx.err != nil {
+			return ctx.err
+		}
+	}
+	return operrno("mdb_reader_list", ret)
 }
 
 // ReaderCheck clears stale entries from the reader lock table and returns the
