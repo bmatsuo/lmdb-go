@@ -163,7 +163,7 @@ type catOptions struct {
 	DB []string
 }
 
-func cat(path string, opt *CatOptions) error {
+func cat(path string, opt *catOptions) error {
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		return err
