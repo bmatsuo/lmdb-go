@@ -41,6 +41,7 @@ func main() {
 	copyEnv(srcpath, dstpath, opt)
 }
 
+// Options contain the command line options for an lmdb_copy command.
 type Options struct {
 	Compact bool
 }
@@ -60,8 +61,7 @@ func copyEnv(srcpath, dstpath string, opt *Options) error {
 	}
 	if dstpath != "" {
 		return env.CopyFlag(dstpath, flags)
-	} else {
-		fd := os.Stdout.Fd()
-		return env.CopyFDFlag(fd, flags)
 	}
+	fd := os.Stdout.Fd()
+	return env.CopyFDFlag(fd, flags)
 }

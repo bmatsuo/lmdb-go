@@ -1,6 +1,9 @@
 package lmdbsync
 
+// Bag is a simple context object for Handlers.  Bags are immutable, though by
+// storing references in a Bag the contents themselves may be mutable.
 type Bag interface {
+	// value returns a value associated with key in the Bag.
 	Value(key interface{}) interface{}
 }
 
@@ -20,10 +23,13 @@ func (b *bag) Value(key interface{}) interface{} {
 	return b.b.Value(key)
 }
 
+// Background returns an empty Bag that can be used in future calls to BagWith.
 func Background() Bag {
 	return &bag{}
 }
 
+// BagWith returns a new Bag that contains everything in b and associates key
+// with value, possibly overriding a corresponding mapping in b.
 func BagWith(b Bag, key, value interface{}) Bag {
 	var m map[interface{}]interface{}
 	if _b, ok := b.(*bag); !ok {

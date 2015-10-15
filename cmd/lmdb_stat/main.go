@@ -82,6 +82,8 @@ func main() {
 	}
 }
 
+// Options contains all the configuration for an lmdb_stat command including
+// command line arguments.
 type Options struct {
 	Path string
 

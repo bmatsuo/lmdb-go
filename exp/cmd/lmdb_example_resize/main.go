@@ -35,6 +35,8 @@ func main() {
 	}
 }
 
+// WriteRandomItems writes numitem items with checksize sized values full of
+// random data.
 func WriteRandomItems(path string, numitem, chunksize int64) error {
 	env, err := OpenEnv(path)
 	if err != nil {
@@ -101,6 +103,7 @@ func WriteRandomItems(path string, numitem, chunksize int64) error {
 	return nil
 }
 
+// OpenEnv is a helper for opening an lmdbsync.Env.
 func OpenEnv(path string) (*lmdbsync.Env, error) {
 	env, err := lmdbsync.NewEnv(nil)
 	if err != nil {

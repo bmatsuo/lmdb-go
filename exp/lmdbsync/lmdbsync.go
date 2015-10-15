@@ -88,6 +88,8 @@ import (
 
 type envBagKey int
 
+// BagEnv returns the Env corresponding to a Bag in the HandleTxnErr method of
+// a Handler.
 func BagEnv(b Bag) *Env {
 	env, _ := b.Value(envBagKey(0)).(*Env)
 	return env

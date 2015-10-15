@@ -119,9 +119,8 @@ func TestScanner_Scan(t *testing.T) {
 					}
 					if i++; i%2 == 1 {
 						return Skip
-					} else {
-						return nil
 					}
+					return nil
 				}
 			}(),
 			[]simpleitem{

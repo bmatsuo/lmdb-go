@@ -7,6 +7,9 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
+// Handler can intercept errors returned by a transaction and handle them in an
+// application-specific way, including by resizing the environment and retrying
+// the transaction by returning RetryTxn.
 type Handler interface {
 	HandleTxnErr(c Bag, err error) (Bag, error)
 }
@@ -15,10 +18,10 @@ type Handler interface {
 // in the underlying slice when handling an error.
 type HandlerChain []Handler
 
-// HandleTxnError implements the Handler interface.  Each handler in c
-// processes the Bag and error returned by the previous handler.  If RetryTxn
-// is returned by a handler in c then processing stops and the current bag is
-// returned with the error.
+// HandleTxnErr implements the Handler interface.  Each handler in c processes
+// the Bag and error returned by the previous handler.  If RetryTxn is returned
+// by a handler in c then processing stops and the current bag is returned with
+// the error.
 func (c HandlerChain) HandleTxnErr(b Bag, err error) (Bag, error) {
 	for _, h := range c {
 		b, err = h.HandleTxnErr(b, err)
@@ -32,6 +35,9 @@ func (c HandlerChain) HandleTxnErr(b Bag, err error) (Bag, error) {
 	return b, err
 }
 
+// Append returns a new HandlerChain that will evaluate h in sequence after the
+// Handlers already in C are evaluated.  Append does not modify the storage
+// undelying c.
 func (c HandlerChain) Append(h ...Handler) HandlerChain {
 	_c := make(HandlerChain, len(c)+len(h))
 	copy(_c, c)

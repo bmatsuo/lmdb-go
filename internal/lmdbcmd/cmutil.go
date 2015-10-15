@@ -22,6 +22,8 @@ func printVersion(w io.Writer) {
 	fmt.Fprintln(w, version)
 }
 
+// PrintVersion writes the LMDB API version in a human readable format to
+// os.Stdout.
 func PrintVersion() {
 	if flagPrintVersion {
 		printVersion(os.Stdout)
@@ -29,6 +31,9 @@ func PrintVersion() {
 	}
 }
 
+// OpenFlag returns the bitwise OR'd set of flags specified by options defined
+// in the package.  The returned value may be OR'd with additional flags if
+// needed.
 func OpenFlag() uint {
 	var flag uint
 	if flagOpenNoSubDir {

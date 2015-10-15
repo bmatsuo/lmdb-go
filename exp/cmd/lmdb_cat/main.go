@@ -58,11 +58,13 @@ func main() {
 	}
 
 	for _, spec := range specs {
-		opt := &CatOptions{DB: spec.DB}
+		opt := &catOptions{DB: spec.DB}
 		cat(spec.Path, opt)
 	}
 }
 
+// Options contains the the configuration to perform an lmdb_cat on a single
+// environment/database.
 type Options struct {
 	ReadIn  bool
 	KeyOnly bool
@@ -157,7 +159,7 @@ func parseCatSpec(s string) (*catSpec, error) {
 	return spec, nil
 }
 
-type CatOptions struct {
+type catOptions struct {
 	DB []string
 }
 
