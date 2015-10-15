@@ -9,7 +9,7 @@ import (
 
 // Handler can intercept errors returned by a transaction and handle them in an
 // application-specific way, including by resizing the environment and retrying
-// the transaction by returning RetryTxn.
+// the transaction by returning ErrTxnRetry.
 type Handler interface {
 	HandleTxnErr(c Bag, err error) (Bag, error)
 }
@@ -19,13 +19,13 @@ type Handler interface {
 type HandlerChain []Handler
 
 // HandleTxnErr implements the Handler interface.  Each handler in c processes
-// the Bag and error returned by the previous handler.  If RetryTxn is returned
+// the Bag and error returned by the previous handler.  If ErrTxnRetry is returned
 // by a handler in c then processing stops and the current bag is returned with
 // the error.
 func (c HandlerChain) HandleTxnErr(b Bag, err error) (Bag, error) {
 	for _, h := range c {
 		b, err = h.HandleTxnErr(b, err)
-		if err == RetryTxn {
+		if err == ErrTxnRetry {
 			return b, err
 		}
 		if err == nil {
@@ -91,8 +91,8 @@ var DefaultRetryResize = 2
 // Env will stop attempting to run it and return MapResize to the caller.
 var DefaultDelayRepeatResize = time.Millisecond
 
-// RetryTxn is returned by a Handler to have the Env retry the transaction.
-var RetryTxn = errors.New("lmdbsync: retry failed txn")
+// ErrTxnRetry is returned by a Handler to have the Env retry the transaction.
+var ErrTxnRetry = errors.New("lmdbsync: retry failed txn")
 
 // TxnRunner is an interface for types that can run lmdb transactions.
 // TxnRunner is satisfied by Env.
@@ -152,7 +152,7 @@ func (h *mapFullHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
 		return b, err
 	}
 
-	return b, RetryTxn
+	return b, ErrTxnRetry
 }
 
 func (h *mapFullHandler) getNewSize(env *Env) (int64, bool) {
@@ -250,5 +250,5 @@ func (h *resizedHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
 	if err != nil {
 		return b, err
 	}
-	return b, RetryTxn
+	return b, ErrTxnRetry
 }
