@@ -6,7 +6,9 @@ bin:
 	GOBIN=${PWD}/bin go install ./exp/cmd/...
 	GOBIN=${PWD}/bin go install ./cmd/...
 
-test: bin
+all: check test bin
+
+test:
 	go test ./...
 
 check:
