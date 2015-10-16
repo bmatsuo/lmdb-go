@@ -4,6 +4,21 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
 ## Key Features
 
+###Idiomatic API
+
+API inspired by [BoltDB](https://github.com/boltdb/bolt) with automatic
+commit/rollback of transactions.  The goal of lmdb-go is to provide idiomatic,
+safe database interactions without compromising the flexibility of the C API.
+
+###API coverage
+
+The lmdb-go project aims for *complete* feature coverage for LMDB.
+Subtransactions are fully supported.  Databases utilizing the `MDB_DUPSORT` and
+`MDB_DUPFIXED` flags are supported.
+
+For tracking purposes a list of unsupported features is kept in an
+[issue](https://github.com/bmatsuo/lmdb-go/issues/1).
+
 ###Zero-copy reads
 
 Applications with high performance requirements can opt-in to fast, zero-copy
@@ -20,21 +35,6 @@ err := lmdb.View(func(txn *lmdb.Txn) error {
     // ...
 })
 ```
-
-###Idiomatic API
-
-API inspired by [BoltDB](https://github.com/boltdb/bolt) with automatic
-commit/rollback of transactions.  The goal of lmdb-go is to provide idiomatic,
-safe database interactions without compromising the flexibility of the C API.
-
-###API coverage
-
-The lmdb-go project aims for *complete* feature coverage for LMDB.
-Subtransactions are fully supported.  Databases utilizing the `MDB_DUPSORT` and
-`MDB_DUPFIXED` flags are supported.
-
-For tracking purposes a list of unsupported features is kept in an
-[issue](https://github.com/bmatsuo/lmdb-go/issues/1).
 
 ###Documentation
 
