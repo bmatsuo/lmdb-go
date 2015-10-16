@@ -12,5 +12,5 @@ test:
 	go test ./...
 
 check:
-	find . -name '*.go' | xargs goimports -d | tee /dev/stderr | wc -l | xargs test 0 -eq
-	golint ./... | tee /dev/stderr | wc -l | xargs test 0 -eq
+	which goimports && find . -name '*.go' | xargs goimports -d | tee /dev/stderr | wc -l | xargs test 0 -eq
+	which golint && golint ./... | tee /dev/stderr | wc -l | xargs test 0 -eq
