@@ -660,13 +660,20 @@ func (qs *QuadStore) Close() {
 func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	var d proto.LogDelta
 	tok := k.(*Token)
-	err := qs.env.View(func(tx *lmdb.Txn) error {
-		data, _ := tx.Get(tok.dbi, tok.key)
+	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
+		dbi := tok.dbi
+		if dbi == 0 {
+			dbi, err = tx.OpenDBI(string(tok.bucket), 0)
+			if err != nil {
+				return err
+			}
+		}
+		data, _ := tx.Get(dbi, tok.key)
 		if data == nil {
 			return nil
 		}
 		var in proto.HistoryEntry
-		err := in.Unmarshal(data)
+		err = in.Unmarshal(data)
 		if err != nil {
 			return err
 		}
@@ -717,7 +724,7 @@ func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 				return err
 			}
 		}
-		data, err := tx.Get(t.dbi, t.key)
+		data, err := tx.Get(dbi, t.key)
 		if err == nil {
 			return out.Unmarshal(data)
 		}

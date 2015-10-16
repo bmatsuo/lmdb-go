@@ -134,13 +134,18 @@ func (it *Iterator) Next() bool {
 		it.buffer = make([][]byte, 0, bufferSize)
 		err := it.qs.env.View(func(tx *lmdb.Txn) error {
 			i := 0
-			cur, err := tx.OpenCursor(it.dbi)
+
+			dbi, err := tx.OpenDBI(string(it.bucket), 0)
+			if err != nil {
+				return err
+			}
+			cur, err := tx.OpenCursor(dbi)
 			if err != nil {
 				return err
 			}
 
 			if last == nil {
-				k, v, err := cur.Get(it.checkID, nil, lmdb.SetKey)
+				k, v, err := cur.Get(it.checkID, nil, lmdb.SetRange)
 				if err != nil {
 					it.buffer = append(it.buffer, nil)
 					return errNotExist
@@ -305,7 +310,7 @@ func (it *Iterator) Size() (int64, bool) {
 func (it *Iterator) Describe() graph.Description {
 	return graph.Description{
 		UID:       it.UID(),
-		Name:      it.qs.NameOf(&Token{it.dbi, it.bucket, it.checkID}),
+		Name:      it.qs.NameOf(&Token{0, it.bucket, it.checkID}),
 		Type:      it.Type(),
 		Tags:      it.tags.Tags(),
 		Size:      it.size,

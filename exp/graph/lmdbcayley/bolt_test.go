@@ -232,8 +232,14 @@ func TestIterator(t *testing.T) {
 		t.Error("Failed to create LMDB QuadStore.")
 	}
 
-	w, _ := writer.NewSingleReplication(qs, nil)
-	w.AddQuadSet(makeQuadSet())
+	w, err := writer.NewSingleReplication(qs, nil)
+	if err != nil {
+		t.Errorf("Failed to create writer: %v", err)
+	}
+	err = w.AddQuadSet(makeQuadSet())
+	if err != nil {
+		t.Errorf("Failed to write: %v", err)
+	}
 	var it graph.Iterator
 
 	it = qs.NodesAllIterator()
