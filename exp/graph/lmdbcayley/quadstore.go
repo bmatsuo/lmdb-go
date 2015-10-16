@@ -487,9 +487,6 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	tok := k.(*Token)
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
 		dbi := tok.dbi
-		if dbi == 0 {
-			dbi = qs.dbis[tok.bucket]
-		}
 		data, _ := tx.Get(dbi, tok.key)
 		if data == nil {
 			return nil
@@ -525,12 +522,17 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	}
 }
 
-func (qs *QuadStore) ValueOf(s string) graph.Value {
+func (qs *QuadStore) token(bucket string, key []byte) *Token {
 	return &Token{
-		dbi:    qs.nodeDBI,
-		bucket: nodeBucket,
-		key:    qs.createValueKeyFor(s),
+		dbi:    qs.dbis[bucket],
+		bucket: bucket,
+		key:    key,
 	}
+}
+
+func (qs *QuadStore) ValueOf(s string) graph.Value {
+	key := qs.createValueKeyFor(s)
+	return qs.token(nodeBucket, key)
 }
 
 func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
@@ -540,9 +542,6 @@ func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 	}
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
 		dbi := t.dbi
-		if dbi == 0 {
-			dbi = qs.dbis[t.bucket]
-		}
 		data, err := tx.Get(dbi, t.key)
 		if err == nil {
 			return out.Unmarshal(data)

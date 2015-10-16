@@ -157,7 +157,7 @@ func (it *AllIterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return &Token{dbi: it.qs.dbis[it.bucket], bucket: it.bucket, key: it.buffer[it.offset]}
+	return it.qs.token(it.bucket, it.buffer[it.offset])
 }
 
 func (it *AllIterator) NextPath() bool {

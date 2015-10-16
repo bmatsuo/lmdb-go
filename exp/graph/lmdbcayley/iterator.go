@@ -103,7 +103,7 @@ func (it *Iterator) TagResults(dst map[string]graph.Value) {
 }
 
 func (it *Iterator) Clone() graph.Iterator {
-	out := NewIterator(it.bucket, it.dir, &Token{it.qs.nodeDBI, nodeBucket, it.checkID}, it.qs)
+	out := NewIterator(it.bucket, it.dir, it.qs.token(nodeBucket, it.checkID), it.qs)
 	out.Tagger().CopyFrom(it)
 	return out
 }
@@ -215,7 +215,7 @@ func (it *Iterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return &Token{dbi: it.qs.dbis[it.bucket], bucket: it.bucket, key: it.buffer[it.offset]}
+	return it.qs.token(it.bucket, it.buffer[it.offset])
 }
 
 func (it *Iterator) NextPath() bool {
@@ -305,9 +305,10 @@ func (it *Iterator) Size() (int64, bool) {
 }
 
 func (it *Iterator) Describe() graph.Description {
+	token := it.qs.token(it.bucket, it.checkID)
 	return graph.Description{
 		UID:       it.UID(),
-		Name:      it.qs.NameOf(&Token{it.qs.dbis[it.bucket], it.bucket, it.checkID}),
+		Name:      it.qs.NameOf(token),
 		Type:      it.Type(),
 		Tags:      it.tags.Tags(),
 		Size:      it.size,
