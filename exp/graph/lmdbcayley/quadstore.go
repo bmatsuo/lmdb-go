@@ -61,6 +61,7 @@ const (
 )
 
 type Token struct {
+	dbi    lmdb.DBI
 	bucket []byte
 	key    []byte
 }
@@ -89,21 +90,47 @@ func createLMDB(path string, opt graph.Options) (*lmdb.Env, error) {
 		return env, err
 	}
 
-	mapsize, _, err := opt.IntKey("MapSize")
+	maxdbs, _, err := opt.IntKey("dbs")
 	if err != nil {
-		return env, err
+		env.Close()
+		return nil, err
+	}
+	if maxdbs == 0 {
+		maxdbs = 7
+	}
+	err = env.SetMaxDBs(maxdbs)
+
+	mapsize, _, err := opt.IntKey("mapsize")
+	if err != nil {
+		env.Close()
+		return nil, err
 	}
 	err = env.SetMapSize(int64(mapsize))
 	if err != nil {
-		return env, err
+		env.Close()
+		return nil, err
 	}
 
 	err = os.Mkdir(path, 0700)
 	if err != nil && !os.IsExist(err) {
-		return env, err
+		env.Close()
+		return nil, err
 	}
 
-	err = env.Open(path, 0, 0600)
+	var flags uint
+	dbnosync, _, err := opt.BoolKey("nosync")
+	if err != nil {
+		env.Close()
+		return nil, err
+	}
+	if dbnosync {
+		flags |= lmdb.NoSync
+	}
+	err = env.Open(path, flags, 0600)
+	if err != nil {
+		env.Close()
+		return nil, err
+	}
 
 	return env, err
 }
@@ -118,7 +145,7 @@ func createNewLMDB(path string, opt graph.Options) error {
 
 	qs := &QuadStore{}
 	qs.env = env
-	err = qs.createBuckets()
+	err = qs.createDBIs()
 	if err != nil {
 		return err
 	}
@@ -139,7 +166,7 @@ func createNewBolt(path string, _ graph.Options) error {
 	defer db.Close()
 	qs := &QuadStore{}
 	qs.db = db
-	err = qs.createDBIs()
+	err = qs.createBuckets()
 	if err != nil {
 		return err
 	}
@@ -152,28 +179,27 @@ func createNewBolt(path string, _ graph.Options) error {
 }
 
 func newQuadStore(path string, options graph.Options) (graph.QuadStore, error) {
-	var qs QuadStore
-	var err error
-	db, err := bolt.Open(path, 0600, nil)
+	env, err := createLMDB(path, options)
 	if err != nil {
 		glog.Errorln("Error, couldn't open! ", err)
 		return nil, err
 	}
-	qs.db = db
-	// BoolKey returns false on non-existence. IE, Sync by default.
-	qs.db.NoSync, _, err = options.BoolKey("nosync")
+
+	var qs QuadStore
+	qs.env = env
+	err = qs.openDBIs()
+	if lmdb.IsNotFound(err) {
+		return nil, errors.New("lmdb: quadstore has not been initialised")
+	}
+
+	err = qs.getMetadata()
 	if err != nil {
 		return nil, err
 	}
-	err = qs.getMetadata()
-	if err == errNoBucket {
-		return nil, errors.New("bolt: quadstore has not been initialised")
-	} else if err != nil {
-		return nil, err
-	}
 	if qs.version != latestDataVersion {
-		return nil, errors.New("bolt: data version is out of date. Run cayleyupgrade for your config to update the data.")
+		return nil, errors.New("lmdb: data version is out of date. Run cayleyupgrade for your config to update the data")
 	}
+
 	return &qs, nil
 }
 
@@ -184,9 +210,6 @@ func (qs *QuadStore) _openDBIs(flags uint) error {
 				return 0
 			}
 			dbi, err = tx.OpenDBI(name, flags)
-			if err != nil {
-				err = fmt.Errorf("could not create bucket: %s (%q)", err, name)
-			}
 			return dbi
 		}
 		for _, index := range [][4]quad.Direction{spo, osp, pos, cps} {
@@ -347,9 +370,7 @@ func deltaToProto(delta graph.Delta) proto.LogDelta {
 func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOpts) error {
 	oldSize := qs.size
 	oldHorizon := qs.horizon
-	err := qs.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(logBucket)
-		b.FillPercent = localFillPercent
+	err := qs.env.Update(func(tx *lmdb.Txn) error {
 		resizeMap := make(map[string]int64)
 		sizeChange := int64(0)
 		for _, d := range deltas {
@@ -361,13 +382,13 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 			if err != nil {
 				return err
 			}
-			err = b.Put(qs.createDeltaKeyFor(d.ID.Int()), bytes)
+			err = tx.Put(qs.logDBI, qs.createDeltaKeyFor(d.ID.Int()), bytes, 0)
 			if err != nil {
 				return err
 			}
 		}
 		for _, d := range deltas {
-			err := qs.buildQuadWrite(tx, d.Quad, d.ID.Int(), d.Action == graph.Add)
+			err := qs.buildQuadWriteLMDB(tx, d.Quad, d.ID.Int(), d.Action == graph.Add)
 			if err != nil {
 				if err == graph.ErrQuadExists && ignoreOpts.IgnoreDup {
 					continue
@@ -392,14 +413,14 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 		}
 		for k, v := range resizeMap {
 			if v != 0 {
-				err := qs.UpdateValueKeyBy(k, v, tx)
+				err := qs.UpdateValueKeyByLMDB(k, v, tx)
 				if err != nil {
 					return err
 				}
 			}
 		}
 		qs.size += sizeChange
-		return qs.WriteHorizonAndSize(tx)
+		return qs.WriteHorizonAndSizeLMDB(tx)
 	})
 
 	if err != nil {
@@ -407,6 +428,53 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 		qs.horizon = oldHorizon
 		qs.size = oldSize
 		return err
+	}
+	return nil
+}
+
+func (qs *QuadStore) buildQuadWriteLMDB(tx *lmdb.Txn, q quad.Quad, id int64, isAdd bool) error {
+	var entry proto.HistoryEntry
+	dbi, err := tx.OpenDBI(string(spoBucket), 0)
+	if err != nil {
+		return err
+	}
+	data, err := tx.Get(dbi, qs.createKeyFor(spo, q))
+	if err == nil {
+		// We got something.
+		err := entry.Unmarshal(data)
+		if err != nil {
+			return err
+		}
+	}
+
+	if isAdd && len(entry.History)%2 == 1 {
+		glog.Errorf("attempt to add existing quad %v: %#v", entry, q)
+		return graph.ErrQuadExists
+	}
+	if !isAdd && len(entry.History)%2 == 0 {
+		glog.Errorf("attempt to delete non-existent quad %v: %#v", entry, q)
+		return graph.ErrQuadNotExist
+	}
+
+	entry.History = append(entry.History, uint64(id))
+
+	bytes, err := entry.Marshal()
+	if err != nil {
+		glog.Errorf("Couldn't write to buffer for entry %#v: %s", entry, err)
+		return err
+	}
+	for _, index := range [][4]quad.Direction{spo, osp, pos, cps} {
+		if index == cps && q.Get(quad.Label) == "" {
+			continue
+		}
+		dbi, err = tx.OpenDBI(dbFor(index), 0)
+		if err != nil {
+			return err
+		}
+		err = tx.Put(dbi, qs.createKeyFor(index, q), bytes, 0)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -454,6 +522,40 @@ func (qs *QuadStore) buildQuadWrite(tx *bolt.Tx, q quad.Quad, id int64, isAdd bo
 	return nil
 }
 
+func (qs *QuadStore) UpdateValueKeyByLMDB(name string, amount int64, tx *lmdb.Txn) error {
+	value := proto.NodeData{
+		Name:  name,
+		Size_: amount,
+	}
+	key := qs.createValueKeyFor(name)
+	data, err := tx.Get(qs.nodeDBI, key)
+	if err == nil {
+		// Node exists in the database -- unmarshal and update.
+		var oldvalue proto.NodeData
+		err := oldvalue.Unmarshal(data)
+		if err != nil {
+			glog.Errorf("Error: couldn't reconstruct value: %v", err)
+			return err
+		}
+		oldvalue.Size_ += amount
+		value = oldvalue
+	}
+
+	// Are we deleting something?
+	if value.Size_ <= 0 {
+		value.Size_ = 0
+	}
+
+	// Repackage and rewrite.
+	bytes, err := value.Marshal()
+	if err != nil {
+		glog.Errorf("Couldn't write to buffer for value %s: %s", name, err)
+		return err
+	}
+	err = tx.Put(qs.nodeDBI, key, bytes, 0)
+	return err
+}
+
 func (qs *QuadStore) UpdateValueKeyBy(name string, amount int64, tx *bolt.Tx) error {
 	value := proto.NodeData{
 		Name:  name,
@@ -491,6 +593,34 @@ func (qs *QuadStore) UpdateValueKeyBy(name string, amount int64, tx *bolt.Tx) er
 	return err
 }
 
+func (qs *QuadStore) WriteHorizonAndSizeLMDB(tx *lmdb.Txn) error {
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, qs.size)
+	if err != nil {
+		glog.Errorf("Couldn't convert size!")
+		return err
+	}
+	werr := tx.Put(qs.metaDBI, []byte("size"), buf.Bytes(), 0)
+	if werr != nil {
+		glog.Error("Couldn't write size!")
+		return werr
+	}
+	buf.Reset()
+	err = binary.Write(buf, binary.LittleEndian, qs.horizon)
+
+	if err != nil {
+		glog.Errorf("Couldn't convert horizon!")
+	}
+
+	werr = tx.Put(qs.metaDBI, []byte("horizon"), buf.Bytes(), 0)
+
+	if werr != nil {
+		glog.Error("Couldn't write horizon!")
+		return werr
+	}
+	return err
+}
+
 func (qs *QuadStore) WriteHorizonAndSize(tx *bolt.Tx) error {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, qs.size)
@@ -522,19 +652,16 @@ func (qs *QuadStore) WriteHorizonAndSize(tx *bolt.Tx) error {
 }
 
 func (qs *QuadStore) Close() {
-	qs.db.Update(func(tx *bolt.Tx) error {
-		return qs.WriteHorizonAndSize(tx)
-	})
-	qs.db.Close()
+	qs.env.Update(qs.WriteHorizonAndSizeLMDB)
+	qs.env.Close()
 	qs.open = false
 }
 
 func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	var d proto.LogDelta
 	tok := k.(*Token)
-	err := qs.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(tok.bucket)
-		data := b.Get(tok.key)
+	err := qs.env.View(func(tx *lmdb.Txn) error {
+		data, _ := tx.Get(tok.dbi, tok.key)
 		if data == nil {
 			return nil
 		}
@@ -546,8 +673,7 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 		if len(in.History) == 0 {
 			return nil
 		}
-		b = tx.Bucket(logBucket)
-		data = b.Get(qs.createDeltaKeyFor(int64(in.History[len(in.History)-1])))
+		data, _ = tx.Get(qs.logDBI, qs.createDeltaKeyFor(int64(in.History[len(in.History)-1])))
 		if data == nil {
 			// No harm, no foul.
 			return nil
@@ -556,6 +682,10 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	})
 	if err != nil {
 		glog.Error("Error getting quad: ", err)
+		return quad.Quad{}
+	}
+	if d.Quad == nil {
+		glog.Error("Unable to get quad: ", err)
 		return quad.Quad{}
 	}
 	return quad.Quad{
@@ -568,9 +698,36 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 
 func (qs *QuadStore) ValueOf(s string) graph.Value {
 	return &Token{
+		dbi:    qs.nodeDBI,
 		bucket: nodeBucket,
 		key:    qs.createValueKeyFor(s),
 	}
+}
+
+func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
+	var out proto.NodeData
+	if glog.V(3) {
+		glog.V(3).Infof("%s %v", string(t.bucket), t.key)
+	}
+	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
+		dbi := t.dbi
+		if dbi == 0 {
+			dbi, err = tx.OpenDBI(string(t.bucket), 0)
+			if err != nil {
+				return err
+			}
+		}
+		data, err := tx.Get(t.dbi, t.key)
+		if err == nil {
+			return out.Unmarshal(data)
+		}
+		return nil
+	})
+	if err != nil {
+		glog.Errorln("Error: couldn't get value")
+		return proto.NodeData{}
+	}
+	return out
 }
 
 func (qs *QuadStore) valueData(t *Token) proto.NodeData {
@@ -598,14 +755,14 @@ func (qs *QuadStore) NameOf(k graph.Value) string {
 		glog.V(2).Info("k was nil")
 		return ""
 	}
-	return qs.valueData(k.(*Token)).Name
+	return qs.valueDataLMDB(k.(*Token)).Name
 }
 
 func (qs *QuadStore) SizeOf(k graph.Value) int64 {
 	if k == nil {
 		return -1
 	}
-	return int64(qs.valueData(k.(*Token)).Size_)
+	return int64(qs.valueDataLMDB(k.(*Token)).Size_)
 }
 
 func (qs *QuadStore) getInt64ForMetaKey(tx *lmdb.Txn, key string, empty int64) (int64, error) {
@@ -644,20 +801,18 @@ func getInt64ForMetaKey(tx *bolt.Tx, key string, empty int64) (int64, error) {
 }
 
 func (qs *QuadStore) getMetadata() error {
-	err := qs.db.View(func(tx *bolt.Tx) error {
-		var err error
-		qs.size, err = getInt64ForMetaKey(tx, "size", 0)
+	return qs.env.View(func(tx *lmdb.Txn) (err error) {
+		qs.size, err = qs.getInt64ForMetaKey(tx, "size", 0)
 		if err != nil {
 			return err
 		}
-		qs.version, err = getInt64ForMetaKey(tx, "version", nilDataVersion)
+		qs.version, err = qs.getInt64ForMetaKey(tx, "version", nilDataVersion)
 		if err != nil {
 			return err
 		}
-		qs.horizon, err = getInt64ForMetaKey(tx, "horizon", 0)
+		qs.horizon, err = qs.getInt64ForMetaKey(tx, "horizon", 0)
 		return err
 	})
-	return err
 }
 
 func (qs *QuadStore) QuadIterator(d quad.Direction, val graph.Value) graph.Iterator {

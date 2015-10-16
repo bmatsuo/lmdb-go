@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/barakmich/glog"
-	"github.com/boltdb/bolt"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 
 	"github.com/google/cayley/graph"
 	"github.com/google/cayley/graph/iterator"
@@ -89,25 +89,32 @@ func (it *AllIterator) Next() bool {
 			last = it.buffer[len(it.buffer)-1]
 		}
 		it.buffer = make([][]byte, 0, bufferSize)
-		err := it.qs.db.View(func(tx *bolt.Tx) error {
+		err := it.qs.env.View(func(tx *lmdb.Txn) error {
 			i := 0
-			b := tx.Bucket(it.bucket)
-			cur := b.Cursor()
+			dbi, err := tx.OpenDBI(string(it.bucket), 0)
+			if err != nil {
+				return err
+			}
+			cur, err := tx.OpenCursor(dbi)
+			if err != nil {
+				return err
+			}
+
 			if last == nil {
-				k, _ := cur.First()
+				k, _, _ := cur.Get(nil, nil, lmdb.First)
 				var out []byte
 				out = make([]byte, len(k))
 				copy(out, k)
 				it.buffer = append(it.buffer, out)
 				i++
 			} else {
-				k, _ := cur.Seek(last)
+				k, _, _ := cur.Get(last, nil, lmdb.SetKey)
 				if !bytes.Equal(k, last) {
 					return fmt.Errorf("could not pick up after %v", k)
 				}
 			}
 			for i < bufferSize {
-				k, _ := cur.Next()
+				k, _, _ := cur.Get(nil, nil, lmdb.Next)
 				if k == nil {
 					it.buffer = append(it.buffer, k)
 					break

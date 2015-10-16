@@ -91,59 +91,65 @@ func iteratedNames(qs graph.QuadStore, it graph.Iterator) []string {
 }
 
 func TestCreateDatabase(t *testing.T) {
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "cayley_test")
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "cayley_test")
 	if err != nil {
 		t.Fatalf("Could not create working directory: %v", err)
 	}
-	t.Log(tmpFile)
+	t.Log(tmpDir)
 
-	err = createNewBolt(tmpFile.Name(), nil)
+	err = createNewLMDB(tmpDir, nil)
 	if err != nil {
-		t.Fatal("Failed to create LevelDB database.")
+		t.Fatalf("Failed to create LMDB database: %v", err)
 	}
 
-	qs, err := newQuadStore(tmpFile.Name(), nil)
+	qs, err := newQuadStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create bolt QuadStore.")
+		t.Error("Failed to create LMDB QuadStore.")
 	}
 	if s := qs.Size(); s != 0 {
 		t.Errorf("Unexpected size, got:%d expected:0", s)
 	}
 	qs.Close()
 
-	err = createNewBolt("/dev/null/some terrible path", nil)
+	err = createNewLMDB("/dev/null/some terrible path", nil)
 	if err == nil {
-		t.Errorf("Created LevelDB database for bad path.")
+		t.Errorf("Created LMDB database for bad path.")
 	}
 
-	os.RemoveAll(tmpFile.Name())
+	os.RemoveAll(tmpDir)
 }
 
 func TestLoadDatabase(t *testing.T) {
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "cayley_test")
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "cayley_test")
 	if err != nil {
 		t.Fatalf("Could not create working directory: %v", err)
 	}
-	defer os.RemoveAll(tmpFile.Name())
-	t.Log(tmpFile.Name())
+	defer os.RemoveAll(tmpDir)
+	t.Log(tmpDir)
 
-	err = createNewBolt(tmpFile.Name(), nil)
+	err = createNewLMDB(tmpDir, nil)
 	if err != nil {
-		t.Fatal("Failed to create Bolt database.", err)
+		t.Fatal("Failed to create LMDB database.", err)
 	}
 
-	qs, err := newQuadStore(tmpFile.Name(), nil)
+	qs, err := newQuadStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create Bolt QuadStore.")
+		t.Error("Failed to create LMDB QuadStore.")
 	}
 
-	w, _ := writer.NewSingleReplication(qs, nil)
-	w.AddQuad(quad.Quad{
+	w, err := writer.NewSingleReplication(qs, nil)
+	if err != nil {
+		t.Errorf("Failed to create writer: %v", err)
+	}
+	err = w.AddQuad(quad.Quad{
 		Subject:   "Something",
 		Predicate: "points_to",
 		Object:    "Something Else",
 		Label:     "context",
 	})
+	if err != nil {
+		t.Errorf("Failed to write quad: %v", err)
+	}
 	for _, pq := range []string{"Something", "points_to", "Something Else", "context"} {
 		if got := qs.NameOf(qs.ValueOf(pq)); got != pq {
 			t.Errorf("Failed to roundtrip %q, got:%q expect:%q", pq, got, pq)
@@ -153,21 +159,25 @@ func TestLoadDatabase(t *testing.T) {
 		t.Errorf("Unexpected quadstore size, got:%d expect:1", s)
 	}
 	qs.Close()
-	os.RemoveAll(tmpFile.Name())
+	os.RemoveAll(tmpDir)
 
-	err = createNewBolt(tmpFile.Name(), nil)
+	tmpDir, err = ioutil.TempDir(os.TempDir(), "cayley_test")
 	if err != nil {
-		t.Fatal("Failed to create Bolt database.", err)
+		t.Fatalf("Could not create working directory: %v", err)
 	}
-	qs, err = newQuadStore(tmpFile.Name(), nil)
+	err = createNewLMDB(tmpDir, nil)
+	if err != nil {
+		t.Fatal("Failed to create LMDB database.", err)
+	}
+	qs, err = newQuadStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create Bolt QuadStore.")
+		t.Error("Failed to create LMDB QuadStore.")
 	}
 	w, _ = writer.NewSingleReplication(qs, nil)
 
 	ts2, didConvert := qs.(*QuadStore)
 	if !didConvert {
-		t.Errorf("Could not convert from generic to Bolt QuadStore")
+		t.Errorf("Could not convert from generic to LMDB QuadStore")
 	}
 
 	//Test horizon
@@ -205,21 +215,21 @@ func TestLoadDatabase(t *testing.T) {
 }
 
 func TestIterator(t *testing.T) {
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "cayley_test")
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "cayley_test")
 	if err != nil {
 		t.Fatalf("Could not create working directory: %v", err)
 	}
-	defer os.RemoveAll(tmpFile.Name())
-	t.Log(tmpFile.Name())
+	defer os.RemoveAll(tmpDir)
+	t.Log(tmpDir)
 
-	err = createNewBolt(tmpFile.Name(), nil)
+	err = createNewLMDB(tmpDir, nil)
 	if err != nil {
-		t.Fatal("Failed to create LevelDB database.")
+		t.Fatal("Failed to create LMDB database.")
 	}
 
-	qs, err := newQuadStore(tmpFile.Name(), nil)
+	qs, err := newQuadStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create bolt QuadStore.")
+		t.Error("Failed to create LMDB QuadStore.")
 	}
 
 	w, _ := writer.NewSingleReplication(qs, nil)
@@ -303,17 +313,17 @@ func TestIterator(t *testing.T) {
 
 func TestSetIterator(t *testing.T) {
 
-	tmpFile, _ := ioutil.TempFile(os.TempDir(), "cayley_test")
-	t.Log(tmpFile.Name())
-	defer os.RemoveAll(tmpFile.Name())
-	err := createNewBolt(tmpFile.Name(), nil)
+	tmpDir, _ := ioutil.TempDir(os.TempDir(), "cayley_test")
+	t.Log(tmpDir)
+	defer os.RemoveAll(tmpDir)
+	err := createNewLMDB(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("Failed to create working directory")
 	}
 
-	qs, err := newQuadStore(tmpFile.Name(), nil)
+	qs, err := newQuadStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create bolt QuadStore.")
+		t.Error("Failed to create LMDB QuadStore.")
 	}
 	defer qs.Close()
 
@@ -419,16 +429,16 @@ func TestSetIterator(t *testing.T) {
 }
 
 func TestOptimize(t *testing.T) {
-	tmpFile, _ := ioutil.TempFile(os.TempDir(), "cayley_test")
-	t.Log(tmpFile.Name())
-	defer os.RemoveAll(tmpFile.Name())
-	err := createNewBolt(tmpFile.Name(), nil)
+	tmpDir, _ := ioutil.TempDir(os.TempDir(), "cayley_test")
+	t.Log(tmpDir)
+	defer os.RemoveAll(tmpDir)
+	err := createNewLMDB(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("Failed to create working directory")
 	}
-	qs, err := newQuadStore(tmpFile.Name(), nil)
+	qs, err := newQuadStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create bolt QuadStore.")
+		t.Error("Failed to create LMDB QuadStore.")
 	}
 
 	w, _ := writer.NewSingleReplication(qs, nil)
@@ -468,17 +478,17 @@ func TestOptimize(t *testing.T) {
 
 func TestDeletedFromIterator(t *testing.T) {
 
-	tmpFile, _ := ioutil.TempFile(os.TempDir(), "cayley_test")
-	t.Log(tmpFile.Name())
-	defer os.RemoveAll(tmpFile.Name())
-	err := createNewBolt(tmpFile.Name(), nil)
+	tmpDir, _ := ioutil.TempDir(os.TempDir(), "cayley_test")
+	t.Log(tmpDir)
+	defer os.RemoveAll(tmpDir)
+	err := createNewLMDB(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("Failed to create working directory")
 	}
 
-	qs, err := newQuadStore(tmpFile.Name(), nil)
+	qs, err := newQuadStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create bolt QuadStore.")
+		t.Error("Failed to create LMDB QuadStore.")
 	}
 	defer qs.Close()
 

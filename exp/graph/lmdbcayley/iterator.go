@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/barakmich/glog"
-	"github.com/boltdb/bolt"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 
 	"github.com/google/cayley/graph"
 	"github.com/google/cayley/graph/iterator"
@@ -41,6 +41,7 @@ func init() {
 type Iterator struct {
 	uid     uint64
 	tags    graph.Tagger
+	dbi     lmdb.DBI
 	bucket  []byte
 	checkID []byte
 	dir     quad.Direction
@@ -62,6 +63,7 @@ func NewIterator(bucket []byte, d quad.Direction, value graph.Value, qs *QuadSto
 
 	it := Iterator{
 		uid:    iterator.NextUID(),
+		dbi:    qs.nodeDBI,
 		bucket: bucket,
 		dir:    d,
 		qs:     qs,
@@ -101,7 +103,7 @@ func (it *Iterator) TagResults(dst map[string]graph.Value) {
 }
 
 func (it *Iterator) Clone() graph.Iterator {
-	out := NewIterator(it.bucket, it.dir, &Token{nodeBucket, it.checkID}, it.qs)
+	out := NewIterator(it.bucket, it.dir, &Token{it.qs.nodeDBI, nodeBucket, it.checkID}, it.qs)
 	out.Tagger().CopyFrom(it)
 	return out
 }
@@ -130,12 +132,20 @@ func (it *Iterator) Next() bool {
 			last = it.buffer[len(it.buffer)-1]
 		}
 		it.buffer = make([][]byte, 0, bufferSize)
-		err := it.qs.db.View(func(tx *bolt.Tx) error {
+		err := it.qs.env.View(func(tx *lmdb.Txn) error {
 			i := 0
-			b := tx.Bucket(it.bucket)
-			cur := b.Cursor()
+			cur, err := tx.OpenCursor(it.dbi)
+			if err != nil {
+				return err
+			}
+
 			if last == nil {
-				k, v := cur.Seek(it.checkID)
+				k, v, err := cur.Get(it.checkID, nil, lmdb.SetKey)
+				if err != nil {
+					it.buffer = append(it.buffer, nil)
+					return errNotExist
+				}
+
 				if bytes.HasPrefix(k, it.checkID) {
 					if it.isLiveValue(v) {
 						var out []byte
@@ -144,19 +154,16 @@ func (it *Iterator) Next() bool {
 						it.buffer = append(it.buffer, out)
 						i++
 					}
-				} else {
-					it.buffer = append(it.buffer, nil)
-					return errNotExist
 				}
 			} else {
-				k, _ := cur.Seek(last)
-				if !bytes.Equal(k, last) {
+				k, _, err := cur.Get(last, nil, lmdb.SetKey)
+				if err != nil || !bytes.Equal(k, last) {
 					return fmt.Errorf("could not pick up after %v", k)
 				}
 			}
 			for i < bufferSize {
-				k, v := cur.Next()
-				if k == nil || !bytes.HasPrefix(k, it.checkID) {
+				k, v, err := cur.Get(nil, nil, lmdb.Next)
+				if err != nil || !bytes.HasPrefix(k, it.checkID) {
 					it.buffer = append(it.buffer, nil)
 					break
 				}
@@ -298,7 +305,7 @@ func (it *Iterator) Size() (int64, bool) {
 func (it *Iterator) Describe() graph.Description {
 	return graph.Description{
 		UID:       it.UID(),
-		Name:      it.qs.NameOf(&Token{it.bucket, it.checkID}),
+		Name:      it.qs.NameOf(&Token{it.dbi, it.bucket, it.checkID}),
 		Type:      it.Type(),
 		Tags:      it.tags.Tags(),
 		Size:      it.size,
