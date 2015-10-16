@@ -93,46 +93,6 @@ func upgradeLMDB(path string, opts graph.Options) error {
 	return nil
 }
 
-func upgradeBolt(path string, opts graph.Options) error {
-	db, err := bolt.Open(path, 0600, nil)
-	defer db.Close()
-
-	if err != nil {
-		glog.Errorln("Error, couldn't open! ", err)
-		return err
-	}
-	var version int64
-	err = db.View(func(tx *bolt.Tx) error {
-		version, err = getInt64ForMetaKey(tx, "version", nilDataVersion)
-		return err
-	})
-	if err != nil {
-		glog.Errorln("error:", err)
-		return err
-	}
-
-	if version == latestDataVersion {
-		fmt.Printf("Already at latest version: %d\n", latestDataVersion)
-		return nil
-	}
-
-	if version > latestDataVersion {
-		err := fmt.Errorf("Unknown data version: %d -- upgrade this tool", version)
-		glog.Errorln("error:", err)
-		return err
-	}
-
-	for i := version; i < latestDataVersion; i++ {
-		err := migrateFunctions[i](db)
-		if err != nil {
-			return err
-		}
-		setVersion(db, i+1)
-	}
-
-	return nil
-}
-
 type v1ValueData struct {
 	Name string
 	Size int64

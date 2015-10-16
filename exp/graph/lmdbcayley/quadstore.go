@@ -26,7 +26,6 @@ import (
 
 	"github.com/barakmich/glog"
 	"github.com/bmatsuo/lmdb-go/lmdb"
-	"github.com/boltdb/bolt"
 
 	"github.com/google/cayley/graph"
 	"github.com/google/cayley/graph/iterator"
@@ -45,7 +44,7 @@ func init() {
 }
 
 var (
-	errNoBucket = errors.New("bolt: bucket is missing")
+	errNoBucket = errors.New("lmdb: bucket is missing")
 )
 
 var (
@@ -57,7 +56,7 @@ var (
 )
 
 const (
-	QuadStoreType = "bolt"
+	QuadStoreType = "lmdb"
 )
 
 type Token struct {
@@ -72,7 +71,6 @@ func (t *Token) Key() interface{} {
 
 type QuadStore struct {
 	env     *lmdb.Env
-	db      *bolt.DB
 	path    string
 	open    bool
 	size    int64
@@ -157,27 +155,6 @@ func createNewLMDB(path string, opt graph.Options) error {
 	return nil
 }
 
-func createNewBolt(path string, _ graph.Options) error {
-	db, err := bolt.Open(path, 0600, nil)
-	if err != nil {
-		glog.Errorf("Error: couldn't create Bolt database: %v", err)
-		return err
-	}
-	defer db.Close()
-	qs := &QuadStore{}
-	qs.db = db
-	err = qs.createBuckets()
-	if err != nil {
-		return err
-	}
-	err = setVersion(qs.db, latestDataVersion)
-	if err != nil {
-		return err
-	}
-	qs.Close()
-	return nil
-}
-
 func newQuadStore(path string, options graph.Options) (graph.QuadStore, error) {
 	env, err := createLMDB(path, options)
 	if err != nil {
@@ -230,31 +207,6 @@ func (qs *QuadStore) createDBIs() error {
 	return qs._openDBIs(lmdb.Create)
 }
 
-func (qs *QuadStore) createBuckets() error {
-	return qs.db.Update(func(tx *bolt.Tx) error {
-		var err error
-		for _, index := range [][4]quad.Direction{spo, osp, pos, cps} {
-			_, err = tx.CreateBucket(bucketFor(index))
-			if err != nil {
-				return fmt.Errorf("could not create bucket: %s", err)
-			}
-		}
-		_, err = tx.CreateBucket(logBucket)
-		if err != nil {
-			return fmt.Errorf("could not create bucket: %s", err)
-		}
-		_, err = tx.CreateBucket(nodeBucket)
-		if err != nil {
-			return fmt.Errorf("could not create bucket: %s", err)
-		}
-		_, err = tx.CreateBucket(metaBucket)
-		if err != nil {
-			return fmt.Errorf("could not create bucket: %s", err)
-		}
-		return nil
-	})
-}
-
 func setVersionLMDB(env *lmdb.Env, metadbi lmdb.DBI, version int64) error {
 	return env.Update(func(tx *lmdb.Txn) error {
 		buf := new(bytes.Buffer)
@@ -264,24 +216,6 @@ func setVersionLMDB(env *lmdb.Env, metadbi lmdb.DBI, version int64) error {
 			return err
 		}
 		werr := tx.Put(metadbi, []byte("version"), buf.Bytes(), 0)
-		if werr != nil {
-			glog.Error("Couldn't write version!")
-			return werr
-		}
-		return nil
-	})
-}
-
-func setVersion(db *bolt.DB, version int64) error {
-	return db.Update(func(tx *bolt.Tx) error {
-		buf := new(bytes.Buffer)
-		err := binary.Write(buf, binary.LittleEndian, version)
-		if err != nil {
-			glog.Errorf("Couldn't convert version!")
-			return err
-		}
-		b := tx.Bucket(metaBucket)
-		werr := b.Put([]byte("version"), buf.Bytes())
 		if werr != nil {
 			glog.Error("Couldn't write version!")
 			return werr
@@ -479,49 +413,6 @@ func (qs *QuadStore) buildQuadWriteLMDB(tx *lmdb.Txn, q quad.Quad, id int64, isA
 	return nil
 }
 
-func (qs *QuadStore) buildQuadWrite(tx *bolt.Tx, q quad.Quad, id int64, isAdd bool) error {
-	var entry proto.HistoryEntry
-	b := tx.Bucket(spoBucket)
-	b.FillPercent = localFillPercent
-	data := b.Get(qs.createKeyFor(spo, q))
-	if data != nil {
-		// We got something.
-		err := entry.Unmarshal(data)
-		if err != nil {
-			return err
-		}
-	}
-
-	if isAdd && len(entry.History)%2 == 1 {
-		glog.Errorf("attempt to add existing quad %v: %#v", entry, q)
-		return graph.ErrQuadExists
-	}
-	if !isAdd && len(entry.History)%2 == 0 {
-		glog.Errorf("attempt to delete non-existent quad %v: %#v", entry, q)
-		return graph.ErrQuadNotExist
-	}
-
-	entry.History = append(entry.History, uint64(id))
-
-	bytes, err := entry.Marshal()
-	if err != nil {
-		glog.Errorf("Couldn't write to buffer for entry %#v: %s", entry, err)
-		return err
-	}
-	for _, index := range [][4]quad.Direction{spo, osp, pos, cps} {
-		if index == cps && q.Get(quad.Label) == "" {
-			continue
-		}
-		b := tx.Bucket(bucketFor(index))
-		b.FillPercent = localFillPercent
-		err = b.Put(qs.createKeyFor(index, q), bytes)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (qs *QuadStore) UpdateValueKeyByLMDB(name string, amount int64, tx *lmdb.Txn) error {
 	value := proto.NodeData{
 		Name:  name,
@@ -556,43 +447,6 @@ func (qs *QuadStore) UpdateValueKeyByLMDB(name string, amount int64, tx *lmdb.Tx
 	return err
 }
 
-func (qs *QuadStore) UpdateValueKeyBy(name string, amount int64, tx *bolt.Tx) error {
-	value := proto.NodeData{
-		Name:  name,
-		Size_: amount,
-	}
-	b := tx.Bucket(nodeBucket)
-	b.FillPercent = localFillPercent
-	key := qs.createValueKeyFor(name)
-	data := b.Get(key)
-
-	if data != nil {
-		// Node exists in the database -- unmarshal and update.
-		var oldvalue proto.NodeData
-		err := oldvalue.Unmarshal(data)
-		if err != nil {
-			glog.Errorf("Error: couldn't reconstruct value: %v", err)
-			return err
-		}
-		oldvalue.Size_ += amount
-		value = oldvalue
-	}
-
-	// Are we deleting something?
-	if value.Size_ <= 0 {
-		value.Size_ = 0
-	}
-
-	// Repackage and rewrite.
-	bytes, err := value.Marshal()
-	if err != nil {
-		glog.Errorf("Couldn't write to buffer for value %s: %s", name, err)
-		return err
-	}
-	err = b.Put(key, bytes)
-	return err
-}
-
 func (qs *QuadStore) WriteHorizonAndSizeLMDB(tx *lmdb.Txn) error {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, qs.size)
@@ -613,36 +467,6 @@ func (qs *QuadStore) WriteHorizonAndSizeLMDB(tx *lmdb.Txn) error {
 	}
 
 	werr = tx.Put(qs.metaDBI, []byte("horizon"), buf.Bytes(), 0)
-
-	if werr != nil {
-		glog.Error("Couldn't write horizon!")
-		return werr
-	}
-	return err
-}
-
-func (qs *QuadStore) WriteHorizonAndSize(tx *bolt.Tx) error {
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, qs.size)
-	if err != nil {
-		glog.Errorf("Couldn't convert size!")
-		return err
-	}
-	b := tx.Bucket(metaBucket)
-	b.FillPercent = localFillPercent
-	werr := b.Put([]byte("size"), buf.Bytes())
-	if werr != nil {
-		glog.Error("Couldn't write size!")
-		return werr
-	}
-	buf.Reset()
-	err = binary.Write(buf, binary.LittleEndian, qs.horizon)
-
-	if err != nil {
-		glog.Errorf("Couldn't convert horizon!")
-	}
-
-	werr = b.Put([]byte("horizon"), buf.Bytes())
 
 	if werr != nil {
 		glog.Error("Couldn't write horizon!")
@@ -737,26 +561,6 @@ func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 	return out
 }
 
-func (qs *QuadStore) valueData(t *Token) proto.NodeData {
-	var out proto.NodeData
-	if glog.V(3) {
-		glog.V(3).Infof("%s %v", string(t.bucket), t.key)
-	}
-	err := qs.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(t.bucket)
-		data := b.Get(t.key)
-		if data != nil {
-			return out.Unmarshal(data)
-		}
-		return nil
-	})
-	if err != nil {
-		glog.Errorln("Error: couldn't get value")
-		return proto.NodeData{}
-	}
-	return out
-}
-
 func (qs *QuadStore) NameOf(k graph.Value) string {
 	if k == nil {
 		glog.V(2).Info("k was nil")
@@ -783,24 +587,6 @@ func (qs *QuadStore) getInt64ForMetaKey(tx *lmdb.Txn, key string, empty int64) (
 	}
 	buf := bytes.NewBuffer(data)
 	err = binary.Read(buf, binary.LittleEndian, &out)
-	if err != nil {
-		return 0, err
-	}
-	return out, nil
-}
-
-func getInt64ForMetaKey(tx *bolt.Tx, key string, empty int64) (int64, error) {
-	var out int64
-	b := tx.Bucket(metaBucket)
-	if b == nil {
-		return empty, errNoBucket
-	}
-	data := b.Get([]byte(key))
-	if data == nil {
-		return empty, nil
-	}
-	buf := bytes.NewBuffer(data)
-	err := binary.Read(buf, binary.LittleEndian, &out)
 	if err != nil {
 		return 0, err
 	}
