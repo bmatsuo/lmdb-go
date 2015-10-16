@@ -3,7 +3,7 @@
 ##v1.1.1
 
 - Lots of code examples.
---Lots of tests.
+- Lots of tests.
 - Travis-CI enforcing code style using [`golint`](https://github.com/golang/lint)
 - exp/lmdbscan: removed the scanner.Func type because it was unnecessary bloat.
 - exp/lmdbsync: Tweak lmdbsync.HandlerChain semantics
