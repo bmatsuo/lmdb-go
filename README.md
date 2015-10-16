@@ -12,8 +12,8 @@ safe database interactions without compromising the flexibility of the C API.
 
 ###API coverage
 
-The lmdb-go project aims for *complete* feature coverage for LMDB.  Some
-notable features:
+The lmdb-go project aims for complete feature coverage for LMDB (within
+reason).  Some notable features:
 
 - Subtransactions are fully supported.
 
