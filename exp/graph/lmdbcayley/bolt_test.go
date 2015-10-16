@@ -333,8 +333,14 @@ func TestSetIterator(t *testing.T) {
 	}
 	defer qs.Close()
 
-	w, _ := writer.NewSingleReplication(qs, nil)
-	w.AddQuadSet(makeQuadSet())
+	w, err := writer.NewSingleReplication(qs, nil)
+	if err != nil {
+		t.Errorf("Failed to create writer: %v", err)
+	}
+	err = w.AddQuadSet(makeQuadSet())
+	if err != nil {
+		t.Errorf("Failed to write: %v", err)
+	}
 
 	expect := []quad.Quad{
 		{"C", "follows", "B", ""},
@@ -355,7 +361,7 @@ func TestSetIterator(t *testing.T) {
 	and.AddSubIterator(it)
 
 	if got := iteratedQuads(qs, and); !reflect.DeepEqual(got, expect) {
-		t.Errorf("Failed to get confirm expected results, got:%v expect:%v", got, expect)
+		t.Errorf("Failed to get confirm expected results, got:%q expect:%q", got, expect)
 	}
 
 	// Object iterator.
@@ -367,7 +373,7 @@ func TestSetIterator(t *testing.T) {
 	}
 	sort.Sort(ordered(expect))
 	if got := iteratedQuads(qs, it); !reflect.DeepEqual(got, expect) {
-		t.Errorf("Failed to get expected results, got:%v expect:%v", got, expect)
+		t.Errorf("Failed to get expected results, got:%q expect:%q", got, expect)
 	}
 
 	and = iterator.NewAnd(qs)
@@ -378,7 +384,7 @@ func TestSetIterator(t *testing.T) {
 		{"B", "follows", "F", ""},
 	}
 	if got := iteratedQuads(qs, and); !reflect.DeepEqual(got, expect) {
-		t.Errorf("Failed to get confirm expected results, got:%v expect:%v", got, expect)
+		t.Errorf("Failed to get confirm expected results, got:%q expect:%q", got, expect)
 	}
 
 	// Predicate iterator.
@@ -391,7 +397,7 @@ func TestSetIterator(t *testing.T) {
 	}
 	sort.Sort(ordered(expect))
 	if got := iteratedQuads(qs, it); !reflect.DeepEqual(got, expect) {
-		t.Errorf("Failed to get expected results from predicate iterator, got:%v expect:%v", got, expect)
+		t.Errorf("Failed to get expected results from predicate iterator, got:%q expect:%q", got, expect)
 	}
 
 	// Label iterator.
@@ -404,7 +410,7 @@ func TestSetIterator(t *testing.T) {
 	}
 	sort.Sort(ordered(expect))
 	if got := iteratedQuads(qs, it); !reflect.DeepEqual(got, expect) {
-		t.Errorf("Failed to get expected results from predicate iterator, got:%v expect:%v", got, expect)
+		t.Errorf("Failed to get expected results from predicate iterator, got:%q expect:%q", got, expect)
 	}
 	it.Reset()
 
@@ -417,7 +423,7 @@ func TestSetIterator(t *testing.T) {
 		{"B", "status", "cool", "status_graph"},
 	}
 	if got := iteratedQuads(qs, and); !reflect.DeepEqual(got, expect) {
-		t.Errorf("Failed to get confirm expected results, got:%v expect:%v", got, expect)
+		t.Errorf("Failed to get confirm expected results, got:%q expect:%q", got, expect)
 	}
 	it.Reset()
 
@@ -430,7 +436,7 @@ func TestSetIterator(t *testing.T) {
 		{"B", "status", "cool", "status_graph"},
 	}
 	if got := iteratedQuads(qs, and); !reflect.DeepEqual(got, expect) {
-		t.Errorf("Failed to get confirm expected results, got:%v expect:%v", got, expect)
+		t.Errorf("Failed to get confirm expected results, got:%q expect:%q", got, expect)
 	}
 }
 

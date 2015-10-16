@@ -21,7 +21,6 @@ import (
 	"github.com/barakmich/glog"
 	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/lmdb"
-	"github.com/boltdb/bolt"
 	"github.com/google/cayley/graph"
 	"github.com/google/cayley/graph/proto"
 )
@@ -29,14 +28,7 @@ import (
 const latestDataVersion = 2
 const nilDataVersion = 1
 
-type upgradeFunc func(*bolt.DB) error
-
 type upgradeFuncLMDB func(*QuadStore) error
-
-var migrateFunctions = []upgradeFunc{
-	nil,
-	upgrade1To2,
-}
 
 var migrateFunctionsLMDB = []upgradeFuncLMDB{
 	nil,
@@ -105,7 +97,7 @@ type v1IndexEntry struct {
 func upgrade1To2LMDB(qs *QuadStore) error {
 	fmt.Println("Upgrading v1 to v2...")
 	err := qs.env.Update(func(tx *lmdb.Txn) (err error) {
-		fmt.Println("Upgrading bucket", string(logBucket))
+		fmt.Println("Upgrading bucket", logBucket)
 
 		s := lmdbscan.New(tx, qs.logDBI)
 		defer s.Close()
@@ -133,7 +125,7 @@ func upgrade1To2LMDB(qs *QuadStore) error {
 		return err
 	}
 	err = qs.env.Update(func(tx *lmdb.Txn) (err error) {
-		fmt.Println("Upgrading bucket", string(nodeBucket))
+		fmt.Println("Upgrading bucket", nodeBucket)
 
 		s := lmdbscan.New(tx, qs.nodeDBI)
 		defer s.Close()
@@ -163,11 +155,7 @@ func upgrade1To2LMDB(qs *QuadStore) error {
 	for _, bucket := range [4]string{string(spoBucket), string(ospBucket), string(posBucket), string(cpsBucket)} {
 		err = qs.env.Update(func(tx *lmdb.Txn) (err error) {
 			fmt.Println("Upgrading bucket", bucket)
-			dbi, err := tx.OpenDBI(bucket, 0)
-			if err != nil {
-				return err
-			}
-
+			dbi := qs.dbis[bucket]
 			s := lmdbscan.New(tx, dbi)
 			defer s.Close()
 
@@ -194,84 +182,6 @@ func upgrade1To2LMDB(qs *QuadStore) error {
 		}
 
 		return nil
-	}
-	return nil
-}
-
-func upgrade1To2(db *bolt.DB) error {
-	fmt.Println("Upgrading v1 to v2...")
-	tx, err := db.Begin(true)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	fmt.Println("Upgrading bucket", string(logBucket))
-	lb := tx.Bucket(logBucket)
-	c := lb.Cursor()
-	for k, v := c.First(); k != nil; k, v = c.Next() {
-		var delta graph.Delta
-		err := json.Unmarshal(v, &delta)
-		if err != nil {
-			return err
-		}
-		newd := deltaToProto(delta)
-		data, err := newd.Marshal()
-		if err != nil {
-			return err
-		}
-		lb.Put(k, data)
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	tx, err = db.Begin(true)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	fmt.Println("Upgrading bucket", string(nodeBucket))
-	nb := tx.Bucket(nodeBucket)
-	c = nb.Cursor()
-	for k, v := c.First(); k != nil; k, v = c.Next() {
-		var vd proto.NodeData
-		err := json.Unmarshal(v, &vd)
-		if err != nil {
-			return err
-		}
-		data, err := vd.Marshal()
-		if err != nil {
-			return err
-		}
-		nb.Put(k, data)
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
-	for _, bucket := range [4][]byte{spoBucket, ospBucket, posBucket, cpsBucket} {
-		tx, err = db.Begin(true)
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback()
-		fmt.Println("Upgrading bucket", string(bucket))
-		b := tx.Bucket(bucket)
-		cur := b.Cursor()
-		for k, v := cur.First(); k != nil; k, v = cur.Next() {
-			var h proto.HistoryEntry
-			err := json.Unmarshal(v, &h)
-			if err != nil {
-				return err
-			}
-			data, err := h.Marshal()
-			if err != nil {
-				return err
-			}
-			b.Put(k, data)
-		}
-		if err := tx.Commit(); err != nil {
-			return err
-		}
 	}
 	return nil
 }

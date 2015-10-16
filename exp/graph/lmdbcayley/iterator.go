@@ -42,7 +42,7 @@ type Iterator struct {
 	uid     uint64
 	tags    graph.Tagger
 	dbi     lmdb.DBI
-	bucket  []byte
+	bucket  string
 	checkID []byte
 	dir     quad.Direction
 	qs      *QuadStore
@@ -54,9 +54,9 @@ type Iterator struct {
 	err     error
 }
 
-func NewIterator(bucket []byte, d quad.Direction, value graph.Value, qs *QuadStore) *Iterator {
+func NewIterator(bucket string, d quad.Direction, value graph.Value, qs *QuadStore) *Iterator {
 	tok := value.(*Token)
-	if !bytes.Equal(tok.bucket, nodeBucket) {
+	if tok.bucket != nodeBucket {
 		glog.Error("creating an iterator from a non-node value")
 		return &Iterator{done: true}
 	}
@@ -135,10 +135,7 @@ func (it *Iterator) Next() bool {
 		err := it.qs.env.View(func(tx *lmdb.Txn) error {
 			i := 0
 
-			dbi, err := tx.OpenDBI(string(it.bucket), 0)
-			if err != nil {
-				return err
-			}
+			dbi := it.qs.dbis[it.bucket]
 			cur, err := tx.OpenCursor(dbi)
 			if err != nil {
 				return err
@@ -218,7 +215,7 @@ func (it *Iterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return &Token{bucket: it.bucket, key: it.buffer[it.offset]}
+	return &Token{dbi: it.qs.dbis[it.bucket], bucket: it.bucket, key: it.buffer[it.offset]}
 }
 
 func (it *Iterator) NextPath() bool {
@@ -231,7 +228,7 @@ func (it *Iterator) SubIterators() []graph.Iterator {
 }
 
 func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
-	if bytes.Equal(tok.bucket, spoBucket) {
+	if tok.bucket == spoBucket {
 		switch d {
 		case quad.Subject:
 			return 0
@@ -243,7 +240,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 			return 3 * hashSize
 		}
 	}
-	if bytes.Equal(tok.bucket, posBucket) {
+	if tok.bucket == posBucket {
 		switch d {
 		case quad.Subject:
 			return 2 * hashSize
@@ -255,7 +252,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 			return 3 * hashSize
 		}
 	}
-	if bytes.Equal(tok.bucket, ospBucket) {
+	if tok.bucket == ospBucket {
 		switch d {
 		case quad.Subject:
 			return hashSize
@@ -267,7 +264,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 			return 3 * hashSize
 		}
 	}
-	if bytes.Equal(tok.bucket, cpsBucket) {
+	if tok.bucket == cpsBucket {
 		switch d {
 		case quad.Subject:
 			return 2 * hashSize
@@ -284,7 +281,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 
 func (it *Iterator) Contains(v graph.Value) bool {
 	val := v.(*Token)
-	if bytes.Equal(val.bucket, nodeBucket) {
+	if val.bucket == nodeBucket {
 		return false
 	}
 	offset := PositionOf(val, it.dir, it.qs)
@@ -310,7 +307,7 @@ func (it *Iterator) Size() (int64, bool) {
 func (it *Iterator) Describe() graph.Description {
 	return graph.Description{
 		UID:       it.UID(),
-		Name:      it.qs.NameOf(&Token{0, it.bucket, it.checkID}),
+		Name:      it.qs.NameOf(&Token{it.qs.dbis[it.bucket], it.bucket, it.checkID}),
 		Type:      it.Type(),
 		Tags:      it.tags.Tags(),
 		Size:      it.size,

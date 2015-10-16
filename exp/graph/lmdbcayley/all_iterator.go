@@ -29,7 +29,7 @@ import (
 type AllIterator struct {
 	uid    uint64
 	tags   graph.Tagger
-	bucket []byte
+	bucket string
 	dir    quad.Direction
 	qs     *QuadStore
 	result *Token
@@ -39,7 +39,7 @@ type AllIterator struct {
 	done   bool
 }
 
-func NewAllIterator(bucket []byte, d quad.Direction, qs *QuadStore) *AllIterator {
+func NewAllIterator(bucket string, d quad.Direction, qs *QuadStore) *AllIterator {
 	return &AllIterator{
 		uid:    iterator.NextUID(),
 		bucket: bucket,
@@ -91,10 +91,7 @@ func (it *AllIterator) Next() bool {
 		it.buffer = make([][]byte, 0, bufferSize)
 		err := it.qs.env.View(func(tx *lmdb.Txn) error {
 			i := 0
-			dbi, err := tx.OpenDBI(string(it.bucket), 0)
-			if err != nil {
-				return err
-			}
+			dbi := it.qs.dbis[it.bucket]
 			cur, err := tx.OpenCursor(dbi)
 			if err != nil {
 				return err
@@ -160,7 +157,7 @@ func (it *AllIterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return &Token{bucket: it.bucket, key: it.buffer[it.offset]}
+	return &Token{dbi: it.qs.dbis[it.bucket], bucket: it.bucket, key: it.buffer[it.offset]}
 }
 
 func (it *AllIterator) NextPath() bool {

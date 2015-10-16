@@ -61,7 +61,7 @@ const (
 
 type Token struct {
 	dbi    lmdb.DBI
-	bucket []byte
+	bucket string
 	key    []byte
 }
 
@@ -77,6 +77,7 @@ type QuadStore struct {
 	horizon int64
 	version int64
 
+	dbis    map[string]lmdb.DBI
 	logDBI  lmdb.DBI
 	nodeDBI lmdb.DBI
 	metaDBI lmdb.DBI
@@ -187,14 +188,20 @@ func (qs *QuadStore) _openDBIs(flags uint) error {
 				return 0
 			}
 			dbi, err = tx.OpenDBI(name, flags)
+			if err == nil {
+				if qs.dbis == nil {
+					qs.dbis = map[string]lmdb.DBI{}
+				}
+				qs.dbis[name] = dbi
+			}
 			return dbi
 		}
 		for _, index := range [][4]quad.Direction{spo, osp, pos, cps} {
 			createdb(dbFor(index))
 		}
-		qs.logDBI = createdb(string(logBucket))
-		qs.nodeDBI = createdb(string(nodeBucket))
-		qs.metaDBI = createdb(string(metaBucket))
+		qs.logDBI = createdb(logBucket)
+		qs.nodeDBI = createdb(nodeBucket)
+		qs.metaDBI = createdb(metaBucket)
 		return err
 	})
 }
@@ -278,13 +285,13 @@ var (
 	cps = [4]quad.Direction{quad.Label, quad.Predicate, quad.Subject, quad.Object}
 
 	// Byte arrays for each bucket name.
-	spoBucket  = bucketFor(spo)
-	ospBucket  = bucketFor(osp)
-	posBucket  = bucketFor(pos)
-	cpsBucket  = bucketFor(cps)
-	logBucket  = []byte("log")
-	nodeBucket = []byte("node")
-	metaBucket = []byte("meta")
+	spoBucket  = dbFor(spo)
+	ospBucket  = dbFor(osp)
+	posBucket  = dbFor(pos)
+	cpsBucket  = dbFor(cps)
+	logBucket  = "log"
+	nodeBucket = "node"
+	metaBucket = "meta"
 )
 
 func deltaToProto(delta graph.Delta) proto.LogDelta {
@@ -368,10 +375,7 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 
 func (qs *QuadStore) buildQuadWriteLMDB(tx *lmdb.Txn, q quad.Quad, id int64, isAdd bool) error {
 	var entry proto.HistoryEntry
-	dbi, err := tx.OpenDBI(string(spoBucket), 0)
-	if err != nil {
-		return err
-	}
+	dbi := qs.dbis[spoBucket]
 	data, err := tx.Get(dbi, qs.createKeyFor(spo, q))
 	if err == nil {
 		// We got something.
@@ -401,10 +405,7 @@ func (qs *QuadStore) buildQuadWriteLMDB(tx *lmdb.Txn, q quad.Quad, id int64, isA
 		if index == cps && q.Get(quad.Label) == "" {
 			continue
 		}
-		dbi, err = tx.OpenDBI(dbFor(index), 0)
-		if err != nil {
-			return err
-		}
+		dbi = qs.dbis[dbFor(index)]
 		err = tx.Put(dbi, qs.createKeyFor(index, q), bytes, 0)
 		if err != nil {
 			return err
@@ -487,10 +488,7 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
 		dbi := tok.dbi
 		if dbi == 0 {
-			dbi, err = tx.OpenDBI(string(tok.bucket), 0)
-			if err != nil {
-				return err
-			}
+			dbi = qs.dbis[tok.bucket]
 		}
 		data, _ := tx.Get(dbi, tok.key)
 		if data == nil {
@@ -543,10 +541,7 @@ func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
 		dbi := t.dbi
 		if dbi == 0 {
-			dbi, err = tx.OpenDBI(string(t.bucket), 0)
-			if err != nil {
-				return err
-			}
+			dbi = qs.dbis[t.bucket]
 		}
 		data, err := tx.Get(dbi, t.key)
 		if err == nil {
@@ -609,7 +604,7 @@ func (qs *QuadStore) getMetadata() error {
 }
 
 func (qs *QuadStore) QuadIterator(d quad.Direction, val graph.Value) graph.Iterator {
-	var bucket []byte
+	var bucket string
 	switch d {
 	case quad.Subject:
 		bucket = spoBucket
@@ -638,6 +633,7 @@ func (qs *QuadStore) QuadDirection(val graph.Value, d quad.Direction) graph.Valu
 	offset := PositionOf(v, d, qs)
 	if offset != -1 {
 		return &Token{
+			dbi:    qs.nodeDBI,
 			bucket: nodeBucket,
 			key:    v.key[offset : offset+hashSize],
 		}
@@ -648,7 +644,7 @@ func (qs *QuadStore) QuadDirection(val graph.Value, d quad.Direction) graph.Valu
 func compareTokens(a, b graph.Value) bool {
 	atok := a.(*Token)
 	btok := b.(*Token)
-	return bytes.Equal(atok.key, btok.key) && bytes.Equal(atok.bucket, btok.bucket)
+	return bytes.Equal(atok.key, btok.key) && atok.bucket == btok.bucket
 }
 
 func (qs *QuadStore) FixedIterator() graph.FixedIterator {
