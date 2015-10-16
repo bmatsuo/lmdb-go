@@ -29,13 +29,13 @@ import (
 )
 
 var (
-	boltType    graph.Type
+	lmdbType    graph.Type
 	bufferSize  = 50
 	errNotExist = errors.New("quad does not exist")
 )
 
 func init() {
-	boltType = graph.RegisterIterator("bolt")
+	lmdbType = graph.RegisterIterator("lmdb")
 }
 
 type Iterator struct {
@@ -76,7 +76,7 @@ func NewIterator(bucket string, d quad.Direction, value graph.Value, qs *QuadSto
 	return &it
 }
 
-func Type() graph.Type { return boltType }
+func Type() graph.Type { return lmdbType }
 
 func (it *Iterator) UID() uint64 {
 	return it.uid
@@ -316,7 +316,7 @@ func (it *Iterator) Describe() graph.Description {
 	}
 }
 
-func (it *Iterator) Type() graph.Type { return boltType }
+func (it *Iterator) Type() graph.Type { return lmdbType }
 func (it *Iterator) Sorted() bool     { return false }
 
 func (it *Iterator) Optimize() (graph.Iterator, bool) {

@@ -316,7 +316,7 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 		sizeChange := int64(0)
 		for _, d := range deltas {
 			if d.Action != graph.Add && d.Action != graph.Delete {
-				return errors.New("bolt: invalid action")
+				return errors.New("lmdb: invalid action")
 			}
 			p := deltaToProto(d)
 			bytes, err := p.Marshal()
