@@ -133,8 +133,9 @@ func (it *Iterator) Next() bool {
 		}
 		it.buffer = make([][]byte, 0, bufferSize)
 		err := it.qs.env.View(func(tx *lmdb.Txn) error {
-			i := 0
+			tx.RawRead = true
 
+			i := 0
 			dbi := it.qs.dbis[it.bucket]
 			cur, err := tx.OpenCursor(dbi)
 			if err != nil {

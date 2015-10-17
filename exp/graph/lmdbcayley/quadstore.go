@@ -312,6 +312,8 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 	oldSize := qs.size
 	oldHorizon := qs.horizon
 	err := qs.env.Update(func(tx *lmdb.Txn) error {
+		tx.RawRead = true
+
 		resizeMap := make(map[string]int64)
 		sizeChange := int64(0)
 		for _, d := range deltas {
@@ -486,6 +488,8 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	var d proto.LogDelta
 	tok := k.(*Token)
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
+		tx.RawRead = true
+
 		dbi := tok.dbi
 		data, _ := tx.Get(dbi, tok.key)
 		if data == nil {
@@ -541,6 +545,8 @@ func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 		glog.V(3).Infof("%s %v", string(t.bucket), t.key)
 	}
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
+		tx.RawRead = true
+
 		dbi := t.dbi
 		data, err := tx.Get(dbi, t.key)
 		if err == nil {
@@ -589,6 +595,8 @@ func (qs *QuadStore) getInt64ForMetaKey(tx *lmdb.Txn, key string, empty int64) (
 
 func (qs *QuadStore) getMetadata() error {
 	return qs.env.View(func(tx *lmdb.Txn) (err error) {
+		tx.RawRead = true
+
 		qs.size, err = qs.getInt64ForMetaKey(tx, "size", 0)
 		if err != nil {
 			return err
