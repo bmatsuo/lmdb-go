@@ -19,6 +19,7 @@ import (
 	"github.com/google/cayley/graph/iterator"
 )
 
+// OptimizeIterator ??
 func (qs *QuadStore) OptimizeIterator(it graph.Iterator) (graph.Iterator, bool) {
 	switch it.Type() {
 	case graph.LinksTo:

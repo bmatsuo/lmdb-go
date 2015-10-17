@@ -56,19 +56,23 @@ var (
 )
 
 const (
+	// QuadStoreType is used to select a QuadStore backend to Cayley.
 	QuadStoreType = "lmdb"
 )
 
+// Token ??
 type Token struct {
 	dbi lmdb.DBI
 	db  string
 	key []byte
 }
 
+// Key ??
 func (t *Token) Key() interface{} {
 	return fmt.Sprint(t.db, t.key)
 }
 
+// QuadStore ??
 type QuadStore struct {
 	env     *lmdb.Env
 	path    string
@@ -231,10 +235,12 @@ func setVersionLMDB(env *lmdb.Env, metadbi lmdb.DBI, version int64) error {
 	})
 }
 
+// Size ??
 func (qs *QuadStore) Size() int64 {
 	return qs.size
 }
 
+// Horizon ??
 func (qs *QuadStore) Horizon() graph.PrimaryKey {
 	return graph.NewSequentialKey(qs.horizon)
 }
@@ -307,6 +313,7 @@ func deltaToProto(delta graph.Delta) proto.LogDelta {
 	return newd
 }
 
+// ApplyDeltas ??
 func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOpts) error {
 	oldSize := qs.size
 	oldHorizon := qs.horizon
@@ -355,14 +362,14 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 		}
 		for k, v := range resizeMap {
 			if v != 0 {
-				err := qs.UpdateValueKeyByLMDB(k, v, tx)
+				err := qs.UpdateValueKeyBy(k, v, tx)
 				if err != nil {
 					return err
 				}
 			}
 		}
 		qs.size += sizeChange
-		return qs.WriteHorizonAndSizeLMDB(tx)
+		return qs.WriteHorizonAndSize(tx)
 	})
 
 	if err != nil {
@@ -415,7 +422,8 @@ func (qs *QuadStore) buildQuadWriteLMDB(tx *lmdb.Txn, q quad.Quad, id int64, isA
 	return nil
 }
 
-func (qs *QuadStore) UpdateValueKeyByLMDB(name string, amount int64, tx *lmdb.Txn) error {
+// UpdateValueKeyBy ??
+func (qs *QuadStore) UpdateValueKeyBy(name string, amount int64, tx *lmdb.Txn) error {
 	value := proto.NodeData{
 		Name:  name,
 		Size_: amount,
@@ -449,7 +457,8 @@ func (qs *QuadStore) UpdateValueKeyByLMDB(name string, amount int64, tx *lmdb.Tx
 	return err
 }
 
-func (qs *QuadStore) WriteHorizonAndSizeLMDB(tx *lmdb.Txn) error {
+// WriteHorizonAndSize ??
+func (qs *QuadStore) WriteHorizonAndSize(tx *lmdb.Txn) error {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, qs.size)
 	if err != nil {
@@ -477,12 +486,14 @@ func (qs *QuadStore) WriteHorizonAndSizeLMDB(tx *lmdb.Txn) error {
 	return err
 }
 
+// Close ??
 func (qs *QuadStore) Close() {
-	qs.env.Update(qs.WriteHorizonAndSizeLMDB)
+	qs.env.Update(qs.WriteHorizonAndSize)
 	qs.env.Close()
 	qs.open = false
 }
 
+// Quad ??
 func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	var d proto.LogDelta
 	tok := k.(*Token)
@@ -533,6 +544,7 @@ func (qs *QuadStore) token(db string, key []byte) *Token {
 	}
 }
 
+// ValueOf ??
 func (qs *QuadStore) ValueOf(s string) graph.Value {
 	key := qs.createValueKeyFor(s)
 	return qs.token(nodeDB, key)
@@ -560,6 +572,7 @@ func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 	return out
 }
 
+// NameOf ??
 func (qs *QuadStore) NameOf(k graph.Value) string {
 	if k == nil {
 		glog.V(2).Info("k was nil")
@@ -568,6 +581,7 @@ func (qs *QuadStore) NameOf(k graph.Value) string {
 	return qs.valueDataLMDB(k.(*Token)).Name
 }
 
+// SizeOf ??
 func (qs *QuadStore) SizeOf(k graph.Value) int64 {
 	if k == nil {
 		return -1
@@ -609,6 +623,7 @@ func (qs *QuadStore) getMetadata() error {
 	})
 }
 
+// QuadIterator ??
 func (qs *QuadStore) QuadIterator(d quad.Direction, val graph.Value) graph.Iterator {
 	var db string
 	switch d {
@@ -626,14 +641,17 @@ func (qs *QuadStore) QuadIterator(d quad.Direction, val graph.Value) graph.Itera
 	return NewIterator(db, d, val, qs)
 }
 
+// NodesAllIterator ??
 func (qs *QuadStore) NodesAllIterator() graph.Iterator {
 	return NewAllIterator(nodeDB, quad.Any, qs)
 }
 
+// QuadsAllIterator ??
 func (qs *QuadStore) QuadsAllIterator() graph.Iterator {
 	return NewAllIterator(posDB, quad.Predicate, qs)
 }
 
+// QuadDirection ??
 func (qs *QuadStore) QuadDirection(val graph.Value, d quad.Direction) graph.Value {
 	v := val.(*Token)
 	offset := PositionOf(v, d, qs)
@@ -653,10 +671,12 @@ func compareTokens(a, b graph.Value) bool {
 	return bytes.Equal(atok.key, btok.key) && atok.db == btok.db
 }
 
+// FixedIterator ??
 func (qs *QuadStore) FixedIterator() graph.FixedIterator {
 	return iterator.NewFixed(compareTokens)
 }
 
+// Type ??
 func (qs *QuadStore) Type() string {
 	return QuadStoreType
 }

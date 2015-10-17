@@ -38,6 +38,7 @@ func init() {
 	lmdbType = graph.RegisterIterator("lmdb")
 }
 
+// Iterator is an implementation of graph.Nexter.
 type Iterator struct {
 	uid     uint64
 	tags    graph.Tagger
@@ -54,6 +55,8 @@ type Iterator struct {
 	err     error
 }
 
+// NewIterator allocates and initializes a new Iterator that is returned to the
+// caller.
 func NewIterator(db string, d quad.Direction, value graph.Value, qs *QuadStore) *Iterator {
 	tok := value.(*Token)
 	if tok.db != nodeDB {
@@ -76,22 +79,27 @@ func NewIterator(db string, d quad.Direction, value graph.Value, qs *QuadStore) 
 	return &it
 }
 
+// Type ???
 func Type() graph.Type { return lmdbType }
 
+// UID ???
 func (it *Iterator) UID() uint64 {
 	return it.uid
 }
 
+// Reset ???
 func (it *Iterator) Reset() {
 	it.buffer = nil
 	it.offset = 0
 	it.done = false
 }
 
+// Tagger ??
 func (it *Iterator) Tagger() *graph.Tagger {
 	return &it.tags
 }
 
+// TagResults ??
 func (it *Iterator) TagResults(dst map[string]graph.Value) {
 	for _, tag := range it.tags.Tags() {
 		dst[tag] = it.Result()
@@ -102,12 +110,14 @@ func (it *Iterator) TagResults(dst map[string]graph.Value) {
 	}
 }
 
+// Clone ??
 func (it *Iterator) Clone() graph.Iterator {
 	out := NewIterator(it.db, it.dir, it.qs.token(nodeDB, it.checkID), it.qs)
 	out.Tagger().CopyFrom(it)
 	return out
 }
 
+// Close ??
 func (it *Iterator) Close() error {
 	it.result = nil
 	it.buffer = nil
@@ -121,6 +131,7 @@ func (it *Iterator) isLiveValue(val []byte) bool {
 	return len(entry.History)%2 != 0
 }
 
+// Next ??
 func (it *Iterator) Next() bool {
 	if it.done {
 		return false
@@ -199,10 +210,12 @@ func (it *Iterator) Next() bool {
 	return true
 }
 
+// Err ??
 func (it *Iterator) Err() error {
 	return it.err
 }
 
+// Result ??
 func (it *Iterator) Result() graph.Value {
 	if it.done {
 		return nil
@@ -219,15 +232,17 @@ func (it *Iterator) Result() graph.Value {
 	return it.qs.token(it.db, it.buffer[it.offset])
 }
 
+// NextPath ??
 func (it *Iterator) NextPath() bool {
 	return false
 }
 
-// No subiterators.
+// SubIterators are not supported and a nil slice is always returned.
 func (it *Iterator) SubIterators() []graph.Iterator {
 	return nil
 }
 
+// PositionOf ??
 func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 	if tok.db == spoDB {
 		switch d {
@@ -280,6 +295,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 	panic("unreachable")
 }
 
+// Contains ??
 func (it *Iterator) Contains(v graph.Value) bool {
 	val := v.(*Token)
 	if val.db == nodeDB {
@@ -301,10 +317,12 @@ func (it *Iterator) Contains(v graph.Value) bool {
 	return false
 }
 
+// Size ??
 func (it *Iterator) Size() (int64, bool) {
 	return it.size, true
 }
 
+// Describe ??
 func (it *Iterator) Describe() graph.Description {
 	token := it.qs.token(it.db, it.checkID)
 	return graph.Description{
@@ -317,13 +335,18 @@ func (it *Iterator) Describe() graph.Description {
 	}
 }
 
+// Type ??
 func (it *Iterator) Type() graph.Type { return lmdbType }
-func (it *Iterator) Sorted() bool     { return false }
 
+// Sorted ??
+func (it *Iterator) Sorted() bool { return false }
+
+// Optimize ??
 func (it *Iterator) Optimize() (graph.Iterator, bool) {
 	return it, false
 }
 
+// Stats ??
 func (it *Iterator) Stats() graph.IteratorStats {
 	s, _ := it.Size()
 	return graph.IteratorStats{

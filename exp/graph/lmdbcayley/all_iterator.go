@@ -26,6 +26,7 @@ import (
 	"github.com/google/cayley/quad"
 )
 
+// AllIterator is an implementation of graph.Nexter.
 type AllIterator struct {
 	uid    uint64
 	tags   graph.Tagger
@@ -39,6 +40,8 @@ type AllIterator struct {
 	done   bool
 }
 
+// NewAllIterator allocates and initializes an AllIterator that is returned to
+// the caller.
 func NewAllIterator(db string, d quad.Direction, qs *QuadStore) *AllIterator {
 	return &AllIterator{
 		uid: iterator.NextUID(),
@@ -48,20 +51,24 @@ func NewAllIterator(db string, d quad.Direction, qs *QuadStore) *AllIterator {
 	}
 }
 
+// UID returns iterator UID for it.
 func (it *AllIterator) UID() uint64 {
 	return it.uid
 }
 
+// Reset ???.
 func (it *AllIterator) Reset() {
 	it.buffer = nil
 	it.offset = 0
 	it.done = false
 }
 
+// Tagger returns the iterator's tagger.
 func (it *AllIterator) Tagger() *graph.Tagger {
 	return &it.tags
 }
 
+// TagResults returns the iterators tags.
 func (it *AllIterator) TagResults(dst map[string]graph.Value) {
 	for _, tag := range it.tags.Tags() {
 		dst[tag] = it.Result()
@@ -72,12 +79,14 @@ func (it *AllIterator) TagResults(dst map[string]graph.Value) {
 	}
 }
 
+// Clone returns an independent copy of it.
 func (it *AllIterator) Clone() graph.Iterator {
 	out := NewAllIterator(it.db, it.dir, it.qs)
 	out.tags.CopyFrom(it)
 	return out
 }
 
+// Next ???.
 func (it *AllIterator) Next() bool {
 	if it.done {
 		return false
@@ -142,10 +151,12 @@ func (it *AllIterator) Next() bool {
 	return true
 }
 
+// Err ???
 func (it *AllIterator) Err() error {
 	return it.err
 }
 
+// Result ???
 func (it *AllIterator) Result() graph.Value {
 	if it.done {
 		return nil
@@ -162,20 +173,23 @@ func (it *AllIterator) Result() graph.Value {
 	return it.qs.token(it.db, it.buffer[it.offset])
 }
 
+// NextPath ???
 func (it *AllIterator) NextPath() bool {
 	return false
 }
 
-// No subiterators.
+// SubIterators are not supported and a nil slice is always returned.
 func (it *AllIterator) SubIterators() []graph.Iterator {
 	return nil
 }
 
+// Contains ???
 func (it *AllIterator) Contains(v graph.Value) bool {
 	it.result = v.(*Token)
 	return true
 }
 
+// Close ???
 func (it *AllIterator) Close() error {
 	it.result = nil
 	it.buffer = nil
@@ -183,10 +197,12 @@ func (it *AllIterator) Close() error {
 	return nil
 }
 
+// Size ???
 func (it *AllIterator) Size() (int64, bool) {
 	return it.qs.size, true
 }
 
+// Describe ???
 func (it *AllIterator) Describe() graph.Description {
 	size, _ := it.Size()
 	return graph.Description{
@@ -198,13 +214,18 @@ func (it *AllIterator) Describe() graph.Description {
 	}
 }
 
+// Type ???
 func (it *AllIterator) Type() graph.Type { return graph.All }
-func (it *AllIterator) Sorted() bool     { return false }
 
+// Sorted ???
+func (it *AllIterator) Sorted() bool { return false }
+
+// Optimize ???
 func (it *AllIterator) Optimize() (graph.Iterator, bool) {
 	return it, false
 }
 
+// Stats ???
 func (it *AllIterator) Stats() graph.IteratorStats {
 	s, _ := it.Size()
 	return graph.IteratorStats{
