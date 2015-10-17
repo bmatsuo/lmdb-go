@@ -184,9 +184,35 @@ func (it *AllIterator) SubIterators() []graph.Iterator {
 }
 
 // Contains ???
-func (it *AllIterator) Contains(v graph.Value) bool {
-	it.result = v.(*Token)
-	return true
+// BUG(bmatsuo):
+// Contains is surely broken. It just looks for v in the given database.  It
+// seems like it should buffer the output, or run the iteration again.
+func (it *AllIterator) Contains(v graph.Value) (ok bool) {
+	graph.ContainsLogIn(it, v)
+	defer func() { graph.ContainsLogOut(it, v, ok) }()
+
+	tok, ok := v.(*Token)
+	if !ok {
+		return false
+	}
+	if tok.db != it.db {
+		return false
+	}
+
+	err := it.qs.env.View(func(tx *lmdb.Txn) (err error) {
+		tx.RawRead = true
+		_, err = tx.Get(it.qs.dbis[tok.db], tok.key)
+		ok = !lmdb.IsNotFound(err)
+		return err
+	})
+	if err != nil {
+		return false
+	}
+	if ok {
+		it.result = tok
+	}
+	return ok
+
 }
 
 // Close ???

@@ -15,7 +15,6 @@
 package lmdbcayley
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -287,21 +286,18 @@ func TestIterator(t *testing.T) {
 			t.Errorf("Failed to find and check %q correctly", pq)
 		}
 	}
-	// FIXME(kortschak) Why does this fail?
-	/*
-		for _, pq := range []string{"baller"} {
-			if it.Contains(qs.ValueOf(pq)) {
-				t.Errorf("Failed to check %q correctly", pq)
-			}
+	for _, pq := range []string{"baller"} {
+		if it.Contains(qs.ValueOf(pq)) {
+			t.Errorf("Failed to check %q correctly", pq)
 		}
-	*/
+	}
 	it.Reset()
 
 	it = qs.QuadsAllIterator()
 	graph.Next(it)
-	fmt.Printf("%#v\n", it.Result())
+	t.Logf("%#v\n", it.Result())
 	q := qs.Quad(it.Result())
-	fmt.Println(q)
+	t.Log(q)
 	set := makeQuadSet()
 	var ok bool
 	for _, e := range set {
