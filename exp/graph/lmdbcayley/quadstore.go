@@ -66,6 +66,13 @@ type Token struct {
 	key []byte
 }
 
+func token(db string, key []byte) *Token {
+	return &Token{
+		db:  db,
+		key: key,
+	}
+}
+
 // Key ??
 func (t *Token) Key() interface{} {
 	return fmt.Sprint(t.db, t.key)
@@ -535,17 +542,9 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	}
 }
 
-func (qs *QuadStore) token(db string, key []byte) *Token {
-	return &Token{
-		db:  db,
-		key: key,
-	}
-}
-
 // ValueOf ??
 func (qs *QuadStore) ValueOf(s string) graph.Value {
-	key := qs.createValueKeyFor(s)
-	return qs.token(nodeDB, key)
+	return token(nodeDB, qs.createValueKeyFor(s))
 }
 
 func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {

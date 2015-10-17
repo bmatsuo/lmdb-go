@@ -170,7 +170,7 @@ func (it *AllIterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return it.qs.token(it.db, it.buffer[it.offset])
+	return token(it.db, it.buffer[it.offset])
 }
 
 // NextPath ???

@@ -112,7 +112,7 @@ func (it *Iterator) TagResults(dst map[string]graph.Value) {
 
 // Clone ??
 func (it *Iterator) Clone() graph.Iterator {
-	out := NewIterator(it.db, it.dir, it.qs.token(nodeDB, it.checkID), it.qs)
+	out := NewIterator(it.db, it.dir, token(nodeDB, it.checkID), it.qs)
 	out.Tagger().CopyFrom(it)
 	return out
 }
@@ -229,7 +229,7 @@ func (it *Iterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return it.qs.token(it.db, it.buffer[it.offset])
+	return token(it.db, it.buffer[it.offset])
 }
 
 // NextPath ??
@@ -324,10 +324,10 @@ func (it *Iterator) Size() (int64, bool) {
 
 // Describe ??
 func (it *Iterator) Describe() graph.Description {
-	token := it.qs.token(it.db, it.checkID)
+	tok := token(it.db, it.checkID)
 	return graph.Description{
 		UID:       it.UID(),
-		Name:      it.qs.NameOf(token),
+		Name:      it.qs.NameOf(tok),
 		Type:      it.Type(),
 		Tags:      it.tags.Tags(),
 		Size:      it.size,
