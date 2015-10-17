@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash"
@@ -60,7 +61,7 @@ const (
 	QuadStoreType = "lmdb"
 )
 
-// Token ??
+// Token is a reference into an LMDB environment.
 type Token struct {
 	db  string
 	key []byte
@@ -73,9 +74,14 @@ func token(db string, key []byte) *Token {
 	}
 }
 
-// Key ??
+// Key implements the Keyer interface used by several packages and identifies a
+// Token within the LMDB environment.
 func (t *Token) Key() interface{} {
-	return fmt.Sprint(t.db, t.key)
+	buf := make([]byte, len(t.db)+1+hex.EncodedLen(len(t.key)))
+	copy(buf, t.db)
+	buf[len(t.db)] = '$'
+	hex.Encode(buf[len(t.db)+1:], t.key)
+	return string(buf)
 }
 
 // QuadStore ??
