@@ -281,10 +281,13 @@ var (
 	cps = [4]quad.Direction{quad.Label, quad.Predicate, quad.Subject, quad.Object}
 
 	// Byte arrays for each db name.
-	spoDB  = dbFor(spo)
-	ospDB  = dbFor(osp)
-	posDB  = dbFor(pos)
-	cpsDB  = dbFor(cps)
+	spoDB = dbFor(spo)
+	ospDB = dbFor(osp)
+	posDB = dbFor(pos)
+	cpsDB = dbFor(cps)
+)
+
+const (
 	logDB  = "log"
 	nodeDB = "node"
 	metaDB = "meta"
