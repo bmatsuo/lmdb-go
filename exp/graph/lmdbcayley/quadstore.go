@@ -62,7 +62,6 @@ const (
 
 // Token ??
 type Token struct {
-	dbi lmdb.DBI
 	db  string
 	key []byte
 }
@@ -500,7 +499,7 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
 		tx.RawRead = true
 
-		dbi := tok.dbi
+		dbi := qs.dbis[tok.db]
 		data, _ := tx.Get(dbi, tok.key)
 		if data == nil {
 			return nil
@@ -538,7 +537,6 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 
 func (qs *QuadStore) token(db string, key []byte) *Token {
 	return &Token{
-		dbi: qs.dbis[db],
 		db:  db,
 		key: key,
 	}
@@ -558,7 +556,7 @@ func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
 		tx.RawRead = true
 
-		dbi := t.dbi
+		dbi := qs.dbis[t.db]
 		data, err := tx.Get(dbi, t.key)
 		if err == nil {
 			return out.Unmarshal(data)
@@ -657,7 +655,6 @@ func (qs *QuadStore) QuadDirection(val graph.Value, d quad.Direction) graph.Valu
 	offset := PositionOf(v, d, qs)
 	if offset != -1 {
 		return &Token{
-			dbi: qs.nodeDBI,
 			db:  nodeDB,
 			key: v.key[offset : offset+hashSize],
 		}
