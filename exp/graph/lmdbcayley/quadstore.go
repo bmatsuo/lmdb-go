@@ -93,43 +93,58 @@ type QuadStore struct {
 	metaDBI lmdb.DBI
 }
 
-func createLMDB(path string, opt graph.Options) (*lmdb.Env, error) {
-	env, err := lmdb.NewEnv()
+func createLMDB(path string, opt graph.Options) (env *lmdb.Env, err error) {
+	err = os.Mkdir(path, 0700)
+	if err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	env, err = lmdb.NewEnv()
 	if err != nil {
 		return env, err
 	}
+	defer func() {
+		if err != nil {
+			env.Close()
+			env = nil
+		}
+	}()
 
-	maxdbs, _, err := opt.IntKey("dbs")
+	maxreaders, _, err := opt.IntKey("maxreaders")
 	if err != nil {
-		env.Close()
+		return nil, err
+	}
+	if maxreaders > 0 {
+		err = env.SetMaxReaders(maxreaders)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	maxdbs, _, err := opt.IntKey("maxdbs")
+	if err != nil {
 		return nil, err
 	}
 	if maxdbs == 0 {
 		maxdbs = 7
 	}
 	err = env.SetMaxDBs(maxdbs)
+	if err != nil {
+		return nil, err
+	}
 
 	mapsize, _, err := opt.IntKey("mapsize")
 	if err != nil {
-		env.Close()
 		return nil, err
 	}
 	err = env.SetMapSize(int64(mapsize))
 	if err != nil {
-		env.Close()
-		return nil, err
-	}
-
-	err = os.Mkdir(path, 0700)
-	if err != nil && !os.IsExist(err) {
-		env.Close()
 		return nil, err
 	}
 
 	var flags uint
 	dbnosync, _, err := opt.BoolKey("nosync")
 	if err != nil {
-		env.Close()
 		return nil, err
 	}
 	if dbnosync {
@@ -137,11 +152,10 @@ func createLMDB(path string, opt graph.Options) (*lmdb.Env, error) {
 	}
 	err = env.Open(path, flags, 0600)
 	if err != nil {
-		env.Close()
 		return nil, err
 	}
 
-	return env, err
+	return env, nil
 }
 
 func createNewLMDB(path string, opt graph.Options) error {

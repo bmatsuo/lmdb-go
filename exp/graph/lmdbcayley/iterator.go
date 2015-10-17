@@ -310,8 +310,11 @@ func (it *Iterator) Contains(v graph.Value) bool {
 		// first place, we had to have done the check already; it came from a Next().
 		//
 		// However, if it ever starts coming from somewhere else, it'll be more
-		// efficient to change the interface of the graph.Value for LevelDB to a
+		// efficient to change the interface of the graph.Value for LMDB to a
 		// struct with a flag for isValid, to save another random read.
+		//
+		// NOTE(bmatsuo):
+		// Original lineage from LevelDB backend implementation via BoltDB.
 		return true
 	}
 	return false
