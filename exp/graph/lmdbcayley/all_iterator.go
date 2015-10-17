@@ -29,7 +29,7 @@ import (
 type AllIterator struct {
 	uid    uint64
 	tags   graph.Tagger
-	bucket string
+	db     string
 	dir    quad.Direction
 	qs     *QuadStore
 	result *Token
@@ -39,12 +39,12 @@ type AllIterator struct {
 	done   bool
 }
 
-func NewAllIterator(bucket string, d quad.Direction, qs *QuadStore) *AllIterator {
+func NewAllIterator(db string, d quad.Direction, qs *QuadStore) *AllIterator {
 	return &AllIterator{
-		uid:    iterator.NextUID(),
-		bucket: bucket,
-		dir:    d,
-		qs:     qs,
+		uid: iterator.NextUID(),
+		db:  db,
+		dir: d,
+		qs:  qs,
 	}
 }
 
@@ -73,7 +73,7 @@ func (it *AllIterator) TagResults(dst map[string]graph.Value) {
 }
 
 func (it *AllIterator) Clone() graph.Iterator {
-	out := NewAllIterator(it.bucket, it.dir, it.qs)
+	out := NewAllIterator(it.db, it.dir, it.qs)
 	out.tags.CopyFrom(it)
 	return out
 }
@@ -93,7 +93,7 @@ func (it *AllIterator) Next() bool {
 			tx.RawRead = true
 
 			i := 0
-			dbi := it.qs.dbis[it.bucket]
+			dbi := it.qs.dbis[it.db]
 			cur, err := tx.OpenCursor(dbi)
 			if err != nil {
 				return err
@@ -159,7 +159,7 @@ func (it *AllIterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return it.qs.token(it.bucket, it.buffer[it.offset])
+	return it.qs.token(it.db, it.buffer[it.offset])
 }
 
 func (it *AllIterator) NextPath() bool {

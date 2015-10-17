@@ -44,7 +44,7 @@ func init() {
 }
 
 var (
-	errNoBucket = errors.New("lmdb: bucket is missing")
+	errNoDB = errors.New("lmdb: db is missing")
 )
 
 var (
@@ -60,13 +60,13 @@ const (
 )
 
 type Token struct {
-	dbi    lmdb.DBI
-	bucket string
-	key    []byte
+	dbi lmdb.DBI
+	db  string
+	key []byte
 }
 
 func (t *Token) Key() interface{} {
-	return fmt.Sprint(t.bucket, t.key)
+	return fmt.Sprint(t.db, t.key)
 }
 
 type QuadStore struct {
@@ -199,9 +199,9 @@ func (qs *QuadStore) _openDBIs(flags uint) error {
 		for _, index := range [][4]quad.Direction{spo, osp, pos, cps} {
 			createdb(dbFor(index))
 		}
-		qs.logDBI = createdb(logBucket)
-		qs.nodeDBI = createdb(nodeBucket)
-		qs.metaDBI = createdb(metaBucket)
+		qs.logDBI = createdb(logDB)
+		qs.nodeDBI = createdb(nodeDB)
+		qs.metaDBI = createdb(metaDB)
 		return err
 	})
 }
@@ -243,10 +243,6 @@ func (qs *QuadStore) createDeltaKeyFor(id int64) []byte {
 	return []byte(fmt.Sprintf("%018x", id))
 }
 
-func bucketFor(d [4]quad.Direction) []byte {
-	return []byte{d[0].Prefix(), d[1].Prefix(), d[2].Prefix(), d[3].Prefix()}
-}
-
 func dbFor(d [4]quad.Direction) string {
 	p := [4]byte{d[0].Prefix(), d[1].Prefix(), d[2].Prefix(), d[3].Prefix()}
 	return string(p[:])
@@ -284,14 +280,14 @@ var (
 	pos = [4]quad.Direction{quad.Predicate, quad.Object, quad.Subject, quad.Label}
 	cps = [4]quad.Direction{quad.Label, quad.Predicate, quad.Subject, quad.Object}
 
-	// Byte arrays for each bucket name.
-	spoBucket  = dbFor(spo)
-	ospBucket  = dbFor(osp)
-	posBucket  = dbFor(pos)
-	cpsBucket  = dbFor(cps)
-	logBucket  = "log"
-	nodeBucket = "node"
-	metaBucket = "meta"
+	// Byte arrays for each db name.
+	spoDB  = dbFor(spo)
+	ospDB  = dbFor(osp)
+	posDB  = dbFor(pos)
+	cpsDB  = dbFor(cps)
+	logDB  = "log"
+	nodeDB = "node"
+	metaDB = "meta"
 )
 
 func deltaToProto(delta graph.Delta) proto.LogDelta {
@@ -377,7 +373,7 @@ func (qs *QuadStore) ApplyDeltas(deltas []graph.Delta, ignoreOpts graph.IgnoreOp
 
 func (qs *QuadStore) buildQuadWriteLMDB(tx *lmdb.Txn, q quad.Quad, id int64, isAdd bool) error {
 	var entry proto.HistoryEntry
-	dbi := qs.dbis[spoBucket]
+	dbi := qs.dbis[spoDB]
 	data, err := tx.Get(dbi, qs.createKeyFor(spo, q))
 	if err == nil {
 		// We got something.
@@ -526,23 +522,23 @@ func (qs *QuadStore) Quad(k graph.Value) quad.Quad {
 	}
 }
 
-func (qs *QuadStore) token(bucket string, key []byte) *Token {
+func (qs *QuadStore) token(db string, key []byte) *Token {
 	return &Token{
-		dbi:    qs.dbis[bucket],
-		bucket: bucket,
-		key:    key,
+		dbi: qs.dbis[db],
+		db:  db,
+		key: key,
 	}
 }
 
 func (qs *QuadStore) ValueOf(s string) graph.Value {
 	key := qs.createValueKeyFor(s)
-	return qs.token(nodeBucket, key)
+	return qs.token(nodeDB, key)
 }
 
 func (qs *QuadStore) valueDataLMDB(t *Token) proto.NodeData {
 	var out proto.NodeData
 	if glog.V(3) {
-		glog.V(3).Infof("%s %v", string(t.bucket), t.key)
+		glog.V(3).Infof("%s %v", string(t.db), t.key)
 	}
 	err := qs.env.View(func(tx *lmdb.Txn) (err error) {
 		tx.RawRead = true
@@ -611,28 +607,28 @@ func (qs *QuadStore) getMetadata() error {
 }
 
 func (qs *QuadStore) QuadIterator(d quad.Direction, val graph.Value) graph.Iterator {
-	var bucket string
+	var db string
 	switch d {
 	case quad.Subject:
-		bucket = spoBucket
+		db = spoDB
 	case quad.Predicate:
-		bucket = posBucket
+		db = posDB
 	case quad.Object:
-		bucket = ospBucket
+		db = ospDB
 	case quad.Label:
-		bucket = cpsBucket
+		db = cpsDB
 	default:
 		panic("unreachable " + d.String())
 	}
-	return NewIterator(bucket, d, val, qs)
+	return NewIterator(db, d, val, qs)
 }
 
 func (qs *QuadStore) NodesAllIterator() graph.Iterator {
-	return NewAllIterator(nodeBucket, quad.Any, qs)
+	return NewAllIterator(nodeDB, quad.Any, qs)
 }
 
 func (qs *QuadStore) QuadsAllIterator() graph.Iterator {
-	return NewAllIterator(posBucket, quad.Predicate, qs)
+	return NewAllIterator(posDB, quad.Predicate, qs)
 }
 
 func (qs *QuadStore) QuadDirection(val graph.Value, d quad.Direction) graph.Value {
@@ -640,9 +636,9 @@ func (qs *QuadStore) QuadDirection(val graph.Value, d quad.Direction) graph.Valu
 	offset := PositionOf(v, d, qs)
 	if offset != -1 {
 		return &Token{
-			dbi:    qs.nodeDBI,
-			bucket: nodeBucket,
-			key:    v.key[offset : offset+hashSize],
+			dbi: qs.nodeDBI,
+			db:  nodeDB,
+			key: v.key[offset : offset+hashSize],
 		}
 	}
 	return qs.ValueOf(qs.Quad(v).Get(d))
@@ -651,7 +647,7 @@ func (qs *QuadStore) QuadDirection(val graph.Value, d quad.Direction) graph.Valu
 func compareTokens(a, b graph.Value) bool {
 	atok := a.(*Token)
 	btok := b.(*Token)
-	return bytes.Equal(atok.key, btok.key) && atok.bucket == btok.bucket
+	return bytes.Equal(atok.key, btok.key) && atok.db == btok.db
 }
 
 func (qs *QuadStore) FixedIterator() graph.FixedIterator {

@@ -97,7 +97,7 @@ type v1IndexEntry struct {
 func upgrade1To2LMDB(qs *QuadStore) error {
 	fmt.Println("Upgrading v1 to v2...")
 	err := qs.env.Update(func(tx *lmdb.Txn) (err error) {
-		fmt.Println("Upgrading bucket", logBucket)
+		fmt.Println("Upgrading DB", logDB)
 
 		s := lmdbscan.New(tx, qs.logDBI)
 		defer s.Close()
@@ -125,7 +125,7 @@ func upgrade1To2LMDB(qs *QuadStore) error {
 		return err
 	}
 	err = qs.env.Update(func(tx *lmdb.Txn) (err error) {
-		fmt.Println("Upgrading bucket", nodeBucket)
+		fmt.Println("Upgrading DB", nodeDB)
 
 		s := lmdbscan.New(tx, qs.nodeDBI)
 		defer s.Close()
@@ -152,10 +152,10 @@ func upgrade1To2LMDB(qs *QuadStore) error {
 		return err
 	}
 
-	for _, bucket := range [4]string{string(spoBucket), string(ospBucket), string(posBucket), string(cpsBucket)} {
+	for _, db := range [4]string{string(spoDB), string(ospDB), string(posDB), string(cpsDB)} {
 		err = qs.env.Update(func(tx *lmdb.Txn) (err error) {
-			fmt.Println("Upgrading bucket", bucket)
-			dbi := qs.dbis[bucket]
+			fmt.Println("Upgrading DB", db)
+			dbi := qs.dbis[db]
 			s := lmdbscan.New(tx, dbi)
 			defer s.Close()
 

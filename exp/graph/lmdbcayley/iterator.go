@@ -42,7 +42,7 @@ type Iterator struct {
 	uid     uint64
 	tags    graph.Tagger
 	dbi     lmdb.DBI
-	bucket  string
+	db      string
 	checkID []byte
 	dir     quad.Direction
 	qs      *QuadStore
@@ -54,20 +54,20 @@ type Iterator struct {
 	err     error
 }
 
-func NewIterator(bucket string, d quad.Direction, value graph.Value, qs *QuadStore) *Iterator {
+func NewIterator(db string, d quad.Direction, value graph.Value, qs *QuadStore) *Iterator {
 	tok := value.(*Token)
-	if tok.bucket != nodeBucket {
+	if tok.db != nodeDB {
 		glog.Error("creating an iterator from a non-node value")
 		return &Iterator{done: true}
 	}
 
 	it := Iterator{
-		uid:    iterator.NextUID(),
-		dbi:    qs.nodeDBI,
-		bucket: bucket,
-		dir:    d,
-		qs:     qs,
-		size:   qs.SizeOf(value),
+		uid:  iterator.NextUID(),
+		dbi:  qs.nodeDBI,
+		db:   db,
+		dir:  d,
+		qs:   qs,
+		size: qs.SizeOf(value),
 	}
 
 	it.checkID = make([]byte, len(tok.key))
@@ -103,7 +103,7 @@ func (it *Iterator) TagResults(dst map[string]graph.Value) {
 }
 
 func (it *Iterator) Clone() graph.Iterator {
-	out := NewIterator(it.bucket, it.dir, it.qs.token(nodeBucket, it.checkID), it.qs)
+	out := NewIterator(it.db, it.dir, it.qs.token(nodeDB, it.checkID), it.qs)
 	out.Tagger().CopyFrom(it)
 	return out
 }
@@ -136,7 +136,7 @@ func (it *Iterator) Next() bool {
 			tx.RawRead = true
 
 			i := 0
-			dbi := it.qs.dbis[it.bucket]
+			dbi := it.qs.dbis[it.db]
 			cur, err := tx.OpenCursor(dbi)
 			if err != nil {
 				return err
@@ -216,7 +216,7 @@ func (it *Iterator) Result() graph.Value {
 	if it.buffer[it.offset] == nil {
 		return nil
 	}
-	return it.qs.token(it.bucket, it.buffer[it.offset])
+	return it.qs.token(it.db, it.buffer[it.offset])
 }
 
 func (it *Iterator) NextPath() bool {
@@ -229,7 +229,7 @@ func (it *Iterator) SubIterators() []graph.Iterator {
 }
 
 func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
-	if tok.bucket == spoBucket {
+	if tok.db == spoDB {
 		switch d {
 		case quad.Subject:
 			return 0
@@ -241,7 +241,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 			return 3 * hashSize
 		}
 	}
-	if tok.bucket == posBucket {
+	if tok.db == posDB {
 		switch d {
 		case quad.Subject:
 			return 2 * hashSize
@@ -253,7 +253,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 			return 3 * hashSize
 		}
 	}
-	if tok.bucket == ospBucket {
+	if tok.db == ospDB {
 		switch d {
 		case quad.Subject:
 			return hashSize
@@ -265,7 +265,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 			return 3 * hashSize
 		}
 	}
-	if tok.bucket == cpsBucket {
+	if tok.db == cpsDB {
 		switch d {
 		case quad.Subject:
 			return 2 * hashSize
@@ -282,7 +282,7 @@ func PositionOf(tok *Token, d quad.Direction, qs *QuadStore) int {
 
 func (it *Iterator) Contains(v graph.Value) bool {
 	val := v.(*Token)
-	if val.bucket == nodeBucket {
+	if val.db == nodeDB {
 		return false
 	}
 	offset := PositionOf(val, it.dir, it.qs)
@@ -306,7 +306,7 @@ func (it *Iterator) Size() (int64, bool) {
 }
 
 func (it *Iterator) Describe() graph.Description {
-	token := it.qs.token(it.bucket, it.checkID)
+	token := it.qs.token(it.db, it.checkID)
 	return graph.Description{
 		UID:       it.UID(),
 		Name:      it.qs.NameOf(token),
