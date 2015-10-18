@@ -17,8 +17,8 @@ package lmdbcayley
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash"
@@ -74,13 +74,15 @@ func token(db string, key []byte) *Token {
 	}
 }
 
+var base64enc = base64.StdEncoding
+
 // Key implements the Keyer interface used by several packages and identifies a
 // Token within the LMDB environment.
 func (t *Token) Key() interface{} {
-	buf := make([]byte, len(t.db)+1+hex.EncodedLen(len(t.key)))
+	buf := make([]byte, len(t.db)+1+base64enc.EncodedLen(len(t.key)))
 	copy(buf, t.db)
 	buf[len(t.db)] = '$'
-	hex.Encode(buf[len(t.db)+1:], t.key)
+	base64enc.Encode(buf[len(t.db)+1:], t.key)
 	return string(buf)
 }
 
