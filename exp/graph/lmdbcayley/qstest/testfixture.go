@@ -65,6 +65,6 @@ func TestQuadStoreRemoveQuad(t *testing.T, ctx context.Context) {
 	})
 
 	if s := qs.Size(); s != int64(fixsize)-1 {
-		t.Errorf("Unexpected quadstore size after RemoveQuad, got:%d expect:10", s)
+		t.Errorf("Unexpected quadstore size after RemoveQuad, got:%d expect:%d", s, fixsize-1)
 	}
 }
