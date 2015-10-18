@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/bmatsuo/lmdb-go/exp/graph/lmdbcayley/qstest"
 	"github.com/bmatsuo/lmdb-go/exp/graph/lmdbcayley/qstest/testrunner"
 	"github.com/google/cayley/graph"
+	"github.com/google/cayley/graph/iterator"
+	"github.com/google/cayley/quad"
 	"golang.org/x/net/context"
 )
 
@@ -78,4 +81,50 @@ func TestQuadStoreQuadIteratorAnd(t *testing.T) {
 
 func TestQuadStoreQuadIteratorReset(t *testing.T) {
 	Runner.Run(t, "TestQuadStoreQuadIteratorReset", qstest.TestQuadStoreQuadIteratorReset)
+}
+
+func TestQuadStoreOptimizeIterator(t *testing.T) {
+	Runner.Run(t, "TestQuadStoreOptimizeIterator", _TestQuadStoreOptimizeIterator)
+}
+
+// _TestQuadStoreOptimizeIterator iterates the nodes in a fixture and asserts
+// the result.
+func _TestQuadStoreOptimizeIterator(t *testing.T, ctx context.Context) {
+	qs := qstest.ContextQuadStore(ctx)
+
+	_, err := qstest.WriteFixtureQuadStore(qs, "simple")
+	if err != nil {
+		t.Errorf("Unexpected error writing fixures: %v", err)
+	}
+
+	// With an linksto-fixed pair
+	fixed := qs.FixedIterator()
+	fixed.Add(qs.ValueOf("F"))
+	fixed.Tagger().Add("internal")
+	lto := iterator.NewLinksTo(qs, fixed, quad.Object)
+
+	oldIt := lto.Clone()
+	newIt, ok := lto.Optimize()
+	if !ok {
+		t.Errorf("Failed to optimize iterator")
+	}
+	if newIt.Type() != Type() {
+		t.Errorf("Optimized iterator type does not match original, got:%v expect:%v", newIt.Type(), Type())
+	}
+
+	newQuads := qstest.IterateQuads(qs, newIt)
+	oldQuads := qstest.IterateQuads(qs, oldIt)
+	if !reflect.DeepEqual(newQuads, oldQuads) {
+		t.Errorf("Optimized iteration does not match original")
+	}
+
+	graph.Next(oldIt)
+	oldResults := make(map[string]graph.Value)
+	oldIt.TagResults(oldResults)
+	graph.Next(newIt)
+	newResults := make(map[string]graph.Value)
+	newIt.TagResults(newResults)
+	if !reflect.DeepEqual(newResults, oldResults) {
+		t.Errorf("Discordant tag results, new:%v old:%v", newResults, oldResults)
+	}
 }

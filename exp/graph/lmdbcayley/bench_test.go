@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/bmatsuo/lmdb-go/exp/graph/lmdbcayley/qstest"
 	"github.com/google/cayley/graph"
-	"github.com/google/cayley/writer"
 )
 
 func BenchmarkTokenKey(b *testing.B) {
@@ -29,14 +29,9 @@ func BenchmarkTokenKey(b *testing.B) {
 	}
 	defer qs.Close()
 
-	w, err := writer.NewSingleReplication(qs, nil)
+	_, err = qstest.WriteFixtureQuadStore(qs, "simple")
 	if err != nil {
-		b.Errorf("Failed to create writer: %v", err)
-	}
-	qall := makeQuadSet()
-	err = w.AddQuadSet(qall)
-	if err != nil {
-		b.Errorf("Failed to write quad: %v", err)
+		b.Errorf("Unexpected error writing fixures: %v", err)
 	}
 
 	BValueKey(b, qs.NodesAllIterator())
