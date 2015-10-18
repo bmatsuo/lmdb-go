@@ -17,21 +17,24 @@ func BenchmarkTokenKey(b *testing.B) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	err = createNewLMDB(tmpDir, nil)
+	err = graph.InitQuadStore("lmdb", tmpDir, nil)
 	if err != nil {
-		b.Fatal("Failed to create LMDB database.", err)
+		b.Error(err)
+		return
 	}
-
-	qs, err := newQuadStore(tmpDir, nil)
-	if qs == nil || err != nil {
-		b.Error("Failed to create LMDB QuadStore.")
+	qs, err := graph.NewQuadStore("lmdb", tmpDir, nil)
+	if err != nil {
+		b.Error(err)
+		return
 	}
+	defer qs.Close()
 
 	w, err := writer.NewSingleReplication(qs, nil)
 	if err != nil {
 		b.Errorf("Failed to create writer: %v", err)
 	}
-	err = w.AddQuadSet(makeQuadSet())
+	qall := makeQuadSet()
+	err = w.AddQuadSet(qall)
 	if err != nil {
 		b.Errorf("Failed to write quad: %v", err)
 	}
@@ -47,7 +50,7 @@ func BValueKey(b *testing.B, it graph.Iterator) {
 	}
 
 	var ks []keyer
-	vals, err := readAllValues(it)
+	vals, err := iterateValues(it)
 	if err != nil {
 		b.Errorf("iterate: %v", err)
 		return
@@ -70,7 +73,7 @@ func BValueKey(b *testing.B, it graph.Iterator) {
 	b.StopTimer()
 }
 
-func readAllValues(it graph.Iterator) ([]graph.Value, error) {
+func iterateValues(it graph.Iterator) ([]graph.Value, error) {
 	var vals []graph.Value
 	for graph.Next(it) {
 		v := it.Result()
