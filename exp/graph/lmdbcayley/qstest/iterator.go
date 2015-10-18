@@ -7,7 +7,9 @@ import (
 	"github.com/google/cayley/quad"
 )
 
-func iterateNames(qs graph.QuadStore, it graph.Iterator) []string {
+// IterateNames returns the names for all remanaing elements in the result set
+// of it.
+func IterateNames(qs graph.QuadStore, it graph.Iterator) []string {
 	var res []string
 	for graph.Next(it) {
 		res = append(res, qs.NameOf(it.Result()))
@@ -16,13 +18,23 @@ func iterateNames(qs graph.QuadStore, it graph.Iterator) []string {
 	return res
 }
 
-func iterateQuads(qs graph.QuadStore, it graph.Iterator) []quad.Quad {
+// IterateQuads returns the quads for all remanaing elements in the result set
+// of it.
+func IterateQuads(qs graph.QuadStore, it graph.Iterator) []quad.Quad {
 	var res ordered
 	for graph.Next(it) {
 		res = append(res, qs.Quad(it.Result()))
 	}
 	sort.Sort(res)
 	return res
+}
+
+// SortedQuads returns a sorted copy of quads.
+func SortedQuads(quads []quad.Quad) []quad.Quad {
+	o := make(ordered, len(quads))
+	copy(o, ordered(quads))
+	sort.Sort(o)
+	return o
 }
 
 type ordered []quad.Quad

@@ -1,6 +1,7 @@
 package qstest
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -56,18 +57,17 @@ func TestQuadStoreRemoveQuad(t *testing.T, ctx context.Context) {
 		return
 	}
 
-	w, err := writer.NewSingleReplication(qs, nil)
-	if err != nil {
-		t.Errorf("Unexpected error creating writer: %v", err)
-		return
-	}
-
-	w.RemoveQuad(quad.Quad{
-		Subject:   "A",
-		Predicate: "follows",
-		Object:    "B",
-		Label:     "",
+	err = removeQuad(qs, []quad.Quad{
+		{
+			Subject:   "A",
+			Predicate: "follows",
+			Object:    "B",
+			Label:     "",
+		},
 	})
+	if err != nil {
+		t.Error(err)
+	}
 
 	if s := qs.Size(); s != int64(fixsize)-1 {
 		t.Errorf("Unexpected quadstore size after RemoveQuad, got:%d expect:%d", s, fixsize-1)
@@ -118,7 +118,7 @@ func TestQuadStoreNodesAllIterator(t *testing.T, ctx context.Context) {
 	}
 	sort.Strings(expect)
 	for i := 0; i < 2; i++ {
-		got := iterateNames(qs, it)
+		got := IterateNames(qs, it)
 		sort.Strings(got)
 		if !reflect.DeepEqual(got, expect) {
 			t.Errorf("Unexpected iterated result on repeat %d, got:%v expect:%v", i, got, expect)
@@ -217,7 +217,7 @@ func TestQuadStoreQuadIterator(t *testing.T, ctx context.Context) {
 			it := qs.QuadIterator(test.dir, qs.ValueOf(test.name))
 			defer it.Reset()
 
-			quads := iterateQuads(qs, it)
+			quads := IterateQuads(qs, it)
 			if !reflect.DeepEqual(quads, test.expect) {
 				t.Errorf("Test %d: Failed to get expected results, got:%q expect:%q", i, quads, test.expect)
 			}
@@ -290,7 +290,7 @@ func TestQuadStoreQuadIteratorAnd(t *testing.T, ctx context.Context) {
 			and.AddSubIterator(it)
 			defer and.Reset()
 
-			quads := iterateQuads(qs, and)
+			quads := IterateQuads(qs, and)
 			if !reflect.DeepEqual(quads, test.expect) {
 				t.Errorf("Test %d: Failed to get expected results, got:%q expect:%q", i, quads, test.expect)
 			}
@@ -314,22 +314,36 @@ func TestQuadStoreQuadIteratorReset(t *testing.T, ctx context.Context) {
 	expect := []quad.Quad{
 		{"E", "follows", "F", ""},
 	}
-	quads := iterateQuads(qs, it)
+	quads := IterateQuads(qs, it)
 	if !reflect.DeepEqual(quads, expect) {
 		t.Errorf("Failed to get expected results, got:%q expect:%q", quads, expect)
 	}
 	it.Reset()
 
-	w, err := writer.NewSingleReplication(qs, nil)
+	err = removeQuad(qs, []quad.Quad{{"E", "follows", "F", ""}})
 	if err != nil {
-		t.Errorf("Unexpected error creating writer: %v", err)
-		return
+		t.Error(err)
 	}
-	w.RemoveQuad(quad.Quad{"E", "follows", "F", ""})
 
-	quads = iterateQuads(qs, it)
+	quads = IterateQuads(qs, it)
 	expect = nil
 	if !reflect.DeepEqual(quads, expect) {
 		t.Errorf("Failed to get expected results, got:%q expect:%q", quads, expect)
 	}
+}
+
+func removeQuad(qs graph.QuadStore, q []quad.Quad) error {
+	w, err := writer.NewSingleReplication(qs, nil)
+	if err != nil {
+		return err
+	}
+
+	for _, q := range q {
+		err = w.RemoveQuad(q)
+		if err != nil {
+			return fmt.Errorf("removing quad: %v (%v)", err, q)
+		}
+	}
+
+	return nil
 }
