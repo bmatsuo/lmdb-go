@@ -84,12 +84,12 @@ func TestQuadStoreQuadIteratorReset(t *testing.T) {
 }
 
 func TestQuadStoreOptimizeIterator(t *testing.T) {
-	Runner.Run(t, "TestQuadStoreOptimizeIterator", _TestQuadStoreOptimizeIterator)
+	Runner.Run(t, "TestQuadStoreOptimizeIterator", testQuadStoreOptimizeIterator)
 }
 
-// _TestQuadStoreOptimizeIterator iterates the nodes in a fixture and asserts
+// testQuadStoreOptimizeIterator iterates the nodes in a fixture and asserts
 // the result.
-func _TestQuadStoreOptimizeIterator(t *testing.T, ctx context.Context) {
+func testQuadStoreOptimizeIterator(t *testing.T, ctx context.Context) {
 	qs := qstest.ContextQuadStore(ctx)
 
 	_, err := qstest.WriteFixtureQuadStore(qs, "simple")
