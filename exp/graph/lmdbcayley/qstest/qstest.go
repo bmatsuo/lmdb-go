@@ -2,26 +2,31 @@ package qstest
 
 import (
 	"fmt"
-	"testing"
 
+	"github.com/bmatsuo/lmdb-go/exp/graph/lmdbcayley/qstest/testrunner"
 	"github.com/google/cayley/graph"
 	"golang.org/x/net/context"
 )
 
-// Func is a test function executed by a Runner.
-type Func func(t *testing.T, ctx context.Context, qs graph.QuadStore)
+type qsVarsKey struct{}
 
-type implVarsKey struct{}
-
-// ContextVars retrieves map that QuadStoreImpl functions can use to share
-// information.
-func ContextVars(ctx context.Context) map[interface{}]interface{} {
-	m, _ := ctx.Value(implVarsKey{}).(map[interface{}]interface{})
-	return m
+// ContextQuadStore returns the qstest QuadStore stored in ctx or nil if there
+// is no QuadStore.
+func ContextQuadStore(ctx context.Context) graph.QuadStore {
+	vars := testrunner.ContextVars(ctx)
+	if vars == nil {
+		return nil
+	}
+	return getQuadStore(vars)
 }
 
-func contextWithImplVars(ctx context.Context) context.Context {
-	return context.WithValue(ctx, implVarsKey{}, map[interface{}]interface{}{})
+func getQuadStore(vs testrunner.Vars) graph.QuadStore {
+	qs, _ := vs[qsVarsKey{}].(graph.QuadStore)
+	return qs
+}
+
+func setQuadStore(vs testrunner.Vars, qs graph.QuadStore) {
+	vs[qsVarsKey{}] = qs
 }
 
 // QuadStoreImpl defines operations that allow generated tests to run against a
@@ -32,50 +37,29 @@ type QuadStoreImpl struct {
 	Close   func(ctx context.Context, name string)
 }
 
-func (impl *QuadStoreImpl) close(ctx context.Context, name string) {
-	if impl.Close != nil {
-		impl.Close(ctx, name)
-	}
-}
+var _ testrunner.Stage = &QuadStoreImpl{}
 
-// Runner runs tests with a QuadStoreImpl
-type Runner struct {
-	C context.Context
-	Q *QuadStoreImpl
-}
-
-// NewRunner is a convenience method for allocating and initialing a Runner.
-func NewRunner(ctx context.Context, impl *QuadStoreImpl) *Runner {
-	return &Runner{
-		C: ctx,
-		Q: impl,
-	}
-}
-
-func (r *Runner) initTest(ctx context.Context, name string) (context.Context, graph.QuadStore, error) {
-	ctx = contextWithImplVars(ctx)
-	path, opt, err := r.Q.NewArgs(ctx, name)
+// Setup call NewArgs and creates a graph.QuadStore from the result using the call
+//		graph.NewQuadStore(impl.Name, path, opt)
+func (impl *QuadStoreImpl) Setup(ctx context.Context, name string) (err error) {
+	path, opt, err := impl.NewArgs(ctx, name)
 	if err != nil {
-		return ctx, nil, fmt.Errorf("initializing %s: %v", name, err)
+		return fmt.Errorf("initializing %s: %v", name, err)
 	}
 
-	qs, err := graph.NewQuadStore(r.Q.Name, path, opt)
+	qs, err := graph.NewQuadStore(impl.Name, path, opt)
 	if err != nil {
-		return ctx, nil, err
+		impl.Teardown(ctx, name)
+		return err
 	}
 
-	return ctx, qs, nil
+	vars := testrunner.ContextVars(ctx)
+	setQuadStore(vars, qs)
+
+	return nil
 }
 
-// Run runs a Func with t
-func (r *Runner) Run(t *testing.T, name string, fn Func) {
-	ctx := contextWithImplVars(r.C)
-	ctx, qs, err := r.initTest(ctx, name)
-	defer r.Q.close(ctx, name)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	fn(t, ctx, qs)
+// Teardown calls impl.Close.
+func (impl *QuadStoreImpl) Teardown(ctx context.Context, name string) {
+	impl.Close(ctx, name)
 }
