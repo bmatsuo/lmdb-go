@@ -75,3 +75,7 @@ func TestQuadStoreQuadIterator(t *testing.T) {
 func TestQuadStoreQuadIteratorAnd(t *testing.T) {
 	Runner.Run(t, "TestQuadStoreQuadIteratorAnd", qstest.TestQuadStoreQuadIteratorAnd)
 }
+
+func TestQuadStoreQuadIteratorReset(t *testing.T) {
+	Runner.Run(t, "TestQuadStoreQuadIteratorReset", qstest.TestQuadStoreQuadIteratorReset)
+}

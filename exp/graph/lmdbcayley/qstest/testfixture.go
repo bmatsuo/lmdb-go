@@ -217,7 +217,7 @@ func TestQuadStoreQuadIterator(t *testing.T, ctx context.Context) {
 			it := qs.QuadIterator(test.dir, qs.ValueOf(test.name))
 			defer it.Reset()
 
-			quads := iteratedQuads(qs, it)
+			quads := iterateQuads(qs, it)
 			if !reflect.DeepEqual(quads, test.expect) {
 				t.Errorf("Test %d: Failed to get expected results, got:%q expect:%q", i, quads, test.expect)
 			}
@@ -290,7 +290,7 @@ func TestQuadStoreQuadIteratorAnd(t *testing.T, ctx context.Context) {
 			and.AddSubIterator(it)
 			defer and.Reset()
 
-			quads := iteratedQuads(qs, and)
+			quads := iterateQuads(qs, and)
 			if !reflect.DeepEqual(quads, test.expect) {
 				t.Errorf("Test %d: Failed to get expected results, got:%q expect:%q", i, quads, test.expect)
 			}
@@ -299,47 +299,37 @@ func TestQuadStoreQuadIteratorAnd(t *testing.T, ctx context.Context) {
 
 }
 
-func iterateNames(qs graph.QuadStore, it graph.Iterator) []string {
-	var res []string
-	for graph.Next(it) {
-		res = append(res, qs.NameOf(it.Result()))
+// TestQuadStoreQuadIteratorReset iterates a set and resets the iterator.  When an
+// item is deleted the set is iterated again and should have one fewer item.
+func TestQuadStoreQuadIteratorReset(t *testing.T, ctx context.Context) {
+	qs := ContextQuadStore(ctx)
+
+	_, err := WriteFixtureQuadStore(qs, "simple")
+	if err != nil {
+		t.Errorf("Unexpected error writing fixures: %v", err)
 	}
-	sort.Strings(res)
-	return res
-}
 
-func iteratedQuads(qs graph.QuadStore, it graph.Iterator) []quad.Quad {
-	var res ordered
-	for graph.Next(it) {
-		res = append(res, qs.Quad(it.Result()))
+	it := qs.QuadIterator(quad.Subject, qs.ValueOf("E"))
+
+	expect := []quad.Quad{
+		{"E", "follows", "F", ""},
 	}
-	sort.Sort(res)
-	return res
-}
+	quads := iterateQuads(qs, it)
+	if !reflect.DeepEqual(quads, expect) {
+		t.Errorf("Failed to get expected results, got:%q expect:%q", quads, expect)
+	}
+	it.Reset()
 
-type ordered []quad.Quad
+	w, err := writer.NewSingleReplication(qs, nil)
+	if err != nil {
+		t.Errorf("Unexpected error creating writer: %v", err)
+		return
+	}
+	w.RemoveQuad(quad.Quad{"E", "follows", "F", ""})
 
-func (o ordered) Len() int { return len(o) }
-func (o ordered) Less(i, j int) bool {
-	switch {
-	case o[i].Subject < o[j].Subject,
-
-		o[i].Subject == o[j].Subject &&
-			o[i].Predicate < o[j].Predicate,
-
-		o[i].Subject == o[j].Subject &&
-			o[i].Predicate == o[j].Predicate &&
-			o[i].Object < o[j].Object,
-
-		o[i].Subject == o[j].Subject &&
-			o[i].Predicate == o[j].Predicate &&
-			o[i].Object == o[j].Object &&
-			o[i].Label < o[j].Label:
-
-		return true
-
-	default:
-		return false
+	quads = iterateQuads(qs, it)
+	expect = nil
+	if !reflect.DeepEqual(quads, expect) {
+		t.Errorf("Failed to get expected results, got:%q expect:%q", quads, expect)
 	}
 }
-func (o ordered) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
