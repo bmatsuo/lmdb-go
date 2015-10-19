@@ -44,7 +44,15 @@ func New(txn *lmdb.Txn, dbi lmdb.DBI) *Scanner {
 	return s
 }
 
+// Cursor returns the lmdb.Cursor underlying s.  Cursore return nil if the
+// scanner is closed.
+func (s *Scanner) Cursor() *lmdb.Cursor {
+	return s.cur
+}
+
 // Del will delete the key at the current cursor location.
+//
+// Del is deprecated.  Instead use s.Cursor().Del(flags).
 func (s *Scanner) Del(flags uint) error {
 	if s.cur == nil {
 		return fmt.Errorf("scanner is closed")
@@ -109,8 +117,8 @@ func (s *Scanner) Err() error {
 	return s.err
 }
 
-// Close clears internal structures.  Close does not attempt to terminate the
-// enclosing transaction.
+// Close closes the cursor underlying s and clears its ows internal structures.
+// Close does not attempt to terminate the enclosing transaction.
 //
 // Scan must not be called after Close.
 func (s *Scanner) Close() {
