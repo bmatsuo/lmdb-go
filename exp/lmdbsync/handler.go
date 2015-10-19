@@ -71,16 +71,17 @@ func MapFullHandler(fn MapFullFunc) Handler {
 	return &mapFullHandler{fn}
 }
 
-// The default number of times to retry a transaction that is returning
-// repeatedly MapResized. This signifies rapid database growth from another
-// process or some bug/corruption in memory.
+// DefaultRetryResize is the default number of times to retry a transaction
+// that is returning repeatedly MapResized. This signifies rapid database
+// growth from another process or some bug/corruption in memory.
 //
 // If DefaultRetryResize is less than zero the transaction will be retried
 // indefinitely.
 var DefaultRetryResize = 2
 
-// If a transaction returns MapResize DefaultRetryResize times consequtively an
-// Env will stop attempting to run it and return MapResize to the caller.
+// DefaultDelayRepeatResize is the maximum number of consecutive MapResize will
+// be handled by MapResizedHandler before it stops attempting to handle it and
+// returns MapResize to the caller.
 var DefaultDelayRepeatResize = time.Millisecond
 
 // ErrTxnRetry is returned by a Handler to have the Env retry the transaction.
