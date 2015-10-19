@@ -74,5 +74,15 @@ underlying C counterparts can be found on
 
 #Links
 
-- [github.com/bmatsuo/raft-mdb](https://github.com/bmatsuo/raft-mdb) -- Experimental backend for [github.com/hashicorp/raft](https://github.com/hashicorp/raft)
-- [github.com/bmatsuo/cayley/graph/lmdb](https://github.com/bmatsuo/cayley/tree/master/graph/lmdb) -- Experimental backend for [github.com/google/cayley](https://github.com/google/cayley)
+####[github.com/bmatsuo/raft-mdb](https://github.com/bmatsuo/raft-mdb) ([godoc](https://godoc.org/github.com/bmatsuo/raft-mdb))
+
+An experimental backend for
+[github.com/hashicorp/raft](https://github.com/hashicorp/raft) forked from
+[github.com/hashicorp/raft-mdb](github.com/hashicorp/raft-mdb).
+
+####[github.com/bmatsuo/cayley/graph/lmdb](https://github.com/bmatsuo/cayley/tree/master/graph/lmdb) ([godoc](https://godoc.org/github.com/bmatsuo/cayley/graph/lmdb))
+
+Experimental backend quad-store for
+[github.com/google/cayley](https://github.com/google/cayley) based off of the
+BoltDB
+[implementation](https://github.com/google/cayley/tree/master/graph/bolt).
