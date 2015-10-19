@@ -93,6 +93,44 @@ func TestEnv_Open(t *testing.T) {
 	}
 }
 
+func TestEnv_FD(t *testing.T) {
+	env, err := NewEnv()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer func() {
+		err := env.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	fd, err := env.FD()
+	if err != errNotOpen {
+		t.Errorf("fd: %x (%v)", fd, err)
+	}
+
+	// open an environment at a temporary path.
+	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	if err != nil {
+		t.Fatalf("tempdir: %v", err)
+	}
+	defer os.RemoveAll(path)
+	err = env.Open(path, 0, 0664)
+	if err != nil {
+		t.Errorf("open: %s", err)
+	}
+
+	fd, err = env.FD()
+	if err != nil {
+		t.Errorf("fd error: %v", err)
+	}
+	if fd == 0 {
+		t.Errorf("fd: %x", fd)
+	}
+}
+
 func TestEnv_Flags(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)

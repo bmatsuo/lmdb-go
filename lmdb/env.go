@@ -88,6 +88,26 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	return operrno("mdb_env_open", ret)
 }
 
+var errNotOpen = fmt.Errorf("enivornment is not open")
+
+// FD returns the open file descriptor (or Windows file handle) for the given
+// environment.  An error is returned if the environment has not been
+// successfully Opened (where C API just retruns an invalid handle).
+//
+// See mdb_env_get_fd.
+func (env *Env) FD() (uintptr, error) {
+	var mf C.mdb_filehandle_t
+	ret := C.mdb_env_get_fd(env._env, &mf)
+	err := operrno("mdb_env_get_fd", ret)
+	if err != nil {
+		return 0, err
+	}
+	if mf == C.mdb_filehandle_t(-1) {
+		return 0, errNotOpen
+	}
+	return uintptr(mf), nil
+}
+
 // ReaderList dumps the contents of the reader lock table as text.  Readers
 // start on the second line as space-delimited fields described by the first
 // line.
@@ -122,7 +142,7 @@ func (env *Env) ReaderCheck() (int, error) {
 // See mdb_env_close.
 func (env *Env) Close() error {
 	if env._env == nil {
-		return errors.New("Environment already closed")
+		return errors.New("environment is already closed")
 	}
 	C.mdb_env_close(env._env)
 	env._env = nil
@@ -273,7 +293,7 @@ func (env *Env) Path() (string, error) {
 		return "", operrno("mdb_env_get_path", ret)
 	}
 	if cpath == nil {
-		return "", fmt.Errorf("env not open")
+		return "", errNotOpen
 	}
 	return C.GoString(cpath), nil
 }
