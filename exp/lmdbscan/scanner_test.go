@@ -117,6 +117,103 @@ func TestScanner_SetNext(t *testing.T) {
 	}
 }
 
+func TestScanner_Del(t *testing.T) {
+	path, env := testEnv(t)
+	defer os.RemoveAll(path)
+	items := []simpleitem{
+		{"k0", "v0"},
+		{"k1", "v1"},
+		{"k2", "v2"},
+		{"k3", "v3"},
+		{"k4", "v4"},
+		{"k5", "v5"},
+	}
+	loadTestData(t, env, items)
+	var dbi lmdb.DBI
+	err := env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		s := New(txn, dbi)
+		defer s.Close()
+		for s.Scan() {
+			err = s.Del(0)
+			if err != nil {
+				return err
+			}
+		}
+		return s.Err()
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	var rem []simpleitem
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		s := New(txn, dbi)
+		defer s.Close()
+		rem, err = remaining(s)
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(rem) != 0 {
+		t.Errorf("items: %q (!= %q)", rem, []string{})
+	}
+}
+
+func TestScanner_Cursor_Del(t *testing.T) {
+	path, env := testEnv(t)
+	defer os.RemoveAll(path)
+	items := []simpleitem{
+		{"k0", "v0"},
+		{"k1", "v1"},
+		{"k2", "v2"},
+		{"k3", "v3"},
+		{"k4", "v4"},
+		{"k5", "v5"},
+	}
+	loadTestData(t, env, items)
+	var dbi lmdb.DBI
+	err := env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		s := New(txn, dbi)
+		defer s.Close()
+		cur := s.Cursor()
+		for s.Scan() {
+			err = cur.Del(0)
+			if err != nil {
+				return err
+			}
+		}
+		return s.Err()
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	var rem []simpleitem
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		s := New(txn, dbi)
+		defer s.Close()
+		rem, err = remaining(s)
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(rem) != 0 {
+		t.Errorf("items: %q (!= %q)", rem, []string{})
+	}
+}
+
 type simpleitem [2]string
 
 func loadTestData(t *testing.T, env *lmdb.Env, items []simpleitem) {
