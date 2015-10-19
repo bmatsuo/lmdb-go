@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bmatsuo/lmdb-go/exp/graph/lmdbcayley/qstest"
+	"github.com/bmatsuo/cayley/graph/graphtest/qstest"
 	"github.com/google/cayley/graph"
 )
 
