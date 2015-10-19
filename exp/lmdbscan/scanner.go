@@ -44,7 +44,7 @@ func New(txn *lmdb.Txn, dbi lmdb.DBI) *Scanner {
 	return s
 }
 
-// Cursor returns the lmdb.Cursor underlying s.  Cursore return nil if the
+// Cursor returns the lmdb.Cursor underlying s.  Cursor returns nil if the
 // scanner is closed.
 func (s *Scanner) Cursor() *lmdb.Cursor {
 	return s.cur
