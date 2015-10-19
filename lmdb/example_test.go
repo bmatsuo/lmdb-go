@@ -108,48 +108,53 @@ func ExampleEnv_Copy() {
 	}(time.Tick(time.Hour))
 }
 
-// This example shows how to use the Env type and open a database.
+// This example shows the general workflow of an environment.  A database is
+// created and configured before being opened.  After the environment is opened
+// its databases are created and their handles are saved for use in future
+// transactions.
 func ExampleEnv() {
-	// create a directory to hold the database
-	path, _ := ioutil.TempDir("", "mdb_test")
-	defer os.RemoveAll(path)
-
-	// open the LMDB environment
+	// open the LMDB environment and configure common options like its size and
+	// maximum number of databases.
 	env, err := lmdb.NewEnv()
 	if err != nil {
-		panic(err)
+		// ...
 	}
-	env.SetMaxDBs(1)
-	env.Open(path, 0, 0664)
+	err = env.SetMapSize(100 * 1024 * 1024) // 100MB
+	if err != nil {
+		// ...
+	}
+	err = env.SetMaxDBs(1)
+	if err != nil {
+		// ...
+	}
+
+	// open the environment only after the environment has been configured.
+	// some settings may only be called before the environment is opened where
+	// others may have caveats.
+	err = env.Open("mydb/", 0, 0664)
+	if err != nil {
+		// ...
+	}
 	defer env.Close()
 
-	err = env.Update(func(txn *lmdb.Txn) error {
-		// open a database, creating it if necessary.
-		db, err := txn.OpenDBI("exampledb", lmdb.Create)
+	var dbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		// open a database, creating it if necessary.  the database is stored
+		// outside the transaction via closure and can be use after the
+		// transaction is committed.
+		dbi, err = txn.OpenDBI("exampledb", lmdb.Create)
 		if err != nil {
 			return err
 		}
-
-		// get statistics about the db. print the number of key-value pairs (it
-		// should be empty).
-		stat, err := txn.Stat(db)
-		if err != nil {
-			return err
-		}
-		fmt.Println(stat.Entries)
 
 		// commit the transaction, writing an entry for the newly created
-		// database.
+		// database if it was just created and allowing the dbi to be used in
+		// future transactions.
 		return nil
 	})
 	if err != nil {
 		panic(err)
 	}
-
-	// .. open more transactions and use the database
-
-	// Output:
-	// 0
 }
 
 // This example shows how to read and write data with a Txn.  Errors are
@@ -409,7 +414,7 @@ func ExampleCursor_Get_dupSort() {
 		}
 
 		for {
-			k, v, err = cur.Get(nil, nil, lmdb.NextNoDup)
+			k, v, err := cur.Get(nil, nil, lmdb.NextNoDup)
 			if lmdb.IsNotFound(err) {
 				// the database was exausted
 				return nil
@@ -430,7 +435,7 @@ func ExampleCursor_Get_dupSort() {
 				}
 			}
 
-			// process duplicates
+			log.Printf("%q %q", k, dups)
 		}
 	})
 }
