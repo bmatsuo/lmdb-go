@@ -10,7 +10,7 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 import "github.com/bmatsuo/lmdb-go/lmdb"
 ```
 
-Core bindings for LMDB allowing low-level access to LMDB.
+Core bindings allowing low-level access to LMDB.
 
 ####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
 
