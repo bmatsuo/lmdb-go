@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -107,243 +106,6 @@ func ExampleEnv_Copy() {
 			}
 		}
 	}(time.Tick(time.Hour))
-}
-
-// This complete example demonstrates populating and iterating a database with
-// the DupFixed|DupSort DBI flags.  The use case is probably too trivial to
-// warrant such optimization but it demonstrates the key points.
-//
-// Note the importance of supplying both DupFixed and DupSort flags on database
-// creation.
-func ExampleTxn_dupFixed() {
-	// Open an environment as normal. DupSort is applied at the database level.
-	env, err := lmdb.NewEnv()
-	if err != nil {
-		log.Panic(err)
-	}
-	path, err := ioutil.TempDir("", "mdb_test")
-	if err != nil {
-		log.Panic(err)
-	}
-	defer os.RemoveAll(path)
-	err = env.Open(path, 0, 0644)
-	defer env.Close()
-	if err != nil {
-		log.Panic(err)
-	}
-
-	// open the database of friends' phone numbers.  in this limited world
-	// phone nubers are all the same length.
-	var phonedbi lmdb.DBI
-	err = env.Update(func(txn *lmdb.Txn) (err error) {
-		phonedbi, err = txn.OpenRoot(lmdb.DupSort | lmdb.DupFixed)
-		return
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// load some static values into the phone database.  values are loaded in
-	// bulk using the PutMulti method on Cursor.
-	err = env.Update(func(txn *lmdb.Txn) error {
-		cur, err := txn.OpenCursor(phonedbi)
-		if err != nil {
-			return fmt.Errorf("cursor: %v", err)
-		}
-		defer cur.Close()
-
-		for _, entry := range []struct {
-			name    string
-			numbers []string
-		}{
-			{"alice", []string{"234-1234"}},
-			{"bob", []string{"825-1234"}},
-			{"carol", []string{"828-1234", "824-1234", "502-1234"}}, // values are not sorted
-			{"bob", []string{"433-1234", "957-1234"}},               // sorted dup values may be interleaved with existing dups
-			{"jenny", []string{"867-5309"}},
-		} {
-			// write the values into a contiguous chunk of memory.  it is
-			// critical that the values have the same length so the page has an
-			// even stride.
-			stride := len(entry.numbers[0])
-			pagelen := stride * len(entry.numbers)
-			data := bytes.NewBuffer(make([]byte, 0, pagelen))
-			for _, num := range entry.numbers {
-				io.WriteString(data, num)
-			}
-
-			// write the values to the database.
-			err = cur.PutMulti([]byte(entry.name), data.Bytes(), stride, 0)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// grab the first page of phone numbers for each name and print them.
-	err = env.View(func(txn *lmdb.Txn) error {
-		cur, err := txn.OpenCursor(phonedbi)
-		if err != nil {
-			return fmt.Errorf("cursor: %v", err)
-		}
-		defer cur.Close()
-		for {
-			// move to the next key
-			name, phoneFirst, err := cur.Get(nil, nil, lmdb.NextNoDup)
-			if lmdb.IsNotFound(err) {
-				break
-			}
-			if err != nil {
-				return fmt.Errorf("nextnodup: %v", err)
-			}
-
-			// determine if multiple values should be printed and short circuit
-			// if not.
-			ndup, err := cur.Count()
-			if err != nil {
-				return fmt.Errorf("count: %v", err)
-			}
-			if ndup == 1 {
-				fmt.Printf("%s %s\n", name, phoneFirst)
-				continue
-			}
-
-			// get a page of records and split it into discrete values.  the
-			// length of the first item is used to split the page of contiguous
-			// values.
-			_, page, err := cur.Get(nil, nil, lmdb.GetMultiple)
-			if err != nil {
-				return fmt.Errorf("getmultiple: %v", err)
-			}
-
-			// print the phone numbers for the person. the first number is
-			// printed on the same line as the person's name. others numbers of
-			// offset to the same depth as the primary number.
-			m := lmdb.WrapMulti(page, len(phoneFirst))
-			fmt.Printf("%s %s\n", name, m.Val(0))
-			offsetRest := bytes.Repeat([]byte{' '}, len(name))
-			for i, n := 1, m.Len(); i < n; i++ {
-				fmt.Printf("%s %s\n", offsetRest, m.Val(i))
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// Output:
-	// alice 234-1234
-	// bob 433-1234
-	//     825-1234
-	//     957-1234
-	// carol 502-1234
-	//       824-1234
-	//       828-1234
-	// jenny 867-5309
-}
-
-// This complete example demonstrates populating and iterating a database with
-// the DupSort DBI flags.
-func ExampleTxn_dupSort() {
-	// Open an environment as normal. DupSort is applied at the database level.
-	env, err := lmdb.NewEnv()
-	if err != nil {
-		log.Panic(err)
-	}
-	path, err := ioutil.TempDir("", "mdb_test")
-	if err != nil {
-		log.Panic(err)
-	}
-	defer os.RemoveAll(path)
-	err = env.Open(path, 0, 0644)
-	defer env.Close()
-	if err != nil {
-		log.Panic(err)
-	}
-
-	var phonedbi lmdb.DBI
-
-	// open the database of friends' phone numbers.  a single person can have
-	// multiple phone numbers.
-	err = env.Update(func(txn *lmdb.Txn) error {
-		dbi, err := txn.OpenRoot(lmdb.DupSort)
-		if err != nil {
-			return err
-		}
-		phonedbi = dbi
-		cur, err := txn.OpenCursor(dbi)
-		if err != nil {
-			return err
-		}
-		defer cur.Close()
-
-		for _, entry := range []struct{ name, number string }{
-			{"alice", "234-1234"},
-			{"bob", "825-1234"},
-			{"carol", "824-1234"},
-			{"jenny", "867-5309"},
-			{"carol", "828-1234"}, // a second value for the key
-			{"carol", "502-1234"}, // will be retrieved in sorted order
-		} {
-			err = cur.Put([]byte(entry.name), []byte(entry.number), 0)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// iterate the database and print the phone numbers for each name.
-	// multiple phone numbers for the same name are printed aligned on separate
-	// rows.
-	env.View(func(txn *lmdb.Txn) (err error) {
-		cur, err := txn.OpenCursor(phonedbi)
-		if err != nil {
-			return err
-		}
-
-		var nameprev, name, phone []byte
-		for {
-			name, phone, err = cur.Get(nil, nil, lmdb.Next)
-			if lmdb.IsNotFound(err) {
-				// the database was exausted
-				return nil
-			} else if err != nil {
-				return err
-			}
-
-			// print the name and phone number. offset with space instead of
-			// printing the name if name is a duplicate.
-			isdup := bytes.Equal(nameprev, name)
-			nameprev = name
-			firstcol := name
-			if isdup {
-				firstcol = bytes.Repeat([]byte{' '}, len(name))
-			}
-			fmt.Printf("%s %s\n", firstcol, phone)
-		}
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// Output:
-	// alice 234-1234
-	// bob 825-1234
-	// carol 502-1234
-	//       824-1234
-	//       828-1234
-	// jenny 867-5309
 }
 
 // This example shows how to use the Env type and open a database.
@@ -631,6 +393,44 @@ func ExampleCursor_Get_reverse() {
 			}
 
 			fmt.Printf("%s %s\n", k, v)
+		}
+	})
+}
+
+// This example shows how duplicates can be processed using LMDB.  It is
+// possible to iterate all key-value pairs (including duplicate key values)
+// using lmdb.Next.  But if special handling of duplicates is needed it may be
+// beneficial to use lmdb.NextNoDup or lmdb.NextDup.
+func ExampleCursor_Get_dupSort() {
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+
+		for {
+			k, v, err = cur.Get(nil, nil, lmdb.NextNoDup)
+			if lmdb.IsNotFound(err) {
+				// the database was exausted
+				return nil
+			} else if err != nil {
+				return err
+			}
+
+			// process duplicates
+			var dups [][]byte
+			for {
+				dups = append(dups, v)
+
+				_, v, err = cur.Get(nil, nil, lmdb.NextDup)
+				if lmdb.IsNotFound(err) {
+					break
+				} else if err != nil {
+					return err
+				}
+			}
+
+			// process duplicates
 		}
 	})
 }
