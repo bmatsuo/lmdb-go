@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -108,9 +107,9 @@ func ExampleEnv_Copy() {
 	}(time.Tick(time.Hour))
 }
 
-// This example shows the general workflow of an environment.  A database is
-// created and configured before being opened.  After the environment is opened
-// its databases are created and their handles are saved for use in future
+// This example shows the general workflow of LMDB.  An environment is created
+// and configured before being opened.  After the environment is opened its
+// databases are created and their handles are saved for use in future
 // transactions.
 func ExampleEnv() {
 	// open the LMDB environment and configure common options like its size and
@@ -128,8 +127,8 @@ func ExampleEnv() {
 		// ...
 	}
 
-	// open the environment only after the environment has been configured.
-	// some settings may only be called before the environment is opened where
+	// open the environment only after the it has been configured.  some
+	// settings may only be called before the environment is opened where
 	// others may have caveats.
 	err = env.Open("mydb/", 0, 0664)
 	if err != nil {
