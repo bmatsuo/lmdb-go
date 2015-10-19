@@ -157,20 +157,9 @@ func ExampleEnv() {
 	}
 }
 
-// This example shows how to read and write data with a Txn.  Errors are
-// ignored for brevity.  Real code should check and handle are errors which may
-// require more modular code.
+// This example shows the basic operations used when creating and working with
+// Txn types.
 func ExampleTxn() {
-	// create a directory to hold the database
-	path, _ := ioutil.TempDir("", "mdb_test")
-	defer os.RemoveAll(path)
-
-	// open the LMDB environment
-	env, _ := lmdb.NewEnv()
-	env.SetMaxDBs(1)
-	env.Open(path, 0, 0664)
-	defer env.Close()
-
 	// open a database.
 	var dbi lmdb.DBI
 	err := env.Update(func(txn *lmdb.Txn) (err error) {
@@ -180,59 +169,27 @@ func ExampleTxn() {
 		return err
 	})
 	if err != nil {
-		panic(err)
+		// ...
 	}
 
 	err = env.Update(func(txn *lmdb.Txn) (err error) {
-		// it can be helpful to define closures that abstract the transaction
-		// and short circuit after errors.
-		put := func(k, v string) {
-			if err == nil {
-				err = txn.Put(dbi, []byte(k), []byte(v), 0)
-			}
-		}
-
-		// use the closure above to insert into the database.
-		put("key0", "val0")
-		put("key1", "val1")
-		put("key2", "val2")
-
-		return err
+		return txn.Put(dbi, []byte("k"), []byte("v"), 0)
 	})
 	if err != nil {
-		panic(err)
+		// ...
 	}
 
-	err = env.View(func(txn *lmdb.Txn) error {
-		// databases can be inspected inside transactions.  here the number of
-		// entries (keys) are printed.
-		stat, err := txn.Stat(dbi)
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		v, err := txn.Get(dbi, []byte("k"))
 		if err != nil {
 			return err
 		}
-		fmt.Println(stat.Entries)
+		fmt.Println(string(v))
 		return nil
 	})
 	if err != nil {
-		panic(err)
+		// ...
 	}
-
-	err = env.Update(func(txn *lmdb.Txn) error {
-		// random access of a key
-		bval, err := txn.Get(dbi, []byte("key1"))
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(bval))
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	// Output:
-	// 3
-	// val1
 }
 
 // This example shows how to read and write data using a Cursor.  Errors are
