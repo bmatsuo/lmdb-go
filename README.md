@@ -71,3 +71,8 @@ reachable through the LMDB [homepage](http://symas.com/mdb/).
 Documentation specific to the Go bindings and how methods differ from their
 underlying C counterparts can be found on
 [godoc.org](https://godoc.org/github.com/bmatsuo/lmdb-go).
+
+#Links
+
+- [github.com/bmatsuo/raft-mdb](https://github.com/bmatsuo/raft-mdb) -- Experimental backend for [github.com/hashicorp/raft](https://github.com/hashicorp/raft)
+- [github.com/bmatsuo/cayley/graph/lmdb](https://github.com/bmatsuo/cayley/tree/master/graph/lmdb) -- Experimental backend for [github.com/google/cayley](https://github.com/google/cayley)
