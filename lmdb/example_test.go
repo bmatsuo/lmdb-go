@@ -191,8 +191,8 @@ func ExampleTxn() {
 	}
 }
 
-// This example demonstrates how to iterate a database opened with lmdb.DupSort
-// and get the number of values present for each unique key.
+// This example demonstrates how to iterate a database opened with the DupSort
+// flag and get the number of values present for each distinct key.
 func ExampleCursor_Count() {
 	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		cur, err := txn.OpenCursor(dbi)
@@ -219,8 +219,8 @@ func ExampleCursor_Count() {
 	})
 }
 
-// This simple example shows how to iterate a database.  The lmdb.Next flag may
-// be used without an initial call using lmdb.First.
+// This simple example shows how to iterate a database.  The Next flag may be
+// used without an initial call passing the First flag.
 func ExampleCursor_Get() {
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		cur, err := txn.OpenCursor(dbi)
@@ -244,8 +244,8 @@ func ExampleCursor_Get() {
 }
 
 // This simple example shows how to iterate a database in reverse.  As when
-// calling lmdb.Next, the lmdb.Prev flag may be used without an initial call
-// using lmdb.Last.
+// passing the Next flag, the Prev flag may be used without an initial call
+// using Last.
 func ExampleCursor_Get_reverse() {
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		cur, err := txn.OpenCursor(dbi)
@@ -269,9 +269,9 @@ func ExampleCursor_Get_reverse() {
 }
 
 // This example shows how duplicates can be processed using LMDB.  It is
-// possible to iterate all key-value pairs (including duplicate key values)
-// using lmdb.Next.  But if special handling of duplicates is needed it may be
-// beneficial to use lmdb.NextNoDup or lmdb.NextDup.
+// possible to iterate all key-value pairs (including duplicate key values) by
+// passing Next.  But if special handling of duplicates is needed it may be
+// beneficial to use NextNoDup or NextDup.
 func ExampleCursor_Get_dupSort() {
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		cur, err := txn.OpenCursor(dbi)
@@ -377,7 +377,7 @@ func ExampleCursor_Renew() {
 				}
 
 				// retrieve the number of items in the database with the given
-				// key (lmdb.DupSort).
+				// key (DupSort).
 				count := uint64(0)
 				_, _, err = cur.Get(key, nil, lmdb.SetKey)
 				if lmdb.IsNotFound(err) {
@@ -458,10 +458,14 @@ func ExampleCursor_Del() {
 	})
 }
 
-// Txn.OpenRoot does not need to be called with the lmdb.Create flag.
-func ExampleTxn_OpenRoot() {
-	err := EnvEx.Update(func(txn *lmdb.Txn) (err error) {
-		DBIEx, err = txn.OpenRoot(0)
+// If the database being opened is known to exist then no flags need to be
+// passed.
+func ExampleTxn_OpenDBI() {
+	// DBI handles can be saved after their opening transaction has committed
+	// and may be reused as long as the environment remains open.
+	var dbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenDBI("dbfound", 0)
 		return err
 	})
 	if err != nil {
@@ -469,14 +473,67 @@ func ExampleTxn_OpenRoot() {
 	}
 }
 
-// Txn.OpenRoot may be called without flags inside View transactions.
+// When Create is passed to Txn.OpenDBI() the database will be created if it
+// didn't already exist.  An error will be returned if the name is occupied by
+// data written by Txn./Cursor.Put().
+func ExampleTxn_OpenDBI_create() {
+	var dbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenDBI("dbnew", lmdb.Create)
+		return err
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// When a non-existent database is opened without the Create flag the errno is
+// NotFound.  If an application needs to handle this case the function
+// IsNotFound() will test an error for this condition.
+func ExampleTxn_OpenDBI_notFound() {
+	var dbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenDBI("dbnotfound", 0)
+		return err
+	})
+	log.Print(err) // mdb_dbi_open: MDB_NOTFOUND: No matching key/data pair found
+}
+
+// When the number of open named databases in an environment reaches the value
+// specified by Env.SetMaxDBs() attempts to open additional databases will
+// return an error with errno DBsFull.  If an application needs to handle this
+// case then the function IsError() can test an error for this condition.
+func ExampleTxn_OpenDBI_dBsFull() {
+	var dbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenDBI("dbnotexist", 0)
+		return err
+	})
+	log.Print(err) // mdb_dbi_open: MDB_DBS_FULL: Environment maxdbs limit reached
+}
+
+// Txn.OpenRoot does not need to be called with the Create flag.  And
+// Txn.OpenRoot, unlike Txn.OpenDBI, will never produce the error DBsFull.
+func ExampleTxn_OpenRoot() {
+	var dbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		return err
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Txn.OpenRoot may also be called without flags inside View transactions
+// before being openend in an Update transaction.
 func ExampleTxn_OpenRoot_view() {
-	err := EnvEx.View(func(txn *lmdb.Txn) (err error) {
-		db, err := txn.OpenRoot(0)
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		dbi, err := txn.OpenRoot(0)
 		if err != nil {
 			return err
 		}
-		cur, err := txn.OpenCursor(db)
+		cur, err := txn.OpenCursor(dbi)
 		if err != nil {
 			return err
 		}
@@ -486,13 +543,15 @@ func ExampleTxn_OpenRoot_view() {
 				return nil
 			}
 			if err != nil {
-				panic(err)
+				return err
 			}
-			fmt.Printf("%s: %s", k, v)
+
+			log.Printf("%s=%s\n", k, v)
+			// ...
 		}
 	})
 	if err != nil {
-		panic(err)
+		// ...
 	}
 }
 
