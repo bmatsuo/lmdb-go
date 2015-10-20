@@ -462,7 +462,7 @@ func ExampleCursor_Del() {
 // passed.
 func ExampleTxn_OpenDBI() {
 	// DBI handles can be saved after their opening transaction has committed
-	// and may be reused as long as the environment is open.
+	// and may be reused as long as the environment remains open.
 	var dbi lmdb.DBI
 	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		dbi, err = txn.OpenDBI("dbfound", 0)
