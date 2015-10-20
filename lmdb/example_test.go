@@ -461,8 +461,8 @@ func ExampleCursor_Del() {
 // If the database being opened is known to exist then no flags need to be
 // passed.
 func ExampleTxn_OpenDBI() {
-	// the recommended practice for LMDB is to save DBI handles outside a
-	// transaction's lifetime and reuse it as long as the environment is open.
+	// DBI handles can be saved after their opening transaction has committed
+	// and may be reused as long as the environment is open.
 	var dbi lmdb.DBI
 	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		dbi, err = txn.OpenDBI("dbfound", 0)
