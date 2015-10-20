@@ -546,6 +546,7 @@ func ExampleTxn_OpenRoot_view() {
 				return err
 			}
 
+			log.Printf("%s=%s\n", k, v)
 			// ...
 		}
 	})
