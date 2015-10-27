@@ -40,14 +40,14 @@ safe database interactions without compromising the flexibility of the C API.
 
 ###API coverage
 
-The lmdb-go project aims for complete feature coverage for LMDB (within
-reason).  Some notable features:
+The lmdb-go project aims for complete coverage of the LMDB C API (within
+reason).  Some notable features and optimizations that are supported:
 
-- Subtransactions are fully supported.
+- Idiomatic subtransactions ("sub-updates") that do not disrupt thread locking.
 
 - Batch IO on databases utilizing the `MDB_DUPSORT` and `MDB_DUPFIXED` flags.
 
-- Reserved "put" for reduced memory copies.
+- Reserved writes than can save in memory copies coverting/buffering into `[]byte`.
 
 For tracking purposes a list of unsupported features is kept in an
 [issue](https://github.com/bmatsuo/lmdb-go/issues/1).
