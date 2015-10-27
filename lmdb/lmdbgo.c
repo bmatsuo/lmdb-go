@@ -1,7 +1,6 @@
 /* lmdbgo.c
  * Helper utilities for github.com/bmatsuo/lmdb-go/lmdb
  * */
-#include <stdlib.h>
 #include "lmdb.h"
 #include "lmdbgo.h"
 #include "_cgo_export.h"
