@@ -7,7 +7,7 @@
 - internal/lmdbcmd: simplify version printing
 - lmdbscan: add method Scanner.Cursor() to deprecate Scanner.Del()
 - lmdbscan: add tests for Scanner.Set and Scanner.SetNext
-- lmdb: Implement Env.FD() method returning an open file description
+- lmdb: Implement Env.FD() method returning an open file descriptor
 - lmdbgo.c: remove unnecessary `#include <string.h>`
 
 ##v1.1.1
