@@ -2,7 +2,6 @@ package lmdb
 
 import (
 	crand "crypto/rand"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync/atomic"
@@ -12,8 +11,8 @@ import (
 // repeatedly put (overwrite) keys.
 func BenchmarkTxn_Put(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDB(b)
-	defer teardownBenchDB(b, env, path)
+	env := setup(b)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -46,8 +45,8 @@ func BenchmarkTxn_Put(b *testing.B) {
 // repeatedly put (overwrite) keys using the PutReserve method.
 func BenchmarkTxn_PutReserve(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDB(b)
-	defer teardownBenchDB(b, env, path)
+	env := setup(b)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -82,8 +81,8 @@ func BenchmarkTxn_PutReserve(b *testing.B) {
 // environment with WriteMap.
 func BenchmarkTxn_PutReserve_writemap(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDBFlags(b, WriteMap)
-	defer teardownBenchDB(b, env, path)
+	env := setupFlags(b, WriteMap)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -117,8 +116,8 @@ func BenchmarkTxn_PutReserve_writemap(b *testing.B) {
 // repeatedly put (overwrite) keys.
 func BenchmarkTxn_Put_writemap(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDBFlags(b, WriteMap)
-	defer teardownBenchDB(b, env, path)
+	env := setupFlags(b, WriteMap)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -138,18 +137,23 @@ func BenchmarkTxn_Put_writemap(b *testing.B) {
 			k := ps[rand.Intn(len(ps)/2)*2]
 			v := makeBenchDBVal(&rc)
 			err := txn.Put(dbi, k, v, 0)
-			bTxnMust(b, txn, err, "putting data")
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
 	})
+	if err != nil {
+		b.Error(err)
+	}
 }
 
 // repeatedly get random keys.
 func BenchmarkTxn_Get_ro(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDB(b)
-	defer teardownBenchDB(b, env, path)
+	env := setup(b)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -183,8 +187,8 @@ func BenchmarkTxn_Get_ro(b *testing.B) {
 // like BenchmarkTxnGetReadonly but txn.RawRead is set to true.
 func BenchmarkTxn_Get_raw_ro(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDB(b)
-	defer teardownBenchDB(b, env, path)
+	env := setup(b)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -219,8 +223,8 @@ func BenchmarkTxn_Get_raw_ro(b *testing.B) {
 // repeatedly scan all the values in a database.
 func BenchmarkScan_ro(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDB(b)
-	defer teardownBenchDB(b, env, path)
+	env := setup(b)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -252,8 +256,8 @@ func BenchmarkScan_ro(b *testing.B) {
 // like BenchmarkCursoreScanReadonly but txn.RawRead is set to true.
 func BenchmarkScan_raw_ro(b *testing.B) {
 	initRandSource(b)
-	env, path := setupBenchDB(b)
-	defer teardownBenchDB(b, env, path)
+	env := setup(b)
+	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
@@ -284,10 +288,19 @@ func BenchmarkScan_raw_ro(b *testing.B) {
 	}
 }
 
+// populateBenchmarkDB fills env with data.
+//
+// populateBenchmarkDB calls env.SetMapSize and must not be called concurrent
+// with other transactions.
 func populateBenchmarkDB(env *Env, dbi DBI, rc *randSourceCursor) ([][]byte, error) {
 	var ps [][]byte
 
-	err := env.Update(func(txn *Txn) (err error) {
+	err := env.SetMapSize(benchDBMapSize)
+	if err != nil {
+		return nil, err
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
 		for i := 0; i < benchDBNumKeys; i++ {
 			k := makeBenchDBKey(rc)
 			v := makeBenchDBVal(rc)
@@ -325,37 +338,15 @@ func benchmarkScanDBI(txn *Txn, dbi DBI) error {
 	}
 }
 
-func setupBenchDB(b *testing.B) (*Env, string) {
-	return setupBenchDBFlags(b, 0)
-
-}
-func setupBenchDBFlags(b *testing.B, flags uint) (*Env, string) {
-	env, err := NewEnv()
-	bMust(b, err, "creating env")
-	err = env.SetMaxDBs(26)
-	bMust(b, err, "setting max dbs")
-	err = env.SetMapSize(1 << 30) // 1GB
-	bMust(b, err, "sizing env")
-	path, err := ioutil.TempDir("", "mdb_test-bench-")
-	bMust(b, err, "creating temp directory")
-	err = env.Open(path, flags, 0644)
-	if err != nil {
-		teardownBenchDB(b, env, path)
-	}
-	bMust(b, err, "opening database")
-	return env, path
-}
-
 func openBenchDBI(b *testing.B, env *Env) DBI {
-	txn, err := env.BeginTxn(nil, 0)
-	bMust(b, err, "starting transaction")
-	dbi, err := txn.OpenDBI("benchmark", Create)
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenDBI("benchmark", Create)
+		return err
+	})
 	if err != nil {
-		txn.Abort()
-		b.Fatalf("error opening dbi: %v", err)
+		b.Errorf("unable to open benchmark database")
 	}
-	err = txn.Commit()
-	bMust(b, err, "commiting transaction")
 	return dbi
 }
 
@@ -376,17 +367,11 @@ func bMust(b *testing.B, err error, action string) {
 	}
 }
 
-func bTxnMust(b *testing.B, txn *Txn, err error, action string) {
-	if err != nil {
-		txn.Abort()
-		b.Fatalf("error %s: %v", action, err)
-	}
-}
-
-const randSourceSize = 10 << 20 // size of the 'entropy pool' for random byte generation.
-const benchDBNumKeys = 100000   // number of keys to store in benchmark databases
-const benchDBMaxKeyLen = 30     // maximum length for database keys (size is limited by MDB)
-const benchDBMaxValLen = 2000   // maximum lengh for database values
+const randSourceSize = 10 << 20  // size of the 'entropy pool' for random byte generation.
+const benchDBMapSize = 100 << 20 // size of a benchmark db memory map
+const benchDBNumKeys = 1 << 12   // number of keys to store in benchmark databases
+const benchDBMaxKeyLen = 30      // maximum length for database keys (size is limited by MDB)
+const benchDBMaxValLen = 4096    // maximum lengh for database values
 
 func makeBenchDBKey(c *randSourceCursor) []byte {
 	return c.NBytes(rand.Intn(benchDBMaxKeyLen) + 1)
