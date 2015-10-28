@@ -6,6 +6,7 @@ package lmdb
 import "C"
 import (
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -16,7 +17,7 @@ import (
 
 //export lmdbgoMDBMsgFuncBridge
 func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
-	ctx := (*msgctx)(_ctx)
+	ctx := msgctx(_ctx)
 	fn := ctx.fn()
 	if fn == nil {
 		return 0
@@ -44,47 +45,48 @@ func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.i
 // NOTE:
 // The underlying type must have a non-zero size to ensure that the value
 // returned by new(msgctx) does not conflict with other live *msgctx values.
-type msgctx byte
+type msgctx uintptr
 type msgfunc func(string) error
 
-var msgctxm = map[*msgctx]msgfunc{}
-var msgctxe = map[*msgctx]error{}
+var msgctxn uint32
+var msgctxm = map[msgctx]msgfunc{}
+var msgctxe = map[msgctx]error{}
 var msgctxmlock sync.RWMutex
 
-func newMsgFunc(fn msgfunc) (ctx *msgctx, done func()) {
-	ctx = new(msgctx)
+func newMsgFunc(fn msgfunc) (ctx msgctx, done func()) {
+	ctx = msgctx(atomic.AddUint32(&msgctxn, 1))
 	ctx.register(fn)
 	return ctx, ctx.deregister
 }
 
-func (ctx *msgctx) register(fn msgfunc) {
+func (ctx msgctx) register(fn msgfunc) {
 	msgctxmlock.Lock()
 	msgctxm[ctx] = fn
 	msgctxmlock.Unlock()
 }
 
-func (ctx *msgctx) deregister() {
+func (ctx msgctx) deregister() {
 	msgctxmlock.Lock()
 	delete(msgctxm, ctx)
 	delete(msgctxe, ctx)
 	msgctxmlock.Unlock()
 }
 
-func (ctx *msgctx) fn() msgfunc {
-	msgctxmlock.Lock()
+func (ctx msgctx) fn() msgfunc {
+	msgctxmlock.RLock()
 	fn := msgctxm[ctx]
-	msgctxmlock.Unlock()
+	msgctxmlock.RUnlock()
 	return fn
 }
 
-func (ctx *msgctx) err() error {
-	msgctxmlock.Lock()
+func (ctx msgctx) err() error {
+	msgctxmlock.RLock()
 	err := msgctxe[ctx]
-	msgctxmlock.Unlock()
+	msgctxmlock.RUnlock()
 	return err
 }
 
-func (ctx *msgctx) seterr(err error) {
+func (ctx msgctx) seterr(err error) {
 	msgctxmlock.Lock()
 	msgctxe[ctx] = err
 	msgctxmlock.Unlock()

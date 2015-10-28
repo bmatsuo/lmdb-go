@@ -117,7 +117,7 @@ func (env *Env) ReaderList(fn func(string) error) error {
 	ctx, done := newMsgFunc(fn)
 	defer done()
 
-	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
+	ret := C.lmdbgo_mdb_reader_list(env._env, C.size_t(ctx))
 	if ret >= 0 {
 		return nil
 	}

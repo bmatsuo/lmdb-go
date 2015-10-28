@@ -16,6 +16,6 @@ typedef struct{ const char *p; } lmdbgo_ConstCString;
  * mdb_msg_func proxy function to relay messages over the
  * lmdbgo_mdb_reader_list_bridge external Go func.
  * */
-int lmdbgo_mdb_reader_list(MDB_env *env, void *ctx);
+int lmdbgo_mdb_reader_list(MDB_env *env, size_t ctx);
 
 #endif
