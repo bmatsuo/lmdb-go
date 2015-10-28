@@ -7,7 +7,8 @@
 #include "lmdb.h"
 
 int lmdbgo_mdb_get(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, MDB_val *val);
-int lmdbgo_mdb_put(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn, unsigned int flags);
+int lmdbgo_mdb_put1(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, MDB_val *val, unsigned int flags);
+int lmdbgo_mdb_put2(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn, unsigned int flags);
 int lmdbgo_mdb_cursor_put1(MDB_cursor *cur, void *kdata, size_t kn, MDB_val *val, unsigned int flags);
 int lmdbgo_mdb_cursor_put2(MDB_cursor *cur, void *kdata, size_t kn, void *vdata, size_t vn, unsigned int flags);
 int lmdbgo_mdb_cursor_putmulti(MDB_cursor *cur, void *kdata, size_t kn, void *vdata, size_t vn, size_t vstride, unsigned int flags);

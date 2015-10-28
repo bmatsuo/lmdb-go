@@ -19,13 +19,20 @@ int lmdbgo_mdb_get(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, MDB_val *v
     return mdb_get(txn, dbi, &key, val);
 }
 
-int lmdbgo_mdb_put(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn, unsigned int flags) {
+int lmdbgo_mdb_put2(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn, unsigned int flags) {
     MDB_val key, val;
     key.mv_size = kn;
     key.mv_data = kdata;
     val.mv_size = vn;
     val.mv_data = vdata;
     return mdb_put(txn, dbi, &key, &val, flags);
+}
+
+int lmdbgo_mdb_put1(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, MDB_val *val, unsigned int flags) {
+    MDB_val key;
+    key.mv_size = kn;
+    key.mv_data = kdata;
+    return mdb_put(txn, dbi, &key, val, flags);
 }
 
 int lmdbgo_mdb_cursor_put2(MDB_cursor *cur, void *kdata, size_t kn, void *vdata, size_t vn, unsigned int flags) {
