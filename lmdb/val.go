@@ -107,6 +107,13 @@ func (val *multiVal) val() *mdbVal {
 // MDB_val
 type mdbVal C.MDB_val
 
+func valBytes(b []byte) (unsafe.Pointer, int) {
+	if len(b) == 0 {
+		return nil, 0
+	}
+	return unsafe.Pointer(&b[0]), len(b)
+}
+
 // wrapVal creates an mdbVal that points to p's data. the mdbVal's data must
 // not be freed manually and C references must not survive the garbage
 // collection of p.
