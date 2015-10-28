@@ -114,8 +114,9 @@ func (env *Env) FD() (uintptr, error) {
 //
 // See mdb_reader_list.
 func (env *Env) ReaderList(fn func(string) error) error {
-	ctx := registerMsgctx(fn)
-	defer ctx.deregister()
+	ctx, done := newMsgFunc(fn)
+	defer done()
+
 	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
 	if ret >= 0 {
 		return nil
