@@ -114,19 +114,33 @@ func (c *Cursor) DBI() DBI {
 //
 // See mdb_cursor_get.
 func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
-	k, v, err := c.getVal(setkey, setval, op)
+	var k, v *mdbVal
+	switch {
+	case op == GetBoth || op == GetBothRange:
+		k, v, err = c.getVal2(setkey, setval, op)
+	case op == Set || op == SetKey || op == SetRange:
+		k, v, err = c.getVal1(setkey, op)
+	default:
+		k, v, err = c.getVal0(op)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
 	return c.txn.bytes(k), c.txn.bytes(v), nil
 }
 
-// getVal retrieves items from the database.
+// getVal0 retrieves items from the database.
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal(setkey, setval []byte, op uint) (key, val *mdbVal, err error) {
-	key = wrapVal(setkey)
-	val = wrapVal(setval)
+func (c *Cursor) getVal0(op uint) (key, val *mdbVal, err error) {
+	key = new(mdbVal)
+	val = new(mdbVal)
+	ret := C.mdb_cursor_get(c._c, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
+	return key, val, operrno("mdb_cursor_get", ret)
+}
+
+func (c *Cursor) getVal1(setkey []byte, op uint) (key, val *mdbVal, err error) {
+	val = new(mdbVal)
 	ret := C.mdb_cursor_get(c._c, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
 	return key, val, operrno("mdb_cursor_get", ret)
 }
