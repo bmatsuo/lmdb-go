@@ -1,7 +1,6 @@
 package lmdb
 
 /*
-#include <stdlib.h>
 #include "lmdbgo.h"
 */
 import "C"
@@ -9,6 +8,27 @@ import (
 	"sync"
 	"unsafe"
 )
+
+// lmdbgoMDBMsgFuncBridge provides a static C function for handling MDB_msgfunc
+// callbacks.  It performs string conversion and dynamic dispatch to a msgfunc
+// provided to Env.ReaderList.  Any error returned by the msgfunc is cached and
+// -1 is returned to terminate the iteration.
+
+//export lmdbgoMDBMsgFuncBridge
+func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
+	ctx := (*msgctx)(_ctx)
+	fn := ctx.fn()
+	if fn == nil {
+		return 0
+	}
+	msg := C.GoString(cmsg.p)
+	err := fn(msg)
+	if err != nil {
+		ctx.seterr(err)
+		return -1
+	}
+	return 0
+}
 
 // msgctx is the type used for context pointers passed to mdb_reader_list.  A
 // msgctx stores its corresponding msgfunc, and any error encountered in an
@@ -68,20 +88,4 @@ func (ctx *msgctx) seterr(err error) {
 	msgctxmlock.Lock()
 	msgctxe[ctx] = err
 	msgctxmlock.Unlock()
-}
-
-//export lmdbgoMDBMsgFuncBridge
-func lmdbgoMDBMsgFuncBridge(msg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
-	ctx := (*msgctx)(_ctx)
-	fn := ctx.fn()
-	if fn == nil {
-		return 0
-	}
-
-	err := fn(C.GoString(msg.p))
-	if err != nil {
-		ctx.seterr(err)
-		return -1
-	}
-	return 0
 }
