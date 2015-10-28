@@ -8,6 +8,57 @@ import (
 	"testing"
 )
 
+func BenchmarkEnv_ReaderList(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	var txns []*Txn
+	defer func() {
+		for i, txn := range txns {
+			if txn != nil {
+				txn.Abort()
+				txns[i] = nil
+			}
+		}
+	}()
+
+	const numreaders = 20
+	for i := 0; i < numreaders; i++ {
+		txn, err := env.BeginTxn(nil, Readonly)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txns = append(txns, txn)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		list := new(readerList)
+		err := env.ReaderList(list.Next)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		if list.Len() != numreaders+1 {
+			b.Errorf("reader list length: %v", list.Len())
+		}
+	}
+}
+
+type readerList struct {
+	ln []string
+}
+
+func (r *readerList) Len() int {
+	return len(r.ln)
+}
+
+func (r *readerList) Next(ln string) error {
+	r.ln = append(r.ln, ln)
+	return nil
+}
+
 // repeatedly put (overwrite) keys.
 func BenchmarkTxn_Put(b *testing.B) {
 	initRandSource(b)
