@@ -28,7 +28,8 @@ description.
    But be as specific as possible so that another user could reproduce the
    error.
 
--  What os/arch does the problem affect (if applicable)? For example, "darwin/amd64" or "OS X".
+-  What os/arch does the problem affect (if applicable)? For example,
+   "darwin/amd64" or "OS X".
 
 ## Code Contributions
 
@@ -45,12 +46,14 @@ contributors to follow.
     so the issue will be closed automatically after merging the pull request.
 
 3.  Comments in pull requests must be restricted to code review.  Any
-    discussion about design or overall merit must take place in the corresponding
-    issue.
+    discussion about design or overall merit must take place in the
+    corresponding issue.
 
 4.  All contributions must pass tests and format/style checks in the Makefile,
-    invoked with the command
+    invoked with the command.  Specifically, code must be formatted with
+    `goimports` and must not produce any warnings or errors from `go test`,
+    `go vet`, or `golint`.
 
-```
-make all
-```
+By submitting a pull request for this project, you are asserting that you have
+the rights and agree to license your contribution under the MIT license to this
+project.
