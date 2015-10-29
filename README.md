@@ -148,6 +148,13 @@ The API of an unstable package may change in subtle ways between minor release
 versions.  But all functionality will remain available through some method (at
 least until the next major release version).
 
+##License
+
+Except where otherwise noted files in the lmdb-go project are licensed under
+the MIT open source license.
+
+The LMDB C source is licensed under the OpenLDAP Public License.
+
 #Links
 
 ####[github.com/bmatsuo/raft-mdb](https://github.com/bmatsuo/raft-mdb) ([godoc](https://godoc.org/github.com/bmatsuo/raft-mdb))
