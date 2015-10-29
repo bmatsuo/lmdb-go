@@ -39,11 +39,16 @@ contributors to follow.
     spelling and grammar, must have a corresponding issue created beforehand.
     See previous sections for information about opening new issues.
 
-2.  Comments in pull requests must be restricted to code review.  Any
+2.  Pull requests must mention the corresponding issue number in their
+    description using the github convention format #XXX.  If the pull requset
+    resolves an issue then the description should contain the line "Fixes #XXX",
+    so the issue will be closed automatically after merging the pull request.
+
+3.  Comments in pull requests must be restricted to code review.  Any
     discussion about design or overall merit must take place in the corresponding
     issue.
 
-3.  All contributions must pass tests and format/style checks in the Makefile,
+4.  All contributions must pass tests and format/style checks in the Makefile,
     invoked with the command
 
 ```
