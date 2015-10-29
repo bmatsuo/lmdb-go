@@ -28,6 +28,58 @@ var stop chan struct{}
 func doUpdate(txn *lmdb.Txn) error { return nil }
 func doView(txn *lmdb.Txn) error   { return nil }
 
+// This example demonstrates a complete workflow for an lmdb environment.  The
+// Env is first created.  After being configured the Env is mapped to memory.
+// Once mapped, database handles are opened and normal database operations
+// begin.
+func Example() {
+	// create an environment and make sure it is eventually closed.
+	env, err := lmdb.NewEnv()
+	if err != nil {
+		// ...
+	}
+	defer env.Close()
+
+	// configure and open the environment.  most configuration must be done
+	// before opening the environment.
+	err = env.SetMaxDBs(1)
+	if err != nil {
+		// ..
+	}
+	err = env.SetMapSize(1 << 30)
+	if err != nil {
+		// ..
+	}
+	err = env.Open("/path/to/db/", 0, 0644)
+	if err != nil {
+		// ..
+	}
+
+	// open a database that can be used as long as the enviroment is mapped.
+	var dbi lmdb.DBI
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.CreateDBI("example")
+		return err
+	})
+	if err != nil {
+		// ...
+	}
+
+	// the database is now ready for use.  read the value for a key and print
+	// it to standard output.
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		v, err := txn.Get(dbi, []byte("hello"))
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(v))
+		return nil
+	})
+	if err != nil {
+		// ...
+	}
+}
+
 // This example demonstrates how an application typically uses Env.SetMapSize.
 // The call to Env.SetMapSize() is made before calling env.Open().  Any calls
 // after calling Env.Open() must take special care to synchronize with other
