@@ -4,13 +4,13 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
 ## Packages
 
-Functionality is divided logically into several packages.  Applications will
+Functionality is logically divided into several packages.  Applications will
 usually need to import **lmdb** but may import other packages on an as needed
 basis.
 
-Packages in the `exp/` directory are not stable and may without warning.  That
-said, they are generally usable if application dependencies are managed by
-tag/commit.
+Packages in the `exp/` directory are not stable and may change without warning.
+That said, they are generally usable if application dependencies are managed
+and pinned to by tag/commit.
 
 Developers concerned with package stability should consult the documentation.
 
