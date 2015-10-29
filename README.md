@@ -4,7 +4,17 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
 ## Packages
 
-####lmdb [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb) [![stable](https://badges.github.io/stability-badges/dist/stable.svg)](https://github.com/badges/stability-badges) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/lmdb)](http://gocover.io/github.com/bmatsuo/lmdb-go/lmdb)
+Functionality is divided logically into several packages.  Applications will
+usually need to import **lmdb** but may import other packages on an as needed
+basis.
+
+Packages in the `exp/` directory are not stable and may without warning.  That
+said, they are generally usable if application dependencies are managed by
+tag/commit.
+
+Developers concerned with package stability should consult the documentation.
+
+####lmdb [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb) [![stable](https://img.shields.io/badge/stability-stable-brightgreen.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/lmdb)](http://gocover.io/github.com/bmatsuo/lmdb-go/lmdb)
 
 ```go
 import "github.com/bmatsuo/lmdb-go/lmdb"
@@ -12,7 +22,7 @@ import "github.com/bmatsuo/lmdb-go/lmdb"
 
 Core bindings allowing low-level access to LMDB.
 
-####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![unstable](https://badges.github.io/stability-badges/dist/unstable.svg)](https://github.com/badges/stability-badges) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
+####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![unstable](https://img.shields.io/badge/stability-unstable-orange.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
 
 ```go
 import "github.com/bmatsuo/lmdb-go/exp/lmdbscan"
@@ -21,12 +31,11 @@ import "github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 A utility package for scanning database ranges with an API inspired by
 [bufio.Scanner](https://godoc.org/bufio#Scanner).
 
-The API is properly scoped and adequately tested.  No features that exist now
-will be removed without a similar substitute.  But the package is being kept in
-an unstable state (in the `exp/` directory) until more real world use cases are
-tested and feedback is taken into account.
+The **lmdbscan** package is unstable. The API is properly scoped and adequately
+tested.  And no features that exist now will be removed without a similar
+substitute.  See the versioning documentation for more information.
 
-####exp/lmdbsync [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) [![experimental](https://badges.github.io/stability-badges/dist/experimental.svg)](https://github.com/badges/stability-badges) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbsync)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbsync)
+####exp/lmdbsync [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) [![experimental](https://img.shields.io/badge/stability-experimental-red.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbsync)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbsync)
 
 
 ```go
@@ -36,10 +45,10 @@ import "github.com/bmatsuo/lmdb-go/exp/lmdbsync"
 An experimental utility package that provides synchronization necessary to
 change an environment's map size after initialization.
 
-The lmdbsync package is usable but should be considered highly unstable and may
-change without notice between releases.  Its use case is real but somewhat
-niche and requires much more feedback driven development before it can be
-considered stable.
+The **lmdbsync** package is usable for synchronization but its resizing
+behavior should be considered highly unstable and may change without notice
+between releases.  Its use case is real but somewhat niche and requires much
+more feedback driven development before it can be considered stable.
 
 ## Key Features
 
@@ -104,12 +113,33 @@ cryptic error), for example:
 
 #Documentation
 
-The best source of documentation is the official LMDB C API documentation
-reachable through the LMDB [homepage](http://symas.com/mdb/).
+##LMDB
 
-Documentation specific to the Go bindings and how methods differ from their
-underlying C counterparts can be found on
-[godoc.org](https://godoc.org/github.com/bmatsuo/lmdb-go).
+The best source of documentation regarding the low-level usage of LMDB
+environments is the official LMDB C API documentation reachable through the
+LMDB [homepage](http://symas.com/mdb/).
+
+##Godoc
+
+The "godoc" documentation available on
+[godoc.org](https://godoc.org/github.com/bmatsuo/lmdb-go) has all remaining
+developer documentation for lmdb-go.  Godoc documentation covers specifics to
+the Go bindings, how methods differ from their underlying C counterparts, and
+lots of usage examples.
+
+##Versioning and Stability
+
+The lmdb-go project makes regular releases with IDs `X.Y.Z`.  All packages
+outside of the `exp/` directory are considered stable and adhere to the
+guidelines of [semantic versioning](http://semver.org/).
+
+Experimental packages (those packages in `exp/`) are not required to adhere to
+semantic versioning.  However packages specifically declared to merely be
+"unstable" can be relied on more for long term use with less concern.
+
+The API of an unstable package may change in subtle ways between minor release
+versions.  But all functionality will remain available through some method (at
+least until the next major release version).
 
 #Links
 
