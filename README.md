@@ -10,7 +10,7 @@ basis.
 
 Packages in the `exp/` directory are not stable and may change without warning.
 That said, they are generally usable if application dependencies are managed
-and pinned to by tag/commit.
+and pinned by tag/commit.
 
 Developers concerned with package stability should consult the documentation.
 
