@@ -1,4 +1,4 @@
-#lmdb-go [![lmdb-go/v1.2.0](https://img.shields.io/badge/version-v1.2.0-375eab.svg)](CHANGES.md) [![Build Status](https://travis-ci.org/bmatsuo/lmdb-go.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb-go)
+#lmdb-go [![lmdb-go/v1.2.0](https://img.shields.io/badge/version-v1.2.0-375eab.svg)](CHANGES.md) [![LMDB/v0.9.16](https://img.shields.io/badge/C version-v0.9.16-555555.svg)](https://github.com/LMDB/lmdb/blob/mdb.RE/0.9/libraries/liblmdb/CHANGES) [![Build Status](https://travis-ci.org/bmatsuo/lmdb-go.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb-go)
 
 Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
