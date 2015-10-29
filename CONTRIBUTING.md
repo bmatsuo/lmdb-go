@@ -46,4 +46,6 @@ contributors to follow.
 3.  All contributions must pass tests and format/style checks in the Makefile,
     invoked with the command
 
-    make all
+```
+make all
+```
