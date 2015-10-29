@@ -8,16 +8,21 @@ lmdb-go evolves in ways that are best for everyone.
 
 ## New Issues
 
+**IMPORTANT**: Do not open a new issue if the problem is already being
+addressed in another open issue.  Use Github's search features to find relevant
+open issues and add relevant new input there if necessary.
+
 If there is a problem with lmdb-go that is not being addressed in an open issue
-then a new issue should be filed.  Every user is encouraged to file issues when
-they encounter incorrect or inconsistent behavior.  Proposals for new or
-expanded features/behavior are also welcome and will be considered. But such
-proposals must adequately describe the problem they are addressing to be
-considered.
+then a new issue should be
+[opened](https://github.com/bmatsuo/lmdb-go/issues/new).  All users are
+encouraged to file issues when they encounter behavior that is incorrect or
+inconsistent.  Proposals for new or expanded features/behavior are also welcome
+and will be considered. But such proposals must adequately describe the problem
+they are addressing to be considered.
 
 Be as specific as possible when about the problem when filing an issue.  That
-said, there is some baseline information that must be provided in the issues
-description for it to be accepted.
+said, there is some baseline information that must be provided in the issue
+description.
 
 -  Description of the problem.  Describing only the problem symptoms is fine.
    But be as specific as possible so that another user could reproduce the
