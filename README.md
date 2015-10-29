@@ -4,7 +4,7 @@ Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
 ## Packages
 
-####lmdb [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/lmdb)](http://gocover.io/github.com/bmatsuo/lmdb-go/lmdb)
+####lmdb [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb) [![stable](https://badges.github.io/stability-badges/dist/stable.svg)](https://github.com/badges/stability-badges) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/lmdb)](http://gocover.io/github.com/bmatsuo/lmdb-go/lmdb)
 
 ```go
 import "github.com/bmatsuo/lmdb-go/lmdb"
@@ -12,16 +12,22 @@ import "github.com/bmatsuo/lmdb-go/lmdb"
 
 Core bindings allowing low-level access to LMDB.
 
-####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
+####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![unstable](https://badges.github.io/stability-badges/dist/unstable.svg)](https://github.com/badges/stability-badges) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
 
 ```go
 import "github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 ```
 
-An experimental utility package for scanning database ranges with an API
-inspired by [bufio.Scanner](https://godoc.org/bufio#Scanner).
+A utility package for scanning database ranges with an API inspired by
+[bufio.Scanner](https://godoc.org/bufio#Scanner).
 
-####exp/lmdbsync [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbsync)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbsync)
+The API is properly scoped and adequately tested.  No features that exist now
+will be removed without a similar substitute.  But the package is being kept in
+an unstable state (in the `exp/` directory) until more real world use cases are
+tested and feedback is taken into account.
+
+####exp/lmdbsync [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) [![experimental](https://badges.github.io/stability-badges/dist/experimental.svg)](https://github.com/badges/stability-badges) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbsync)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbsync)
+
 
 ```go
 import "github.com/bmatsuo/lmdb-go/exp/lmdbsync"
@@ -29,6 +35,11 @@ import "github.com/bmatsuo/lmdb-go/exp/lmdbsync"
 
 An experimental utility package that provides synchronization necessary to
 change an environment's map size after initialization.
+
+The lmdbsync package is usable but should be considered highly unstable and may
+change without notice between releases.  Its use case is real but somewhat
+niche and requires much more feedback driven development before it can be
+considered stable.
 
 ## Key Features
 
