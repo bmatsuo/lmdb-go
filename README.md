@@ -111,6 +111,13 @@ cryptic error), for example:
 
     CC=clang go test -v ./...
 
+Building commands and running tests can be done with `go` or with `make`
+
+    make bin
+    make test
+    make check
+    make all
+
 #Documentation
 
 ##LMDB
