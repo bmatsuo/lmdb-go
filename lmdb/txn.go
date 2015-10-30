@@ -15,7 +15,8 @@ import (
 	"unsafe"
 )
 
-// CmpFunc blah
+// CmpFunc is a comparison function for LMDB keys as well as values for DupSort
+// databases.  CmpFunc must be a C function because due to cgo restrictions.
 type CmpFunc C.MDB_cmp_func
 
 // This flags are used exclusively for Txn.OpenDBI and Txn.OpenRoot.  The
