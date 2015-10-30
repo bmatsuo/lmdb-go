@@ -67,7 +67,8 @@ reason).  Some notable features and optimizations that are supported:
 
 - Batch IO on databases utilizing the `MDB_DUPSORT` and `MDB_DUPFIXED` flags.
 
-- Reserved writes than can save in memory copies coverting/buffering into `[]byte`.
+- Reserved writes than can save in memory copies converting/buffering into
+  `[]byte`.
 
 For tracking purposes a list of unsupported features is kept in an
 [issue](https://github.com/bmatsuo/lmdb-go/issues/1).
