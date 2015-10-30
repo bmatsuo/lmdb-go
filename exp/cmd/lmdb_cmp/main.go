@@ -6,7 +6,9 @@ package main
 typedef struct{const MDB_val *a; const MDB_val *b;} lmdb_cmp_t;
 
 extern int lmdbCmp(lmdb_cmp_t cmp);
+extern int lmdbCmpDyn(lmdb_cmp_t cmp);
 
+int lmdb_cmp_dyn(const MDB_val *a, const MDB_val *b);
 int lmdb_cmp_go(const MDB_val *a, const MDB_val *b);
 int lmdb_cmp_c(const MDB_val *a, const MDB_val *b);
 */
@@ -17,6 +19,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"sync"
 	"unsafe"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -59,6 +62,8 @@ func main() {
 			err = txn.SetCmp(dbi, (*lmdb.CmpFunc)(unsafe.Pointer(C.lmdb_cmp_c)))
 		case "go":
 			err = txn.SetCmp(dbi, (*lmdb.CmpFunc)(unsafe.Pointer(C.lmdb_cmp_go)))
+		case "dyn":
+			err = txn.SetCmp(dbi, (*lmdb.CmpFunc)(unsafe.Pointer(C.lmdb_cmp_dyn)))
 		}
 		if err != nil {
 			return err
@@ -132,6 +137,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+var rwmut = &sync.RWMutex{}
+
+var cmpMap = map[int]func(c C.lmdb_cmp_t) C.int{
+	0: nil,
+	1: nil,
+	2: lmdbCmp,
+}
+
+//export lmdbCmpDyn
+func lmdbCmpDyn(c C.lmdb_cmp_t) C.int {
+	rwmut.RLock()
+	fn := cmpMap[2]
+	rwmut.RUnlock()
+	return fn(c)
 }
 
 //export lmdbCmp

@@ -6,6 +6,11 @@ package main
 
 typedef struct{const MDB_val *a; const MDB_val *b;} lmdb_cmp_t;
 
+int lmdb_cmp_dyn(const MDB_val *a, const MDB_val *b) {
+	lmdb_cmp_t c = {a, b};
+	return lmdbCmpDyn(c);
+}
+
 int lmdb_cmp_go(const MDB_val *a, const MDB_val *b) {
 	lmdb_cmp_t c = {a, b};
 	return lmdbCmp(c);
