@@ -6,7 +6,7 @@ package main
 typedef struct{const MDB_val *a; const MDB_val *b;} lmdb_cmp_t;
 
 extern int lmdbCmp(lmdb_cmp_t cmp);
-extern int lmdbCmpDyn(lmdb_cmp_t cmp);
+extern int lmdbCmpDyn(lmdb_cmp_t cmp, size_t ctx);
 
 int lmdb_cmp_dyn(const MDB_val *a, const MDB_val *b);
 int lmdb_cmp_go(const MDB_val *a, const MDB_val *b);
@@ -148,9 +148,9 @@ var cmpMap = map[int]func(c C.lmdb_cmp_t) C.int{
 }
 
 //export lmdbCmpDyn
-func lmdbCmpDyn(c C.lmdb_cmp_t) C.int {
+func lmdbCmpDyn(c C.lmdb_cmp_t, ctx C.size_t) C.int {
 	rwmut.RLock()
-	fn := cmpMap[2]
+	fn := cmpMap[int(ctx)]
 	rwmut.RUnlock()
 	return fn(c)
 }

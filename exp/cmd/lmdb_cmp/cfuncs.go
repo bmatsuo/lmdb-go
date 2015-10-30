@@ -8,7 +8,7 @@ typedef struct{const MDB_val *a; const MDB_val *b;} lmdb_cmp_t;
 
 int lmdb_cmp_dyn(const MDB_val *a, const MDB_val *b) {
 	lmdb_cmp_t c = {a, b};
-	return lmdbCmpDyn(c);
+	return lmdbCmpDyn(c, 2);
 }
 
 int lmdb_cmp_go(const MDB_val *a, const MDB_val *b) {
