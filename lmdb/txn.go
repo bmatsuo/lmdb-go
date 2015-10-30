@@ -15,6 +15,9 @@ import (
 	"unsafe"
 )
 
+// CmpFunc blah
+type CmpFunc C.MDB_cmp_func
+
 // This flags are used exclusively for Txn.OpenDBI and Txn.OpenRoot.  The
 // Create flag must always be supplied when opening a non-root DBI for the
 // first time.
@@ -156,6 +159,25 @@ func (txn *Txn) Renew() error {
 func (txn *Txn) renew() error {
 	ret := C.mdb_txn_renew(txn._txn)
 	return operrno("mdb_txn_renew", ret)
+}
+
+// SetCmp sets dbi's key comparison function to a C function cfn.  The function
+// cfn must be a C function pointer.  See the language wiki for reference.
+//
+// 		https://github.com/golang/go/wiki/cgo#function-pointer-callbacks
+func (txn *Txn) SetCmp(dbi DBI, cfn *CmpFunc) error {
+	ret := C.mdb_set_compare(txn._txn, C.MDB_dbi(dbi), (*C.MDB_cmp_func)(cfn))
+	return operrno("mdb_set_compare", ret)
+}
+
+// SetCmpDup sets dbi's DupSort value comparison function to a C function cfn.
+// The function cfn must be a C function pointer.  See the language wiki for
+// reference.
+//
+//		https://github.com/golang/go/wiki/cgo#function-pointer-callbacks
+func (txn *Txn) SetCmpDup(dbi DBI, cfn *CmpFunc) error {
+	ret := C.mdb_set_dupsort(txn._txn, C.MDB_dbi(dbi), (*C.MDB_cmp_func)(cfn))
+	return operrno("mdb_set_dupsort", ret)
 }
 
 // OpenDBI opens a named database in the environment.  An error is returned if
