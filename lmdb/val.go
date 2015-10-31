@@ -105,3 +105,70 @@ func getBytes(val *C.MDB_val) []byte {
 func getBytesCopy(val *C.MDB_val) []byte {
 	return C.GoBytes(val.mv_data, C.int(val.mv_size))
 }
+
+// Value is data that can be written to an LMDB environment.
+type Value interface {
+	MemAddr() unsafe.Pointer
+	MemSize() uintptr
+}
+
+// Bytes returns a Value describing the bytes underlying b.
+func Bytes(b []byte) Value {
+	return bytesValue(b)
+}
+
+// Uint allocates and returns a new Value that points to a value equal to
+// C.uint(x).
+func Uint(x uint) Value {
+	v := new(uintValue)
+	*v = uintValue(x)
+	if uint(*v) != x {
+		panic("value overflows unsigned int")
+	}
+	return v
+}
+
+// Uintptr allocates and returns a new Value that points to a value equal to
+// C.size_t(x).
+func Uintptr(x uintptr) Value {
+	v := new(sizetValue)
+	*v = sizetValue(x)
+	return v
+}
+
+type bytesValue []byte
+
+var _ Value = bytesValue(nil)
+
+func (v bytesValue) MemAddr() unsafe.Pointer {
+	if len(v) == 0 {
+		return nil
+	}
+	return unsafe.Pointer(&v[0])
+}
+
+func (v bytesValue) MemSize() uintptr {
+	return uintptr(len(v))
+}
+
+type uintValue C.uint
+
+var _ Value = (*uintValue)(nil)
+
+func (v *uintValue) MemAddr() unsafe.Pointer {
+	return unsafe.Pointer(v)
+}
+
+func (v *uintValue) MemSize() uintptr {
+	return unsafe.Sizeof(*v)
+}
+
+type sizetValue C.size_t
+
+func (v *sizetValue) MemAddr() unsafe.Pointer {
+	return unsafe.Pointer(v)
+}
+
+func (v *sizetValue) MemSize() uintptr {
+	return unsafe.Sizeof(*v)
+}
