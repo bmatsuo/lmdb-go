@@ -165,6 +165,10 @@ var uintSize = unsafe.Sizeof(C.uint(0))
 
 var _ Value = (*uintValue)(nil)
 
+func (v *uintValue) SetUint(x uint) {
+	*v = uintValue(x)
+}
+
 func (v *uintValue) MemAddr() unsafe.Pointer {
 	return unsafe.Pointer(v)
 }
