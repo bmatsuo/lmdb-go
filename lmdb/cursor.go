@@ -250,6 +250,19 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 	return operrno("mdb_cursor_put", ret)
 }
 
+// PutValue writes the key-value item data to dbi.
+func (c *Cursor) PutValue(key Value, val Value, flags uint) error {
+	kdata, kn := key.MemAddr(), key.MemSize()
+	vdata, vn := val.MemAddr(), val.MemSize()
+	ret := C.lmdbgo_mdb_cursor_put2(
+		c._c,
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+		C.uint(flags),
+	)
+	return operrno("mdb_cursor_put", ret)
+}
+
 // Del deletes the item referred to by the cursor from the database.
 //
 // See mdb_cursor_del.

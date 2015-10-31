@@ -18,10 +18,6 @@ import (
 // This flags are used exclusively for Txn.OpenDBI and Txn.OpenRoot.  The
 // Create flag must always be supplied when opening a non-root DBI for the
 // first time.
-//
-// BUG(bmatsuo):
-// MDB_INTEGERKEY and MDB_INTEGERDUP aren't usable. I'm not sure they would be
-// faster with the cgo bridge.  They need to be tested and benchmarked.
 const (
 	// Flags for Txn.OpenDBI.
 
@@ -29,6 +25,8 @@ const (
 	DupSort    = C.MDB_DUPSORT    // Use sorted duplicates.
 	DupFixed   = C.MDB_DUPFIXED   // Duplicate items have a fixed size (DupSort).
 	ReverseDup = C.MDB_REVERSEDUP // Reverse duplicate values (DupSort).
+	IntegerKey = C.MDB_INTEGERKEY // Keys are compared as unsigned integer or size_t values.
+	IntegerDup = C.MDB_INTEGERDUP // Values with duplicate keys are compared as unsigned integer or size_t values (DupSort).
 	Create     = C.MDB_CREATE     // Create DB if not already existing.
 )
 
@@ -320,6 +318,20 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 		return nil, err
 	}
 	return getBytes(val), nil
+}
+
+// PutValue writes the key-value item data to dbi.
+func (txn *Txn) PutValue(dbi DBI, key Value, val Value, flags uint) error {
+	kdata, kn := key.MemAddr(), key.MemSize()
+	vdata, vn := val.MemAddr(), val.MemSize()
+	ret := C.lmdbgo_mdb_put2(
+		txn._txn,
+		C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+		C.uint(flags),
+	)
+	return operrno("mdb_put", ret)
 }
 
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the

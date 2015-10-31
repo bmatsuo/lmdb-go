@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"runtime"
 	"syscall"
@@ -211,6 +212,44 @@ func TestTxn_Del_dup(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestTxn_PutValue(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+	const val = math.MaxUint32 - 1
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return txn.PutValue(db, String("k"), Uint(val), 0)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		v, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		x, ok := UintValue(v)
+		if !ok {
+			return fmt.Errorf("value: not a uint")
+		}
+		if x != val {
+			return fmt.Errorf("value: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
 	}
 }
 

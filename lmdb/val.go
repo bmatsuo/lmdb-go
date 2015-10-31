@@ -117,6 +117,14 @@ func Bytes(b []byte) Value {
 	return bytesValue(b)
 }
 
+// String returns a Value describing the bytes in s.
+//
+// BUG(bmatsuo):
+// String creates a copy of the bytes in s.
+func String(s string) Value {
+	return Bytes([]byte(s))
+}
+
 // Uint allocates and returns a new Value that points to a value equal to
 // C.uint(x).
 func Uint(x uint) Value {
@@ -153,6 +161,8 @@ func (v bytesValue) MemSize() uintptr {
 
 type uintValue C.uint
 
+var uintSize = unsafe.Sizeof(C.uint(0))
+
 var _ Value = (*uintValue)(nil)
 
 func (v *uintValue) MemAddr() unsafe.Pointer {
@@ -160,15 +170,42 @@ func (v *uintValue) MemAddr() unsafe.Pointer {
 }
 
 func (v *uintValue) MemSize() uintptr {
-	return unsafe.Sizeof(*v)
+	return uintSize
+}
+
+// UintValue interprets the bytes of b as an unsigned int and returns the value.
+//
+// BUG(bmatsuo):
+// Does not check for overflow.
+func UintValue(b []byte) (x uint, ok bool) {
+	if uintptr(len(b)) != uintSize {
+		return 0, false
+	}
+	x = uint(*(*C.uint)(unsafe.Pointer(&b[0])))
+	return x, true
 }
 
 type sizetValue C.size_t
+
+var sizetSize = unsafe.Sizeof(C.size_t(0))
+
+func (v *sizetValue) SetUintptr(x uintptr) {
+	*v = sizetValue(x)
+}
 
 func (v *sizetValue) MemAddr() unsafe.Pointer {
 	return unsafe.Pointer(v)
 }
 
 func (v *sizetValue) MemSize() uintptr {
-	return unsafe.Sizeof(*v)
+	return sizetSize
+}
+
+// UintptrValue interprets the bytes of b as a size_t and returns the value.
+func UintptrValue(b []byte) (x uintptr, ok bool) {
+	if uintptr(len(b)) != sizetSize {
+		return 0, false
+	}
+	x = uintptr(*(*C.size_t)(unsafe.Pointer(&b[0])))
+	return x, true
 }
