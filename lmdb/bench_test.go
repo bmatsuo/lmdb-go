@@ -22,7 +22,7 @@ func BenchmarkEnv_ReaderList(b *testing.B) {
 		}
 	}()
 
-	const numreaders = 20
+	const numreaders = 100
 	for i := 0; i < numreaders; i++ {
 		txn, err := env.BeginTxn(nil, Readonly)
 		if err != nil {
