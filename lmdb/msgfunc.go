@@ -37,15 +37,11 @@ type msgfunc func(string) error
 // external map.  The corresponding function is called once for each
 // mdb_reader_list entry using the msgctx.
 //
-// External maps are required because struct pointers passed to C functions
-// must not contain pointers in their struct fields.  See the following
-// language proposal which discusses the restrictions on passing pointers to C.
+// An External map is used because struct pointers passed to C functions must
+// not contain pointers in their struct fields.  See the following language
+// proposal which discusses the restrictions on passing pointers to C.
 //
 //		https://github.com/golang/proposal/blob/master/design/12416-cgo-pointers.md
-//
-// NOTE:
-// The underlying type must have a non-zero size to ensure that the value
-// returned by new(msgctx) does not conflict with other live *msgctx values.
 type msgctx uintptr
 type _msgctx struct {
 	fn  msgfunc
