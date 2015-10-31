@@ -7,7 +7,6 @@ import "C"
 import (
 	"sync"
 	"sync/atomic"
-	"unsafe"
 )
 
 // lmdbgoMDBMsgFuncBridge provides a static C function for handling MDB_msgfunc
@@ -16,16 +15,16 @@ import (
 // -1 is returned to terminate the iteration.
 
 //export lmdbgoMDBMsgFuncBridge
-func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
-	ctx := msgctx(_ctx)
-	fn := ctx.fn()
-	if fn == nil {
+func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx C.size_t) C.int {
+	ctx := msgctx(_ctx).get()
+	if ctx.fn == nil {
 		return 0
 	}
+
 	msg := C.GoString(cmsg.p)
-	err := fn(msg)
+	err := ctx.fn(msg)
 	if err != nil {
-		ctx.seterr(err)
+		ctx.err = err
 		return -1
 	}
 	return 0
@@ -83,17 +82,4 @@ func (ctx msgctx) get() *_msgctx {
 	_ctx := msgctxm[ctx]
 	msgctxmlock.RUnlock()
 	return _ctx
-}
-
-func (ctx msgctx) fn() msgfunc {
-	return ctx.get().fn
-}
-
-func (ctx msgctx) err() error {
-	return ctx.get().err
-}
-
-func (ctx msgctx) seterr(err error) {
-	// a read-lock is fine here because the map is not modified
-	ctx.get().err = err
 }

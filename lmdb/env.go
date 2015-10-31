@@ -122,7 +122,7 @@ func (env *Env) ReaderList(fn func(string) error) error {
 		return nil
 	}
 	if ret < 0 {
-		err := ctx.err()
+		err := ctx.get().err
 		if err != nil {
 			return err
 		}
