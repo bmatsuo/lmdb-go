@@ -31,6 +31,8 @@ func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.i
 	return 0
 }
 
+type msgfunc func(string) error
+
 // msgctx is the type used for context pointers passed to mdb_reader_list.  A
 // msgctx stores its corresponding msgfunc, and any error encountered in an
 // external map.  The corresponding function is called once for each
@@ -46,11 +48,13 @@ func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.i
 // The underlying type must have a non-zero size to ensure that the value
 // returned by new(msgctx) does not conflict with other live *msgctx values.
 type msgctx uintptr
-type msgfunc func(string) error
+type _msgctx struct {
+	fn  msgfunc
+	err error
+}
 
 var msgctxn uint32
-var msgctxm = map[msgctx]msgfunc{}
-var msgctxe = map[msgctx]error{}
+var msgctxm = map[msgctx]*_msgctx{}
 var msgctxmlock sync.RWMutex
 
 func newMsgFunc(fn msgfunc) (ctx msgctx, done func()) {
@@ -61,33 +65,35 @@ func newMsgFunc(fn msgfunc) (ctx msgctx, done func()) {
 
 func (ctx msgctx) register(fn msgfunc) {
 	msgctxmlock.Lock()
-	msgctxm[ctx] = fn
+	if _, ok := msgctxm[ctx]; ok {
+		panic("msgfunc conflict")
+	}
+	msgctxm[ctx] = &_msgctx{fn: fn}
 	msgctxmlock.Unlock()
 }
 
 func (ctx msgctx) deregister() {
 	msgctxmlock.Lock()
 	delete(msgctxm, ctx)
-	delete(msgctxe, ctx)
 	msgctxmlock.Unlock()
+}
+
+func (ctx msgctx) get() *_msgctx {
+	msgctxmlock.RLock()
+	_ctx := msgctxm[ctx]
+	msgctxmlock.RUnlock()
+	return _ctx
 }
 
 func (ctx msgctx) fn() msgfunc {
-	msgctxmlock.RLock()
-	fn := msgctxm[ctx]
-	msgctxmlock.RUnlock()
-	return fn
+	return ctx.get().fn
 }
 
 func (ctx msgctx) err() error {
-	msgctxmlock.RLock()
-	err := msgctxe[ctx]
-	msgctxmlock.RUnlock()
-	return err
+	return ctx.get().err
 }
 
 func (ctx msgctx) seterr(err error) {
-	msgctxmlock.Lock()
-	msgctxe[ctx] = err
-	msgctxmlock.Unlock()
+	// a read-lock is fine here because the map is not modified
+	ctx.get().err = err
 }
