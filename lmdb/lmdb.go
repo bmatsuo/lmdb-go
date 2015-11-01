@@ -60,10 +60,8 @@ package lmdb
 #cgo netbsd CFLAGS: -DMDB_DSYNC=O_SYNC
 
 #include "lmdb.h"
-#include "lmdbgo.h"
 */
 import "C"
-import "unsafe"
 
 // Version return the major, minor, and patch version numbers of the LMDB C
 // library and a string representation of the version.
@@ -87,30 +85,6 @@ func VersionString() string {
 func cbool(b bool) C.int {
 	if b {
 		return 1
-	}
-	return 0
-}
-
-type msgCtx struct {
-	fn  msgfunc
-	err error
-}
-type msgfunc func(string) error
-
-func newMsgCtx(fn msgfunc) *msgCtx { return &msgCtx{fn: fn} }
-
-//export lmdbgoMDBMsgFuncBridge
-func lmdbgoMDBMsgFuncBridge(msg C.lmdbgo_ConstCString, _ctx unsafe.Pointer) C.int {
-	ctx := (*msgCtx)(_ctx)
-	fn := ctx.fn
-	if fn == nil {
-		return 0
-	}
-
-	err := fn(C.GoString(msg.p))
-	if err != nil {
-		ctx.err = err
-		return -1
 	}
 	return 0
 }
