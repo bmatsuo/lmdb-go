@@ -91,10 +91,9 @@ func (s *Scanner) SetNext(k, v []byte, opset, opnext uint) {
 	s.op = opnext
 }
 
-// Scan gets key-value successive pairs with the underlying cursor until one
-// matches the supplied filters.  If all filters return a nil error for the
-// current pair, true is returned.  Scan returns false if all key-value pairs
-// where exhausted.
+// Scan gets successive key-value pairs using the underlying cursor.  Scan
+// returns false when key-value pairs are exhausted or another error is
+// encountered.
 func (s *Scanner) Scan() bool {
 	if s.setop == nil {
 		s.key, s.val, s.err = s.cur.Get(nil, nil, s.op)
