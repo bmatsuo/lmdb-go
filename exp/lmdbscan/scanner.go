@@ -26,7 +26,8 @@ type Scanner struct {
 	err     error
 }
 
-// New allocates and intializes a Scanner for dbi within txn.
+// New allocates and intializes a Scanner for dbi within txn.  When the Scanner
+// returned by New is no longer needed its Close method must be called.
 func New(txn *lmdb.Txn, dbi lmdb.DBI) *Scanner {
 	s := &Scanner{
 		dbi: dbi,
@@ -71,22 +72,20 @@ func (s *Scanner) Val() []byte {
 }
 
 // Set marks the starting position for iteration.  On the next call to s.Scan()
-// the underlying cursor will be moved as
-//		c.Get(k, v, op)
-func (s *Scanner) Set(k, v []byte, op uint) {
+// the underlying cursor will be moved as c.Get(k, v, opset).
+func (s *Scanner) Set(k, v []byte, opset uint) {
 	if s.err != nil {
 		return
 	}
 	s.setop = new(uint)
-	*s.setop = op
+	*s.setop = opset
 	s.setkey = k
 	s.setval = v
 }
 
 // SetNext determines the cursor behavior for subsequent calls to s.Scan().
 // The immediately following call to s.Scan() behaves as if s.Set(k,v,opset)
-// was called.  Subsequent calls move the cursor as
-//		c.Get(nil, nil, opnext)
+// was called.  Subsequent calls move the cursor as c.Get(nil, nil, opnext)
 func (s *Scanner) SetNext(k, v []byte, opset, opnext uint) {
 	s.Set(k, v, opset)
 	s.op = opnext
