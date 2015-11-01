@@ -15,15 +15,47 @@ caveats, be safely called in the presence of concurrent transactions after an
 environment has been opened.  All running transactions must complete before the
 method will be called on the underlying lmdb.Env.
 
-If an open transaction depends on a change in map size then the database will
-deadlock and block all future transactions in the environment.  Put simply, all
-transactions must terminate independently of other transactions.
+If an open transaction depends on a change in map size then the Env will
+deadlock and block all future transactions.  When using a Handler to
+automatically resize the map this implies the restriction that transactions
+must terminate independently of the creation and termination of other
+transactions to avoid deadlock
 
-In the simplest example, a function in view transaction that attempts an update
-will deadlock database if the map is full and an increase of the map size is
-attempted so the transaction can be retried.  Instead the update should be
-prepared inside the view and then executed following the termination of the
-view.
+In the simplest example, a view transaction that attempts an update on the
+underlying Env will deadlock the environment if the map is full and a Handler
+attempts to resize the map so the update may be retried.
+
+	env.View(func(txn *lmdb.Txn) (err error) {
+		v, err := txn.Get(db, key)
+		if err != nil {
+			return err
+		}
+		err = env.Update(func(txn *lmdb.Txn) (err error) { // deadlock on lmdb.MapFull!
+			txn.Put(dbi, key, append(v, b...))
+		})
+		return err
+	}
+
+The update should instead be prepared inside the view and then executed
+following its termination.  This removes the implicit dependence of the view on
+calls to Env.SetMapSize().
+
+	var v []byte
+	env.View(func(txn *lmdb.Txn) (err error) {
+		// RawRead isn't used because the value will be used outside the
+		// transaction.
+		v, err = txn.Get(db, key)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if err != nil {
+		// ...
+	}
+	err = env.Update(func(txn *lmdb.Txn) (err error) { // no deadlock, even if env is resized!
+		txn.Put(dbi, key, append(v, b...))
+	})
 
 The developers of LMDB officially recommend against applications changing the
 memory map size for an open database.  It requires careful synchronization by
