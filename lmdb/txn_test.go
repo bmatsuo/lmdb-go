@@ -912,6 +912,72 @@ func BenchmarkTxn_ro(b *testing.B) {
 	}
 }
 
+func BenchmarkTxn_unmanaged_abort(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txn, err := env.BeginTxn(nil, 0)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Abort()
+	}
+}
+
+func BenchmarkTxn_unmanaged_commit(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txn, err := env.BeginTxn(nil, 0)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Abort()
+	}
+}
+
+func BenchmarkTxn_unmanaged_ro(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txn, err := env.BeginTxn(nil, Readonly)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Abort()
+	}
+}
+
 func BenchmarkTxn_renew(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()

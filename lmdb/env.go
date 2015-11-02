@@ -362,7 +362,11 @@ func (env *Env) SetMaxDBs(size int) error {
 //
 // See mdb_txn_begin.
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
-	return beginTxn(env, parent, flags)
+	txn, err := beginTxn(env, parent, flags)
+	if txn != nil {
+		runtime.SetFinalizer(txn, (*Txn).Abort)
+	}
+	return txn, err
 }
 
 // RunTxn creates a new Txn and calls fn with it as an argument.  Run commits
@@ -418,7 +422,7 @@ func (env *Env) run(lock bool, flags uint, fn TxnOp) error {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 	}
-	txn, err := env.BeginTxn(nil, flags)
+	txn, err := beginTxn(env, nil, flags)
 	if err != nil {
 		return err
 	}

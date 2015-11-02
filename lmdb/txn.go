@@ -49,20 +49,16 @@ type Txn struct {
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
 // write transaction.
 func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
-	var _txn *C.MDB_txn
+	txn := &Txn{env: env}
 	var ptxn *C.MDB_txn
 	if parent == nil {
 		ptxn = nil
 	} else {
 		ptxn = parent._txn
 	}
-	ret := C.mdb_txn_begin(env._env, ptxn, C.uint(flags), &_txn)
+	ret := C.mdb_txn_begin(env._env, ptxn, C.uint(flags), &txn._txn)
 	if ret != success {
 		return nil, operrno("mdb_txn_begin", ret)
-	}
-	txn := &Txn{
-		env:  env,
-		_txn: _txn,
 	}
 	return txn, nil
 }
