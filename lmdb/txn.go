@@ -8,6 +8,7 @@ package lmdb
 import "C"
 
 import (
+	"log"
 	"math"
 	"unsafe"
 )
@@ -41,9 +42,10 @@ type Txn struct {
 	// Such slices will be readonly and must only be referenced wthin the
 	// transaction's lifetime.
 	RawRead bool
+	managed bool
 	env     *Env
 	_txn    *C.MDB_txn
-	managed bool
+	errLogf func(format string, v ...interface{})
 }
 
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
@@ -315,6 +317,14 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 // See mdb_cursor_open.
 func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 	return openCursor(txn, dbi)
+}
+
+func (txn *Txn) errf(format string, v ...interface{}) {
+	if txn.errLogf != nil {
+		txn.errLogf(format, v...)
+		return
+	}
+	log.Printf(format, v...)
 }
 
 // TxnOp is an operation applied to a managed transaction.  The Txn passed to a

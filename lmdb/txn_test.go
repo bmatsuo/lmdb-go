@@ -8,7 +8,45 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 )
+
+func TestTxn_errLogf(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+	txn, err := env.BeginTxn(nil, 0)
+	if err != nil {
+		t.Error(err)
+	} else {
+		defer txn.Abort()
+		txn.errf("this is just a test")
+	}
+}
+
+func TestTxn_finalizer(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	called := false
+	func() {
+		txn, err := env.BeginTxn(nil, 0)
+		if err != nil {
+			t.Error(err)
+		} else {
+			txn.errLogf = func(string, ...interface{}) {
+				called = true
+			}
+		}
+	}()
+
+	runtime.GC()
+	runtime.Gosched()
+	time.Sleep(100 * time.Nanosecond)
+
+	if !called {
+		t.Errorf("error logging function was not called")
+	}
+}
 
 func TestTxn_Drop(t *testing.T) {
 	env := setup(t)

@@ -11,7 +11,6 @@ import "C"
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"runtime"
 	"unsafe"
@@ -378,7 +377,7 @@ func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	if txn != nil {
 		runtime.SetFinalizer(txn, func(txn *Txn) {
 			if txn._txn != nil {
-				log.Printf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
+				txn.errf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
 				txn.Abort()
 			}
 		})
