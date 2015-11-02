@@ -10,20 +10,22 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
+// errClosed is an error returned to the user when attempting to operate on a
+// closed Scanner.
+var errClosed = fmt.Errorf("scanner is closed")
+
 // Scanner is a low level construct for scanning databases inside a
 // transaction.
 type Scanner struct {
-	dbi     lmdb.DBI
-	dbflags uint
-	txn     *lmdb.Txn
-	cur     *lmdb.Cursor
-	op      uint
-	setop   *uint
-	setkey  []byte
-	setval  []byte
-	key     []byte
-	val     []byte
-	err     error
+	dbi    lmdb.DBI
+	cur    *lmdb.Cursor
+	op     uint
+	setop  *uint
+	setkey []byte
+	setval []byte
+	key    []byte
+	val    []byte
+	err    error
 }
 
 // New allocates and intializes a Scanner for dbi within txn.  When the Scanner
@@ -31,22 +33,15 @@ type Scanner struct {
 func New(txn *lmdb.Txn, dbi lmdb.DBI) *Scanner {
 	s := &Scanner{
 		dbi: dbi,
-		txn: txn,
+		op:  lmdb.Next,
 	}
-	if dbi != 0 {
-		s.dbflags, s.err = txn.Flags(dbi)
-		if s.err != nil {
-			return s
-		}
-	}
-	s.op = lmdb.Next
 
 	s.cur, s.err = txn.OpenCursor(dbi)
 	return s
 }
 
-// Cursor returns the lmdb.Cursor underlying s.  Cursor returns nil if the
-// scanner is closed.
+// Cursor returns the lmdb.Cursor underlying s.  Cursor returns nil if s is
+// closed.
 func (s *Scanner) Cursor() *lmdb.Cursor {
 	return s.cur
 }
@@ -56,7 +51,7 @@ func (s *Scanner) Cursor() *lmdb.Cursor {
 // Del is deprecated.  Instead use s.Cursor().Del(flags).
 func (s *Scanner) Del(flags uint) error {
 	if s.cur == nil {
-		return fmt.Errorf("scanner is closed")
+		return errClosed
 	}
 	return s.cur.Del(flags)
 }
@@ -95,6 +90,9 @@ func (s *Scanner) SetNext(k, v []byte, opset, opnext uint) {
 // returns false when key-value pairs are exhausted or another error is
 // encountered.
 func (s *Scanner) Scan() bool {
+	if !s.checkOpen() {
+		return false
+	}
 	if s.setop == nil {
 		s.key, s.val, s.err = s.cur.Get(nil, nil, s.op)
 	} else {
@@ -104,6 +102,16 @@ func (s *Scanner) Scan() bool {
 		s.setop = nil
 	}
 	return s.err == nil
+}
+
+func (s *Scanner) checkOpen() bool {
+	if s.cur != nil {
+		return true
+	}
+	if s.err == nil {
+		s.err = errClosed
+	}
+	return false
 }
 
 // Err returns a non-nil error if and only if the previous call to s.Scan()
@@ -120,7 +128,6 @@ func (s *Scanner) Err() error {
 //
 // Scan must not be called after Close.
 func (s *Scanner) Close() {
-	s.txn = nil
 	if s.cur != nil {
 		s.cur.Close()
 		s.cur = nil

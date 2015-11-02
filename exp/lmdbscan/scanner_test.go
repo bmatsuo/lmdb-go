@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"syscall"
 	"testing"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -12,6 +13,50 @@ import (
 type errcheck func(err error) (ok bool)
 
 var pIsNil = func(err error) bool { return err == nil }
+
+func TestScanner_err(t *testing.T) {
+	path, env := testEnv(t)
+	defer os.RemoveAll(path)
+	err := env.View(func(txn *lmdb.Txn) (err error) {
+		scanner := New(txn, 123)
+		defer scanner.Close()
+		for scanner.Scan() {
+			t.Error("loop should not execute")
+		}
+		return scanner.Err()
+	})
+	if !lmdb.IsErrnoSys(err, syscall.EINVAL) {
+		t.Errorf("unexpected error: %q (!= %q)", err, syscall.EINVAL)
+	}
+}
+
+func TestScanner_closed(t *testing.T) {
+	path, env := testEnv(t)
+	defer os.RemoveAll(path)
+	err := env.View(func(txn *lmdb.Txn) (err error) {
+		dbi, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+
+		scanner := New(txn, dbi)
+
+		err = scanner.Err()
+		if err != nil {
+			return err
+		}
+
+		scanner.Close()
+
+		for scanner.Scan() {
+			t.Error("loop should not execute")
+		}
+		return scanner.Err()
+	})
+	if err != errClosed {
+		t.Errorf("unexpected error: %q (!= %q)", err, errClosed)
+	}
+}
 
 func TestScanner_Scan(t *testing.T) {
 	path, env := testEnv(t)
@@ -162,6 +207,33 @@ func TestScanner_Del(t *testing.T) {
 
 	if len(rem) != 0 {
 		t.Errorf("items: %q (!= %q)", rem, []string{})
+	}
+}
+
+func TestScanner_Del_closed(t *testing.T) {
+	path, env := testEnv(t)
+	defer os.RemoveAll(path)
+	items := []simpleitem{
+		{"k0", "v0"},
+		{"k1", "v1"},
+		{"k2", "v2"},
+		{"k3", "v3"},
+		{"k4", "v4"},
+		{"k5", "v5"},
+	}
+	loadTestData(t, env, items)
+	var dbi lmdb.DBI
+	err := env.Update(func(txn *lmdb.Txn) (err error) {
+		dbi, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		s := New(txn, dbi)
+		s.Close()
+		return s.Del(0)
+	})
+	if err != errClosed {
+		t.Errorf("unexpected error: %q (!= %q)", err, errClosed)
 	}
 }
 
