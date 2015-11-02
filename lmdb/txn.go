@@ -10,6 +10,7 @@ import "C"
 import (
 	"log"
 	"math"
+	"runtime"
 	"unsafe"
 )
 
@@ -41,17 +42,21 @@ type Txn struct {
 	// and its cursors will point directly into the memory-mapped structure.
 	// Such slices will be readonly and must only be referenced wthin the
 	// transaction's lifetime.
-	RawRead bool
-	managed bool
-	env     *Env
-	_txn    *C.MDB_txn
-	errLogf func(format string, v ...interface{})
+	RawRead  bool
+	managed  bool
+	readonly bool
+	env      *Env
+	_txn     *C.MDB_txn
+	errLogf  func(format string, v ...interface{})
 }
 
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
 // write transaction.
 func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
-	txn := &Txn{env: env}
+	txn := &Txn{
+		readonly: (flags&Readonly != 0),
+		env:      env,
+	}
 	var ptxn *C.MDB_txn
 	if parent == nil {
 		ptxn = nil
@@ -316,7 +321,11 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 //
 // See mdb_cursor_open.
 func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
-	return openCursor(txn, dbi)
+	cur, err := openCursor(txn, dbi)
+	if cur != nil && txn.readonly {
+		runtime.SetFinalizer(cur, (*Cursor).Close)
+	}
+	return cur, err
 }
 
 func (txn *Txn) errf(format string, v ...interface{}) {

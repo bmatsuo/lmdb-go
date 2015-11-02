@@ -59,12 +59,12 @@ type Cursor struct {
 }
 
 func openCursor(txn *Txn, db DBI) (*Cursor, error) {
-	var _c *C.MDB_cursor
-	ret := C.mdb_cursor_open(txn._txn, C.MDB_dbi(db), &_c)
+	c := &Cursor{txn: txn}
+	ret := C.mdb_cursor_open(txn._txn, C.MDB_dbi(db), &c._c)
 	if ret != success {
 		return nil, operrno("mdb_cursor_open", ret)
 	}
-	return &Cursor{txn, _c}, nil
+	return c, nil
 }
 
 // Renew associates readonly cursor with txn.
@@ -81,17 +81,22 @@ func (c *Cursor) Renew(txn *Txn) error {
 }
 
 // Close the cursor handle.  Close must be called when the cursor is no longer
-// needed to avoid a memory leak.  A runtime panic occurs if a the cursor is
-// used after Close is called.
+// needed to avoid a memory leak.
 //
 // Cursors in write transactions must be closed before their transaction is
 // terminated.
 //
 // See mdb_cursor_close.
 func (c *Cursor) Close() {
-	C.mdb_cursor_close(c._c)
-	c.txn = nil
-	c._c = nil
+	if c._c != nil {
+		if c.txn._txn == nil && !c.txn.readonly {
+			// the cursor has already been released by LMDB.
+		} else {
+			C.mdb_cursor_close(c._c)
+		}
+		c.txn = nil
+		c._c = nil
+	}
 }
 
 // Txn returns the cursor's transaction.
