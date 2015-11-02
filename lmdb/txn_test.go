@@ -39,9 +39,13 @@ func TestTxn_finalizer(t *testing.T) {
 		}
 	}()
 
+	// make sure that finalizer has a chance to get called.  it seems like this
+	// may not be consistent across versions of go.
 	runtime.GC()
 	runtime.Gosched()
-	time.Sleep(100 * time.Nanosecond)
+	time.Sleep(500 * time.Nanosecond)
+	runtime.GC()
+	runtime.Gosched()
 
 	if !called {
 		t.Errorf("error logging function was not called")
