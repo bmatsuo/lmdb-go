@@ -28,8 +28,9 @@ Core bindings allowing low-level access to LMDB.
 import "github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 ```
 
-A utility package for scanning database ranges with an API inspired by
-[bufio.Scanner](https://godoc.org/bufio#Scanner).
+A utility package for scanning database ranges. The API is inspired by
+[bufio.Scanner](https://godoc.org/bufio#Scanner) and the python cursor iterator
+implementation.
 
 The **lmdbscan** package is unstable. The API is properly scoped and adequately
 tested.  And no features that exist now will be removed without a similar
@@ -43,7 +44,8 @@ import "github.com/bmatsuo/lmdb-go/exp/lmdbsync"
 ```
 
 An experimental utility package that provides synchronization necessary to
-change an environment's map size after initialization.
+change an environment's map size after initialization.  Facilities are provided
+to automatically manage database size, similar to BoltDB.
 
 The **lmdbsync** package is usable for synchronization but its resizing
 behavior should be considered highly unstable and may change without notice
