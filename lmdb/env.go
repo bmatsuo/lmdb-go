@@ -11,6 +11,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 	"unsafe"
@@ -353,10 +354,20 @@ func (env *Env) SetMaxDBs(size int) error {
 	return operrno("mdb_env_set_maxdbs", ret)
 }
 
-// BeginTxn is a low-level (potentially dangerous) method to initialize a new
-// transaction on env.  BeginTxn does not attempt to serialize operations on
-// write transactions to the same OS thread and without care its use for write
-// transactions can cause undefined results.
+// BeginTxn is an unsafe, low-level method to initialize a new transaction on
+// env.  The Txn returned by BeginTxn is unmanaged and must be terminated by
+// calling either its Abort or Commit methods to ensure that its resources are
+// released.
+//
+// A finalizer detects unreachable, live transactions and logs thems to
+// standard error.  The transactions are aborted, but their presence should be
+// interpreted as an application error which should be patched so transactions
+// are terminated explicitly.  Unterminated transactions can adversly effect
+// database performance and cause the database to grow until the map is full.
+//
+// BeginTxn does not attempt to serialize write transaction operations to an OS
+// thread and without care its use for write transactions can have undefined
+// results.
 //
 // Instead of BeginTxn users should call the View, Update, RunTxn methods.
 //
@@ -364,7 +375,12 @@ func (env *Env) SetMaxDBs(size int) error {
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	txn, err := beginTxn(env, parent, flags)
 	if txn != nil {
-		runtime.SetFinalizer(txn, (*Txn).Abort)
+		runtime.SetFinalizer(txn, func(txn *Txn) {
+			if txn._txn != nil {
+				log.Printf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
+				txn.Abort()
+			}
+		})
 	}
 	return txn, err
 }
