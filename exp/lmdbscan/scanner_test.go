@@ -23,6 +23,12 @@ func TestScanner_err(t *testing.T) {
 		for scanner.Scan() {
 			t.Error("loop should not execute")
 		}
+		if scanner.Set(nil, nil, lmdb.First) {
+			t.Error("Set returned true")
+		}
+		if scanner.SetNext(nil, nil, lmdb.NextNoDup, lmdb.NextDup) {
+			t.Error("SetNext returned true")
+		}
 		return scanner.Err()
 	})
 	if !lmdb.IsErrnoSys(err, syscall.EINVAL) {
