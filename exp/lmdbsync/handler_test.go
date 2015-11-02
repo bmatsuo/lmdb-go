@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bmatsuo/lmdb-go/internal/lmdbtest"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
@@ -22,8 +23,12 @@ func (h *testHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
 }
 
 func TestHandlerChain(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
+
 	b := bagWithEnv(Background(), env)
 
 	var chain1 HandlerChain
@@ -62,8 +67,11 @@ func (*passthroughHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
 }
 
 func TestMapFullHandler(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	info, err := env.Info()
 	if err != nil {
@@ -105,14 +113,17 @@ func TestMapFullHandler(t *testing.T) {
 }
 
 func TestMapResizedHandler(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	b := bagWithEnv(Background(), env)
 	handler := MapResizedHandler(2, func(int) time.Duration { return 100 * time.Microsecond })
 
 	errother := fmt.Errorf("testerr")
-	_, err := handler.HandleTxnErr(b, errother)
+	_, err = handler.HandleTxnErr(b, errother)
 
 	errmapresized := &lmdb.OpError{
 		Op:    "lmdbsync_test_op",

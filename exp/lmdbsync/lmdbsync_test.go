@@ -8,43 +8,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bmatsuo/lmdb-go/internal/lmdbtest"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-func newEnv(t *testing.T, flags uint) *Env {
-	dir, err := ioutil.TempDir("", "lmdbsync-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
+var optNoLock = &lmdbtest.EnvOptions{Flags: lmdb.NoLock}
 
-	env, err := NewEnv(nil)
+func newEnv(opt *lmdbtest.EnvOptions) (*Env, error) {
+	env, err := lmdbtest.NewEnv(opt)
 	if err != nil {
-		os.RemoveAll(dir)
-		t.Fatal(err)
+		return nil, err
 	}
-	err = env.Open(dir, flags, 0644)
-	if err != nil {
-		os.RemoveAll(dir)
-		env.Close()
-		t.Fatal(err)
-	}
-
-	return env
-}
-
-func cleanEnv(t *testing.T, env *Env) {
-	path, err := env.Path()
-	if err != nil {
-		t.Error(err)
-	}
-	err = env.Close()
-	if err != nil {
-		t.Error(err)
-	}
-	err = os.RemoveAll(path)
-	if err != nil {
-		t.Error(err)
-	}
+	return NewEnv(env)
 }
 
 func TestNewEnv(t *testing.T) {
@@ -227,8 +202,11 @@ func TestNewEnv_noLock_arg(t *testing.T) {
 }
 
 func TestEnv_SetMapSize(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	txnopen := make(chan struct{})
 	errc := make(chan error, 1)
@@ -245,7 +223,7 @@ func TestEnv_SetMapSize(t *testing.T) {
 	// once the transaction has been opened attempt to change the map size.
 	// the call to SetMapSize will block until the transaction completes.
 	<-txnopen
-	err := env.SetMapSize(10 << 20)
+	err = env.SetMapSize(10 << 20)
 	if err != nil {
 		t.Error(err)
 	}
@@ -259,8 +237,11 @@ func TestEnv_SetMapSize(t *testing.T) {
 }
 
 func TestEnv_BeginTxn(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	txn, err := env.BeginTxn(nil, 0)
 	if err == nil {
@@ -388,64 +369,91 @@ func testRunTxn(t *testing.T, env TxnRunner) {
 }
 
 func TestEnv_View(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testView(t, env)
 }
 
 func TestEnv_Update(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testUpdate(t, env)
 }
 
 func TestEnv_UpdateLocked(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testUpdateLocked(t, env)
 }
 
 func TestEnv_RunTxn(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testRunTxn(t, env)
 }
 
 func TestEnv_View_NoLock(t *testing.T) {
-	env := newEnv(t, lmdb.NoLock)
-	defer cleanEnv(t, env)
+	env, err := newEnv(optNoLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testView(t, env)
 }
 
 func TestEnv_Update_NoLock(t *testing.T) {
-	env := newEnv(t, lmdb.NoLock)
-	defer cleanEnv(t, env)
+	env, err := newEnv(optNoLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testUpdate(t, env)
 }
 
 func TestEnv_UpdateLocked_NoLock(t *testing.T) {
-	env := newEnv(t, lmdb.NoLock)
-	defer cleanEnv(t, env)
+	env, err := newEnv(optNoLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testUpdateLocked(t, env)
 }
 
 func TestEnv_RunTxn_NoLock(t *testing.T) {
-	env := newEnv(t, lmdb.NoLock)
-	defer cleanEnv(t, env)
+	env, err := newEnv(optNoLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	testRunTxn(t, env)
 }
 
 func TestEnv_WithHandler_View(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	handler := &testHandler{}
 	runner := env.WithHandler(handler)
@@ -461,8 +469,11 @@ func TestEnv_WithHandler_View(t *testing.T) {
 }
 
 func TestEnv_WithHandler_Update(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	handler := &testHandler{}
 	runner := env.WithHandler(handler)
@@ -478,8 +489,11 @@ func TestEnv_WithHandler_Update(t *testing.T) {
 }
 
 func TestEnv_WithHandler_UpdateLocked(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	handler := &testHandler{}
 	runner := env.WithHandler(handler)
@@ -495,8 +509,11 @@ func TestEnv_WithHandler_UpdateLocked(t *testing.T) {
 }
 
 func TestEnv_WithHandler_RunTxn(t *testing.T) {
-	env := newEnv(t, 0)
-	defer cleanEnv(t, env)
+	env, err := newEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env.Env)
 
 	handler := &testHandler{}
 	runner := env.WithHandler(handler)
