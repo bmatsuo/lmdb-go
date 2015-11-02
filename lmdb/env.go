@@ -69,12 +69,13 @@ type Env struct {
 //
 // See mdb_env_create.
 func NewEnv() (*Env, error) {
-	var _env *C.MDB_env
-	ret := C.mdb_env_create(&_env)
+	env := new(Env)
+	ret := C.mdb_env_create(&env._env)
 	if ret != success {
 		return nil, operrno("mdb_env_create", ret)
 	}
-	return &Env{_env}, nil
+	runtime.SetFinalizer(env, (*Env).Close)
+	return env, nil
 }
 
 // Open an environment handle. If this function fails Close() must be called to
