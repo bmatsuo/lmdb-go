@@ -102,7 +102,7 @@ func (env *Env) FD() (uintptr, error) {
 	if err != nil {
 		return 0, err
 	}
-	if mf == C.mdb_filehandle_t(-1) {
+	if uintptr(mf) == ^uintptr(0) {
 		return 0, errNotOpen
 	}
 	return uintptr(mf), nil
