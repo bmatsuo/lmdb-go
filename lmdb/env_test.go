@@ -209,7 +209,7 @@ func TestEnv_SetMaxReader(t *testing.T) {
 
 	err = env.SetMaxReaders(126)
 	if !IsErrnoSys(err, syscall.EINVAL) {
-		t.Errorf("unexpected error: %v (!= %v)", err, Invalid)
+		t.Errorf("unexpected error: %v (!= %v)", err, syscall.EINVAL)
 	}
 	_maxreaders, err = env.MaxReaders()
 	if err != nil {
