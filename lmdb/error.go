@@ -82,16 +82,6 @@ func _operrno(op string, ret int) error {
 	return operrno(op, C.int(ret))
 }
 
-func operrno(op string, ret C.int) error {
-	if ret == C.MDB_SUCCESS {
-		return nil
-	}
-	if minErrno <= ret && ret <= maxErrno {
-		return &OpError{Op: op, Errno: Errno(ret)}
-	}
-	return &OpError{Op: op, Errno: syscall.Errno(ret)}
-}
-
 // IsNotFound returns true if the key requested in Txn.Get or Cursor.Get does
 // not exist or if the Cursor reached the end of the database without locating
 // a value (EOF).
