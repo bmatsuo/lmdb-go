@@ -82,7 +82,7 @@ func TestEnv_Open(t *testing.T) {
 	}()
 
 	// open an environment at a temporary path.
-	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestEnv_FD(t *testing.T) {
 	}
 
 	// open an environment at a temporary path.
-	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -465,7 +465,7 @@ func setupFlags(t T, flags uint) *Env {
 	if err != nil {
 		t.Fatalf("env: %s", err)
 	}
-	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
