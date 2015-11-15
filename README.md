@@ -148,8 +148,8 @@ semantic versioning.  However packages specifically declared to merely be
 "unstable" can be relied on more for long term use with less concern.
 
 The API of an unstable package may change in subtle ways between minor release
-versions.  But all functionality will remain available through some method (at
-least until the next major release version).
+versions.  But deprecations will be indicated at least one release in advance
+and all functionality will remain available through some method.
 
 ##License
 
