@@ -97,16 +97,23 @@ var errNotOpen = fmt.Errorf("enivornment is not open")
 //
 // See mdb_env_get_fd.
 func (env *Env) FD() (uintptr, error) {
-	var mf C.mdb_filehandle_t
-	ret := C.mdb_env_get_fd(env._env, &mf)
+	// fdInvalid is the value -1 as a uintptr, which is used by LMDB in the
+	// case that env has not been opened yet.  the strange construction is done
+	// to avoid constant value overflow errors at compile time.
+	const fdInvalid = ^uintptr(0)
+
+	mf := new(C.mdb_filehandle_t)
+	ret := C.mdb_env_get_fd(env._env, mf)
 	err := operrno("mdb_env_get_fd", ret)
 	if err != nil {
 		return 0, err
 	}
-	if uintptr(mf) == ^uintptr(0) {
+	fd := uintptr(*mf)
+
+	if fd == fdInvalid {
 		return 0, errNotOpen
 	}
-	return uintptr(mf), nil
+	return fd, nil
 }
 
 // ReaderList dumps the contents of the reader lock table as text.  Readers
