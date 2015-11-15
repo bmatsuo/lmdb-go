@@ -18,8 +18,7 @@ func init() {
 }
 
 func printVersion(w io.Writer) {
-	_, _, _, version := lmdb.Version()
-	fmt.Fprintln(w, version)
+	fmt.Fprintln(w, lmdb.VersionString())
 }
 
 // PrintVersion writes the LMDB API version in a human readable format to

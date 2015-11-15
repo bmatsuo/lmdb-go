@@ -1,11 +1,11 @@
 package lmdbscan
 
 import (
-	"io/ioutil"
-	"os"
 	"reflect"
+	"syscall"
 	"testing"
 
+	"github.com/bmatsuo/lmdb-go/internal/lmdbtest"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
@@ -13,10 +13,78 @@ type errcheck func(err error) (ok bool)
 
 var pIsNil = func(err error) bool { return err == nil }
 
+func TestScanner_err(t *testing.T) {
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		scanner := New(txn, 123)
+		defer scanner.Close()
+		for scanner.Scan() {
+			t.Error("loop should not execute")
+		}
+		if scanner.Set(nil, nil, lmdb.First) {
+			t.Error("Set returned true")
+		}
+		if scanner.SetNext(nil, nil, lmdb.NextNoDup, lmdb.NextDup) {
+			t.Error("SetNext returned true")
+		}
+		return scanner.Err()
+	})
+	if !lmdb.IsErrnoSys(err, syscall.EINVAL) {
+		t.Errorf("unexpected error: %q (!= %q)", err, syscall.EINVAL)
+	}
+}
+
+func TestScanner_closed(t *testing.T) {
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		dbi, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+
+		scanner := New(txn, dbi)
+
+		err = scanner.Err()
+		if err != nil {
+			return err
+		}
+
+		scanner.Close()
+
+		for scanner.Scan() {
+			t.Error("loop should not execute")
+		}
+		return scanner.Err()
+	})
+	if err != errClosed {
+		t.Errorf("unexpected error: %q (!= %q)", err, errClosed)
+	}
+}
+
 func TestScanner_Scan(t *testing.T) {
-	path, env := testEnv(t)
-	defer os.RemoveAll(path)
-	items := []simpleitem{
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	dbi, err := lmdbtest.OpenRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	items := lmdbtest.SimpleItemList{
 		{"k0", "v0"},
 		{"k1", "v1"},
 		{"k2", "v2"},
@@ -24,30 +92,33 @@ func TestScanner_Scan(t *testing.T) {
 		{"k4", "v4"},
 		{"k5", "v5"},
 	}
-	loadTestData(t, env, items)
-	for i, test := range []struct {
-		filtered []simpleitem
-		errcheck
-	}{
-		{
-			items,
-			nil,
-		},
-	} {
-		filtered, err := simplescan(env)
-		if err != nil {
-			t.Errorf("test %d: %v", i, err)
-		}
-		if !reflect.DeepEqual(filtered, test.filtered) {
-			t.Errorf("test %d: unexpected items %q (!= %q)", i, filtered, test.filtered)
-		}
+	err = lmdbtest.Put(env, dbi, items)
+	if err != nil {
+		t.Error(err)
+	}
+	scanned, err := simplescan(env, dbi)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	if !reflect.DeepEqual(scanned, items) {
+		t.Errorf("unexpected items %q (!= %q)", scanned, items)
 	}
 }
 
 func TestScanner_Set(t *testing.T) {
-	path, env := testEnv(t)
-	defer os.RemoveAll(path)
-	items := []simpleitem{
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	dbi, err := lmdbtest.OpenRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	items := lmdbtest.SimpleItemList{
 		{"k0", "v0"},
 		{"k1", "v1"},
 		{"k2", "v2"},
@@ -55,9 +126,13 @@ func TestScanner_Set(t *testing.T) {
 		{"k4", "v4"},
 		{"k5", "v5"},
 	}
-	loadTestData(t, env, items)
-	var tail []simpleitem
-	err := env.View(func(txn *lmdb.Txn) (err error) {
+	err = lmdbtest.Put(env, dbi, items)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var tail lmdbtest.SimpleItemList
+	err = env.View(func(txn *lmdb.Txn) (err error) {
 		dbi, err := txn.OpenRoot(0)
 		if err != nil {
 			return err
@@ -78,9 +153,19 @@ func TestScanner_Set(t *testing.T) {
 }
 
 func TestScanner_SetNext(t *testing.T) {
-	path, env := testEnv(t)
-	defer os.RemoveAll(path)
-	items := []simpleitem{
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	dbi, err := lmdbtest.OpenRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	items := lmdbtest.SimpleItemList{
 		{"k0", "v0"},
 		{"k1", "v1"},
 		{"k2", "v2"},
@@ -88,9 +173,13 @@ func TestScanner_SetNext(t *testing.T) {
 		{"k4", "v4"},
 		{"k5", "v5"},
 	}
-	loadTestData(t, env, items)
-	var head []simpleitem
-	err := env.View(func(txn *lmdb.Txn) (err error) {
+	err = lmdbtest.Put(env, dbi, items)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var head lmdbtest.SimpleItemList
+	err = env.View(func(txn *lmdb.Txn) (err error) {
 		dbi, err := txn.OpenRoot(0)
 		if err != nil {
 			return err
@@ -118,9 +207,19 @@ func TestScanner_SetNext(t *testing.T) {
 }
 
 func TestScanner_Del(t *testing.T) {
-	path, env := testEnv(t)
-	defer os.RemoveAll(path)
-	items := []simpleitem{
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	dbi, err := lmdbtest.OpenRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	items := lmdbtest.SimpleItemList{
 		{"k0", "v0"},
 		{"k1", "v1"},
 		{"k2", "v2"},
@@ -128,13 +227,12 @@ func TestScanner_Del(t *testing.T) {
 		{"k4", "v4"},
 		{"k5", "v5"},
 	}
-	loadTestData(t, env, items)
-	var dbi lmdb.DBI
-	err := env.Update(func(txn *lmdb.Txn) (err error) {
-		dbi, err = txn.OpenRoot(0)
-		if err != nil {
-			return err
-		}
+	err = lmdbtest.Put(env, dbi, items)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		s := New(txn, dbi)
 		defer s.Close()
 		for s.Scan() {
@@ -149,7 +247,7 @@ func TestScanner_Del(t *testing.T) {
 		t.Error(err)
 	}
 
-	var rem []simpleitem
+	var rem lmdbtest.SimpleItemList
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		s := New(txn, dbi)
 		defer s.Close()
@@ -165,10 +263,20 @@ func TestScanner_Del(t *testing.T) {
 	}
 }
 
-func TestScanner_Cursor_Del(t *testing.T) {
-	path, env := testEnv(t)
-	defer os.RemoveAll(path)
-	items := []simpleitem{
+func TestScanner_Del_closed(t *testing.T) {
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	dbi, err := lmdbtest.OpenRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	items := lmdbtest.SimpleItemList{
 		{"k0", "v0"},
 		{"k1", "v1"},
 		{"k2", "v2"},
@@ -176,13 +284,48 @@ func TestScanner_Cursor_Del(t *testing.T) {
 		{"k4", "v4"},
 		{"k5", "v5"},
 	}
-	loadTestData(t, env, items)
-	var dbi lmdb.DBI
-	err := env.Update(func(txn *lmdb.Txn) (err error) {
-		dbi, err = txn.OpenRoot(0)
-		if err != nil {
-			return err
-		}
+	err = lmdbtest.Put(env, dbi, items)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		s := New(txn, dbi)
+		s.Close()
+		return s.Del(0)
+	})
+	if err != errClosed {
+		t.Errorf("unexpected error: %q (!= %q)", err, errClosed)
+	}
+}
+
+func TestScanner_Cursor_Del(t *testing.T) {
+	env, err := lmdbtest.NewEnv(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lmdbtest.Destroy(env)
+
+	dbi, err := lmdbtest.OpenRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	items := lmdbtest.SimpleItemList{
+		{"k0", "v0"},
+		{"k1", "v1"},
+		{"k2", "v2"},
+		{"k3", "v3"},
+		{"k4", "v4"},
+		{"k5", "v5"},
+	}
+	err = lmdbtest.Put(env, dbi, items)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		s := New(txn, dbi)
 		defer s.Close()
 		cur := s.Cursor()
@@ -198,7 +341,7 @@ func TestScanner_Cursor_Del(t *testing.T) {
 		t.Error(err)
 	}
 
-	var rem []simpleitem
+	var rem lmdbtest.SimpleItemList
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		s := New(txn, dbi)
 		defer s.Close()
@@ -214,35 +357,9 @@ func TestScanner_Cursor_Del(t *testing.T) {
 	}
 }
 
-type simpleitem [2]string
-
-func loadTestData(t *testing.T, env *lmdb.Env, items []simpleitem) {
-	err := env.Update(func(txn *lmdb.Txn) (err error) {
-		db, err := txn.OpenRoot(0)
-		if err != nil {
-			return err
-		}
-		for _, item := range items {
-			err := txn.Put(db, []byte(item[0]), []byte(item[1]), 0)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func simplescan(env *lmdb.Env) (items []simpleitem, err error) {
+func simplescan(env *lmdb.Env, dbi lmdb.DBI) (items lmdbtest.SimpleItemList, err error) {
 	err = env.View(func(txn *lmdb.Txn) (err error) {
-		db, err := txn.OpenRoot(0)
-		if err != nil {
-			return err
-		}
-
-		s := New(txn, db)
+		s := New(txn, dbi)
 		defer s.Close()
 
 		items, err = remaining(s)
@@ -251,35 +368,17 @@ func simplescan(env *lmdb.Env) (items []simpleitem, err error) {
 	return items, err
 }
 
-func remaining(s *Scanner) (items []simpleitem, err error) {
+func remaining(s *Scanner) (items lmdbtest.SimpleItemList, err error) {
 	for s.Scan() {
-		items = append(items, simpleitem{string(s.Key()), string(s.Val())})
+		item := &lmdbtest.SimpleItem{
+			K: string(s.Key()),
+			V: string(s.Val()),
+		}
+		items = append(items, item)
 	}
 	err = s.Err()
 	if err != nil {
 		return nil, err
 	}
 	return items, nil
-}
-
-func testEnv(t *testing.T) (path string, env *lmdb.Env) {
-	dir, err := ioutil.TempDir("", "test-lmdb-env-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cleanAndDie := func() {
-		os.RemoveAll(dir)
-		t.Fatal(err)
-	}
-
-	env, err = lmdb.NewEnv()
-	if err != nil {
-		cleanAndDie()
-	}
-	err = env.Open(dir, 0, 0644)
-	if err != nil {
-		cleanAndDie()
-	}
-
-	return dir, env
 }

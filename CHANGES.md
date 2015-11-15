@@ -1,5 +1,15 @@
 #Release Change Log
 
+##v1.2.0
+
+- Many example tests replaced with simpler code examples.
+- Lots of documentation fixes
+- internal/lmdbcmd: simplify version printing
+- lmdbscan: add method Scanner.Cursor() to deprecate Scanner.Del()
+- lmdbscan: add tests for Scanner.Set and Scanner.SetNext
+- lmdb: Implement Env.FD() method returning an open file descriptor
+- lmdbgo.c: remove unnecessary `#include <string.h>`
+
 ##v1.1.1
 
 - Lots of code examples.

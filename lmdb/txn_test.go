@@ -8,7 +8,49 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 )
+
+func TestTxn_errLogf(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+	txn, err := env.BeginTxn(nil, 0)
+	if err != nil {
+		t.Error(err)
+	} else {
+		defer txn.Abort()
+		txn.errf("this is just a test")
+	}
+}
+
+func TestTxn_finalizer(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	called := false
+	func() {
+		txn, err := env.BeginTxn(nil, 0)
+		if err != nil {
+			t.Error(err)
+		} else {
+			txn.errLogf = func(string, ...interface{}) {
+				called = true
+			}
+		}
+	}()
+
+	// make sure that finalizer has a chance to get called.  it seems like this
+	// may not be consistent across versions of go.
+	runtime.GC()
+	runtime.Gosched()
+	time.Sleep(500 * time.Nanosecond)
+	runtime.GC()
+	runtime.Gosched()
+
+	if !called {
+		t.Errorf("error logging function was not called")
+	}
+}
 
 func TestTxn_Drop(t *testing.T) {
 	env := setup(t)
@@ -909,6 +951,72 @@ func BenchmarkTxn_ro(b *testing.B) {
 			b.Error(err)
 			return
 		}
+	}
+}
+
+func BenchmarkTxn_unmanaged_abort(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txn, err := env.BeginTxn(nil, 0)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Abort()
+	}
+}
+
+func BenchmarkTxn_unmanaged_commit(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txn, err := env.BeginTxn(nil, 0)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Abort()
+	}
+}
+
+func BenchmarkTxn_unmanaged_ro(b *testing.B) {
+	env := setup(b)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		b.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		txn, err := env.BeginTxn(nil, Readonly)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+		txn.Abort()
 	}
 }
 
