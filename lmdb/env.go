@@ -69,12 +69,13 @@ type Env struct {
 //
 // See mdb_env_create.
 func NewEnv() (*Env, error) {
-	var _env *C.MDB_env
-	ret := C.mdb_env_create(&_env)
+	env := new(Env)
+	ret := C.mdb_env_create(&env._env)
 	if ret != success {
 		return nil, operrno("mdb_env_create", ret)
 	}
-	return &Env{_env}, nil
+	runtime.SetFinalizer(env, (*Env).Close)
+	return env, nil
 }
 
 // Open an environment handle. If this function fails Close() must be called to
@@ -114,14 +115,17 @@ func (env *Env) FD() (uintptr, error) {
 //
 // See mdb_reader_list.
 func (env *Env) ReaderList(fn func(string) error) error {
-	ctx := newMsgCtx(fn)
-	ret := C.lmdbgo_mdb_reader_list(env._env, unsafe.Pointer(ctx))
+	ctx, done := newMsgFunc(fn)
+	defer done()
+
+	ret := C.lmdbgo_mdb_reader_list(env._env, C.size_t(ctx))
 	if ret >= 0 {
 		return nil
 	}
 	if ret < 0 {
-		if ctx.err != nil {
-			return ctx.err
+		err := ctx.get().err
+		if err != nil {
+			return err
 		}
 	}
 	return operrno("mdb_reader_list", ret)
@@ -350,16 +354,35 @@ func (env *Env) SetMaxDBs(size int) error {
 	return operrno("mdb_env_set_maxdbs", ret)
 }
 
-// BeginTxn is a low-level (potentially dangerous) method to initialize a new
-// transaction on env.  BeginTxn does not attempt to serialize operations on
-// write transactions to the same OS thread and without care its use for write
-// transactions can cause undefined results.
+// BeginTxn is an unsafe, low-level method to initialize a new transaction on
+// env.  The Txn returned by BeginTxn is unmanaged and must be terminated by
+// calling either its Abort or Commit methods to ensure that its resources are
+// released.
+//
+// A finalizer detects unreachable, live transactions and logs thems to
+// standard error.  The transactions are aborted, but their presence should be
+// interpreted as an application error which should be patched so transactions
+// are terminated explicitly.  Unterminated transactions can adversly effect
+// database performance and cause the database to grow until the map is full.
+//
+// BeginTxn does not attempt to serialize write transaction operations to an OS
+// thread and without care its use for write transactions can have undefined
+// results.
 //
 // Instead of BeginTxn users should call the View, Update, RunTxn methods.
 //
 // See mdb_txn_begin.
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
-	return beginTxn(env, parent, flags)
+	txn, err := beginTxn(env, parent, flags)
+	if txn != nil {
+		runtime.SetFinalizer(txn, func(txn *Txn) {
+			if txn._txn != nil {
+				txn.errf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
+				txn.Abort()
+			}
+		})
+	}
+	return txn, err
 }
 
 // RunTxn creates a new Txn and calls fn with it as an argument.  Run commits
@@ -415,7 +438,7 @@ func (env *Env) run(lock bool, flags uint, fn TxnOp) error {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 	}
-	txn, err := env.BeginTxn(nil, flags)
+	txn, err := beginTxn(env, nil, flags)
 	if err != nil {
 		return err
 	}

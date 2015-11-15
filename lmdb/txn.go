@@ -9,6 +9,7 @@ package lmdb
 import "C"
 
 import (
+	"log"
 	"math"
 	"unsafe"
 )
@@ -42,28 +43,25 @@ type Txn struct {
 	// Such slices will be readonly and must only be referenced wthin the
 	// transaction's lifetime.
 	RawRead bool
+	managed bool
 	env     *Env
 	_txn    *C.MDB_txn
-	managed bool
+	errLogf func(format string, v ...interface{})
 }
 
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
 // write transaction.
 func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
-	var _txn *C.MDB_txn
+	txn := &Txn{env: env}
 	var ptxn *C.MDB_txn
 	if parent == nil {
 		ptxn = nil
 	} else {
 		ptxn = parent._txn
 	}
-	ret := C.mdb_txn_begin(env._env, ptxn, C.uint(flags), &_txn)
+	ret := C.mdb_txn_begin(env._env, ptxn, C.uint(flags), &txn._txn)
 	if ret != success {
 		return nil, operrno("mdb_txn_begin", ret)
-	}
-	txn := &Txn{
-		env:  env,
-		_txn: _txn,
 	}
 	return txn, nil
 }
@@ -323,6 +321,14 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 // See mdb_cursor_open.
 func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 	return openCursor(txn, dbi)
+}
+
+func (txn *Txn) errf(format string, v ...interface{}) {
+	if txn.errLogf != nil {
+		txn.errLogf(format, v...)
+		return
+	}
+	log.Printf(format, v...)
 }
 
 // TxnOp is an operation applied to a managed transaction.  The Txn passed to a
