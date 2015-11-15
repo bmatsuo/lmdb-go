@@ -306,13 +306,13 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 //
 // See mdb_del.
 func (txn *Txn) Del(dbi DBI, key, val []byte) error {
-	ckey := wrapVal(key)
-	if val == nil {
-		ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), nil)
-		return operrno("mdb_del", ret)
-	}
-	cval := wrapVal(val)
-	ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval))
+	kdata, kn := valBytes(key)
+	vdata, vn := valBytes(val)
+	ret := C.lmdbgo_mdb_del(
+		txn._txn, C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+	)
 	return operrno("mdb_del", ret)
 }
 

@@ -18,6 +18,15 @@ int lmdbgo_mdb_reader_list(MDB_env *env, size_t ctx) {
     return mdb_reader_list(env, &lmdbgo_mdb_msg_func_proxy, (void *)ctx);
 }
 
+int lmdbgo_mdb_del(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn) {
+    MDB_val key, val;
+    key.mv_size = kn;
+    key.mv_data = kdata;
+    val.mv_size = vn;
+    val.mv_data = vdata;
+    return mdb_del(txn, dbi, &key, &val);
+}
+
 int lmdbgo_mdb_get(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, MDB_val *val) {
     MDB_val key;
     key.mv_size = kn;

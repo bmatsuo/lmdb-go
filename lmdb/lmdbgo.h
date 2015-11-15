@@ -6,6 +6,7 @@
 
 #include "lmdb.h"
 
+int lmdbgo_mdb_del(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn);
 int lmdbgo_mdb_get(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, MDB_val *val);
 int lmdbgo_mdb_put1(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, MDB_val *val, unsigned int flags);
 int lmdbgo_mdb_put2(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn, unsigned int flags);
