@@ -1,6 +1,7 @@
 package lmdb
 
 /*
+#include "errno.h"
 #include "lmdb.h"
 */
 import "C"
@@ -21,19 +22,19 @@ func operrno(op string, ret C.int) error {
 	// following table was generated.
 	var errno syscall.Errno
 	switch ret {
-	case 2:
+	case C.ENOENT:
 		errno = syscall.ENOENT /* 2, FILE_NOT_FOUND */
-	case 5:
+	case C.EIO:
 		errno = syscall.EIO /* 5, ACCESS_DENIED */
-	case 12:
+	case C.ENOMEM:
 		errno = syscall.ENOMEM /* 12, INVALID_ACCESS */
-	case 13:
+	case C.EACCES:
 		errno = syscall.EACCES /* 13, INVALID_DATA */
-	case 16:
+	case C.EBUSY:
 		errno = syscall.EBUSY /* 16, CURRENT_DIRECTORY */
-	case 22:
+	case C.EINVAL:
 		errno = syscall.EINVAL /* 22, BAD_COMMAND */
-	case 28:
+	case C.ENOSPC:
 		errno = syscall.ENOSPC /* 28, OUT_OF_PAPER */
 	default:
 		errno = syscall.Errno(ret)
