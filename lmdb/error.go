@@ -58,7 +58,8 @@ const (
 
 // Errno is an error type that represents the (unique) errno values defined by
 // LMDB.  Other errno values (such as EINVAL) are represented with type
-// syscall.Errno.
+// syscall.Errno.  On Windows, LMDB return codes are translated into portable
+// syscall.Errno constants (e.g. syscall.EINVAL, syscall.EACCES, etc.).
 //
 // Most often helper functions such as IsNotFound may be used instead of
 // dealing with Errno values directly.
