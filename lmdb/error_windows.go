@@ -36,7 +36,7 @@ func operrno(op string, ret C.int) error {
 	case 28:
 		errno = syscall.ENOSPC /* 28, OUT_OF_PAPER */
 	default:
-		errno = syscall.Errno(errno)
+		errno = syscall.Errno(ret)
 	}
 	return &OpError{Op: op, Errno: errno}
 }
