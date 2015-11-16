@@ -16,7 +16,7 @@ func TestTest1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot set mapsize: %s", err)
 	}
-	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		t.Fatalf("Cannot create temporary directory")
 	}

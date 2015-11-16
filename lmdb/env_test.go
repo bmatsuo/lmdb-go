@@ -82,7 +82,7 @@ func TestEnv_Open(t *testing.T) {
 	}()
 
 	// open an environment at a temporary path.
-	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestEnv_FD(t *testing.T) {
 	}
 
 	// open an environment at a temporary path.
-	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestEnv_SetMaxReader(t *testing.T) {
 
 	err = env.SetMaxReaders(126)
 	if !IsErrnoSys(err, syscall.EINVAL) {
-		t.Errorf("unexpected error: %v (!= %v)", err, Invalid)
+		t.Errorf("unexpected error: %v (!= %v)", err, syscall.EINVAL)
 	}
 	_maxreaders, err = env.MaxReaders()
 	if err != nil {
@@ -465,7 +465,7 @@ func setupFlags(t T, flags uint) *Env {
 	if err != nil {
 		t.Fatalf("env: %s", err)
 	}
-	path, err := ioutil.TempDir("/tmp", "mdb_test")
+	path, err := ioutil.TempDir("", "mdb_test")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
