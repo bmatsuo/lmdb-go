@@ -1,7 +1,7 @@
 package lmdb
 
 /*
-#include "errno.h"
+#include <errno.h>
 #include "lmdb.h"
 */
 import "C"
