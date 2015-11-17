@@ -132,7 +132,8 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	return c.txn.bytes(k), c.txn.bytes(v), nil
 }
 
-// getVal0 retrieves items from the database.
+// getVal0 retrieves items from the database without using given key or value
+// data for reference (Next, First, Last, etc).
 //
 // See mdb_cursor_get.
 func (c *Cursor) getVal0(op uint) (key, val *mdbVal, err error) {
@@ -142,6 +143,10 @@ func (c *Cursor) getVal0(op uint) (key, val *mdbVal, err error) {
 	return key, val, operrno("mdb_cursor_get", ret)
 }
 
+// getVal1 retrieves items from the database using key data for reference
+// (Set, SetRange, etc).
+//
+// See mdb_cursor_get.
 func (c *Cursor) getVal1(setkey []byte, op uint) (key, val *mdbVal, err error) {
 	key = new(mdbVal)
 	val = new(mdbVal)
@@ -155,6 +160,10 @@ func (c *Cursor) getVal1(setkey []byte, op uint) (key, val *mdbVal, err error) {
 	return key, val, operrno("mdb_cursor_get", ret)
 }
 
+// getVal2 retrieves items from the database using key and value data for
+// reference (GetBoth, GetBothRange, etc).
+//
+// See mdb_cursor_get.
 func (c *Cursor) getVal2(setkey, setval []byte, op uint) (key, val *mdbVal, err error) {
 	key = new(mdbVal)
 	val = new(mdbVal)
