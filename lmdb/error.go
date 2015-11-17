@@ -58,7 +58,8 @@ const (
 
 // Errno is an error type that represents the (unique) errno values defined by
 // LMDB.  Other errno values (such as EINVAL) are represented with type
-// syscall.Errno.
+// syscall.Errno.  On Windows, LMDB return codes are translated into portable
+// syscall.Errno constants (e.g. syscall.EINVAL, syscall.EACCES, etc.).
 //
 // Most often helper functions such as IsNotFound may be used instead of
 // dealing with Errno values directly.
@@ -80,16 +81,6 @@ func (e Errno) Error() string {
 // _operrno is for use by tests that can't import C
 func _operrno(op string, ret int) error {
 	return operrno(op, C.int(ret))
-}
-
-func operrno(op string, ret C.int) error {
-	if ret == C.MDB_SUCCESS {
-		return nil
-	}
-	if minErrno <= ret && ret <= maxErrno {
-		return &OpError{Op: op, Errno: Errno(ret)}
-	}
-	return &OpError{Op: op, Errno: syscall.Errno(ret)}
 }
 
 // IsNotFound returns true if the key requested in Txn.Get or Cursor.Get does
