@@ -4,6 +4,7 @@ package lmdb
 #include <stdlib.h>
 #include <stdio.h>
 #include "lmdb.h"
+#include "lmdbgo.h"
 */
 import "C"
 
@@ -252,34 +253,32 @@ func (txn *Txn) bytes(val *mdbVal) []byte {
 //
 // See mdb_get.
 func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
-	val, err := txn.getVal(dbi, key)
+	kdata, kn := valBytes(key)
+	val := new(mdbVal)
+	ret := C.lmdbgo_mdb_get(
+		txn._txn, C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		(*C.MDB_val)(val),
+	)
+	err := operrno("mdb_get", ret)
 	if err != nil {
 		return nil, err
 	}
 	return txn.bytes(val), nil
 }
 
-// getVal retrieves items from database dbi as a mdbVal.
-//
-// See mdb_get.
-func (txn *Txn) getVal(dbi DBI, key []byte) (*mdbVal, error) {
-	ckey := wrapVal(key)
-	var cval mdbVal
-	ret := C.mdb_get(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(&cval))
-	err := operrno("mdb_get", ret)
-	if err != nil {
-		return nil, err
-	}
-	return &cval, nil
-}
-
 // Put stores an item in database dbi.
 //
 // See mdb_put.
 func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
-	ckey := wrapVal(key)
-	cval := wrapVal(val)
-	ret := C.mdb_put(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags))
+	kdata, kn := valBytes(key)
+	vdata, vn := valBytes(val)
+	ret := C.lmdbgo_mdb_put2(
+		txn._txn, C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+		C.uint(flags),
+	)
 	return operrno("mdb_put", ret)
 }
 
@@ -287,14 +286,19 @@ func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
 // avoiding a memcopy.  The returned byte slice is only valid in txn's thread,
 // before it has terminated.
 func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, error) {
-	ckey := wrapVal(key)
-	cval := &mdbVal{mv_size: C.size_t(n)}
-	ret := C.mdb_put(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
+	kdata, kn := valBytes(key)
+	val := &mdbVal{mv_size: C.size_t(n)}
+	ret := C.lmdbgo_mdb_put1(
+		txn._txn, C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		(*C.MDB_val)(val),
+		C.uint(flags|C.MDB_RESERVE),
+	)
 	err := operrno("mdb_put", ret)
 	if err != nil {
 		return nil, err
 	}
-	return cval.Bytes(), nil
+	return val.Bytes(), nil
 }
 
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the
@@ -302,13 +306,13 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 //
 // See mdb_del.
 func (txn *Txn) Del(dbi DBI, key, val []byte) error {
-	ckey := wrapVal(key)
-	if val == nil {
-		ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), nil)
-		return operrno("mdb_del", ret)
-	}
-	cval := wrapVal(val)
-	ret := C.mdb_del(txn._txn, C.MDB_dbi(dbi), (*C.MDB_val)(ckey), (*C.MDB_val)(cval))
+	kdata, kn := valBytes(key)
+	vdata, vn := valBytes(val)
+	ret := C.lmdbgo_mdb_del(
+		txn._txn, C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+	)
 	return operrno("mdb_del", ret)
 }
 
