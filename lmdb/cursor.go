@@ -200,7 +200,12 @@ func (c *Cursor) Put(key, val []byte, flags uint) error {
 func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 	kdata, kn := valBytes(key)
 	cval := &mdbVal{mv_size: C.size_t(n)}
-	ret := C.lmdbgo_mdb_cursor_put1(c._c, kdata, C.size_t(kn), (*C.MDB_val)(cval), C.uint(flags|C.MDB_RESERVE))
+	ret := C.lmdbgo_mdb_cursor_put1(
+		c._c,
+		kdata, C.size_t(kn),
+		(*C.MDB_val)(cval),
+		C.uint(flags|C.MDB_RESERVE),
+	)
 	err := operrno("mdb_cursor_put", ret)
 	if err != nil {
 		return nil, err
@@ -217,7 +222,12 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 	kdata, kn := valBytes(key)
 	vdata, _ := valBytes(page)
 	vn := WrapMulti(page, stride).Len()
-	ret := C.lmdbgo_mdb_cursor_putmulti(c._c, kdata, C.size_t(kn), vdata, C.size_t(vn), C.size_t(stride), C.uint(flags|C.MDB_MULTIPLE))
+	ret := C.lmdbgo_mdb_cursor_putmulti(
+		c._c,
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn), C.size_t(stride),
+		C.uint(flags|C.MDB_MULTIPLE),
+	)
 	return operrno("mdb_cursor_put", ret)
 }
 
