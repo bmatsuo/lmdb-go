@@ -148,16 +148,25 @@ func (env *Env) ReaderCheck() (int, error) {
 	return int(_dead), operrno("mdb_reader_check", ret)
 }
 
-// Close shuts down the environment and releases the memory map.
-//
-// See mdb_env_close.
-func (env *Env) Close() error {
+func (env *Env) close() bool {
 	if env._env == nil {
-		return errors.New("environment is already closed")
+		return false
 	}
 	C.mdb_env_close(env._env)
 	env._env = nil
-	return nil
+	return true
+}
+
+// Close shuts down the environment, releases the memory map, and clears the
+// finalizer on env.
+//
+// See mdb_env_close.
+func (env *Env) Close() error {
+	if env.close() {
+		runtime.SetFinalizer(env, nil)
+		return nil
+	}
+	return errors.New("environment is already closed")
 }
 
 // CopyFD copies env to the the file descriptor fd.

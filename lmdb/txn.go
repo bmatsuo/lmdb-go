@@ -71,13 +71,16 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	return txn, nil
 }
 
-// Commit commits all operations of the transaction to the database.  A Txn
-// cannot be used again after Commit is called.
+// Commit persists all transaction operations to the database and clears the
+// finalizer on txn.  A Txn cannot be used again after Commit is called.
 //
 // See mdb_txn_commit.
 func (txn *Txn) Commit() error {
 	if txn.managed {
 		panic("managed transaction cannot be comitted directly")
+	}
+	if txn != nil {
+		runtime.SetFinalizer(txn, nil)
 	}
 	return txn.commit()
 }
@@ -88,15 +91,17 @@ func (txn *Txn) commit() error {
 	return operrno("mdb_txn_commit", ret)
 }
 
-// Abort discards pending writes in the transaction.  A Txn cannot be used
-// again after Abort is called.
+// Abort discards pending writes in the transaction and clears the finalizer on
+// txn.  A Txn cannot be used again after Abort is called.
 //
 // See mdb_txn_abort.
 func (txn *Txn) Abort() {
 	if txn.managed {
 		panic("managed transaction cannot be aborted directly")
 	}
-
+	if txn != nil {
+		runtime.SetFinalizer(txn, nil)
+	}
 	txn.abort()
 }
 

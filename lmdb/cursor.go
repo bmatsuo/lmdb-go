@@ -96,8 +96,9 @@ func (c *Cursor) close() bool {
 	return false
 }
 
-// Close the cursor handle.  Cursors belonging to write transactions are closed
-// automatically when the transaction is terminated.
+// Close the cursor handle and clear the finalizer on c.  Cursors belonging to
+// write transactions are closed automatically when the transaction is
+// terminated.
 //
 // See mdb_cursor_close.
 func (c *Cursor) Close() {
