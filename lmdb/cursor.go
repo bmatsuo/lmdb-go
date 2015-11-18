@@ -82,7 +82,7 @@ func (c *Cursor) Renew(txn *Txn) error {
 	return nil
 }
 
-func (c *Cursor) close() {
+func (c *Cursor) close() bool {
 	if c._c != nil {
 		if c.txn._txn == nil && !c.txn.readonly {
 			// the cursor has already been released by LMDB.
@@ -91,7 +91,9 @@ func (c *Cursor) close() {
 		}
 		c.txn = nil
 		c._c = nil
+		return true
 	}
+	return false
 }
 
 // Close the cursor handle.  Cursors belonging to write transactions are closed
@@ -99,8 +101,9 @@ func (c *Cursor) close() {
 //
 // See mdb_cursor_close.
 func (c *Cursor) Close() {
-	runtime.SetFinalizer(c, nil)
-	c.close()
+	if c.close() {
+		runtime.SetFinalizer(c, nil)
+	}
 }
 
 // Txn returns the cursor's transaction.
