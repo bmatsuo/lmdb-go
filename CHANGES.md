@@ -1,5 +1,16 @@
 #Release Change Log
 
+##v1.3.0
+
+- all: Builds on Windows with passing tests. Fixes #33.
+- lmdb: Cursor.DBI returns "invalid" DBI if the cursor is closed. Fixes #31.
+- lmdb: Finalizers to prevent resource leaks. Fixes #20.
+- all: Internal test package for setting up, populating, and tearing down environments.
+- lmdbscan: Fix panic in Scanner.Scan after Txn.OpenCursor fails. Fixes #21.
+- lmdbscan: Scanner.Set[Next] methods move the cursor and make the next
+  Scanner.Scan a noop.  The changes should be backwards compatible. Fixes #17.
+- lmdb: Cgo calling convention meets rules set forth for go1.6. Fixes #10.
+
 ##v1.2.0
 
 - Many example tests replaced with simpler code examples.
