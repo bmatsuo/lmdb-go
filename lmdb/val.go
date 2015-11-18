@@ -78,34 +78,15 @@ func (m *Multi) Page() []byte {
 	return m.page[:len(m.page):len(m.page)]
 }
 
-func (m *Multi) val() *multiVal {
-	return &multiVal{
-		mdbVal{
-			mv_size: C.size_t(m.stride),
-			mv_data: unsafe.Pointer(&m.page[0]),
-		},
-		mdbVal{
-			mv_size: C.size_t(len(m.page) / m.stride),
-		},
-	}
-}
-
-// multiVal is a type to hold a page of values retrieved from a database
-// created with DupSort|DupFixed.
-//
-// See mdb_cursor_get and MDB_GET_MULTIPLE.
-type multiVal [2]mdbVal
-
-// val converts a Multi into a pointer to mdbVal.  This effectively creates a
-// C-style array of the Multi data.
-//
-// See mdb_cursor_put and MDB_MULTIPLE.
-func (val *multiVal) val() *mdbVal {
-	return &val[0]
-}
-
 // MDB_val
 type mdbVal C.MDB_val
+
+func valBytes(b []byte) (unsafe.Pointer, int) {
+	if len(b) == 0 {
+		return nil, 0
+	}
+	return unsafe.Pointer(&b[0]), len(b)
+}
 
 // wrapVal creates an mdbVal that points to p's data. the mdbVal's data must
 // not be freed manually and C references must not survive the garbage
