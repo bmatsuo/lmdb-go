@@ -67,7 +67,7 @@ func TestCursor_DBI(t *testing.T) {
 		if dbcur == db {
 			return fmt.Errorf("db: %v", dbcur)
 		}
-		if dbcur != 0 {
+		if dbcur != ^DBI(0) {
 			return fmt.Errorf("db: %v", dbcur)
 		}
 		return nil
