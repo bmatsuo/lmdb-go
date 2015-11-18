@@ -79,9 +79,7 @@ func (txn *Txn) Commit() error {
 	if txn.managed {
 		panic("managed transaction cannot be comitted directly")
 	}
-	if txn != nil {
-		runtime.SetFinalizer(txn, nil)
-	}
+	runtime.SetFinalizer(txn, nil)
 	return txn.commit()
 }
 
@@ -99,9 +97,7 @@ func (txn *Txn) Abort() {
 	if txn.managed {
 		panic("managed transaction cannot be aborted directly")
 	}
-	if txn != nil {
-		runtime.SetFinalizer(txn, nil)
-	}
+	runtime.SetFinalizer(txn, nil)
 	txn.abort()
 }
 
