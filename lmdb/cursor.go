@@ -6,6 +6,7 @@ package lmdb
 #include "lmdb.h"
 */
 import "C"
+import "runtime"
 
 // These flags are used exclusively for Cursor.Get.
 const (
@@ -80,14 +81,7 @@ func (c *Cursor) Renew(txn *Txn) error {
 	return nil
 }
 
-// Close the cursor handle.  Close must be called when the cursor is no longer
-// needed to avoid a memory leak.
-//
-// Cursors in write transactions must be closed before their transaction is
-// terminated.
-//
-// See mdb_cursor_close.
-func (c *Cursor) Close() {
+func (c *Cursor) close() {
 	if c._c != nil {
 		if c.txn._txn == nil && !c.txn.readonly {
 			// the cursor has already been released by LMDB.
@@ -97,6 +91,15 @@ func (c *Cursor) Close() {
 		c.txn = nil
 		c._c = nil
 	}
+}
+
+// Close the cursor handle.  Cursors belonging to write transactions are closed
+// automatically when the transaction is terminated.
+//
+// See mdb_cursor_close.
+func (c *Cursor) Close() {
+	runtime.SetFinalizer(c, nil)
+	c.close()
 }
 
 // Txn returns the cursor's transaction.
