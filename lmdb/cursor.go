@@ -112,11 +112,18 @@ func (c *Cursor) Txn() *Txn {
 	return c.txn
 }
 
-// DBI returns the cursor's database handle.
+// DBI returns the cursor's database handle.  If c has been closed than an
+// invalid DBI is returned.
 func (c *Cursor) DBI() DBI {
+	// dbiInvalid is an invalid DBI (the max value for the type).  it shouldn't
+	// be possible to create a database handle with value dbiInvalid because
+	// the process address space would be exhausted.  it is also impractical to
+	// have many open databases in an environment.
+	const dbiInvalid = ^DBI(0)
+
 	// mdb_cursor_dbi segfaults when passed a nil value
 	if c._c == nil {
-		return 0
+		return dbiInvalid
 	}
 	return DBI(C.mdb_cursor_dbi(c._c))
 }
