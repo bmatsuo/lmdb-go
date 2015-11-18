@@ -10,6 +10,7 @@
 - lmdbscan: Scanner.Set[Next] methods move the cursor and make the next
   Scanner.Scan a noop.  The changes should be backwards compatible. Fixes #17.
 - lmdb: Cgo calling convention meets rules set forth for go1.6. Fixes #10.
+- lmdb: add a "Package" code example that shows a complete workflow
 
 ##v1.2.0
 
