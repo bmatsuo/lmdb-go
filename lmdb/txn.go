@@ -11,6 +11,7 @@ import "C"
 import (
 	"log"
 	"math"
+	"runtime"
 	"unsafe"
 )
 
@@ -42,17 +43,21 @@ type Txn struct {
 	// and its cursors will point directly into the memory-mapped structure.
 	// Such slices will be readonly and must only be referenced wthin the
 	// transaction's lifetime.
-	RawRead bool
-	managed bool
-	env     *Env
-	_txn    *C.MDB_txn
-	errLogf func(format string, v ...interface{})
+	RawRead  bool
+	managed  bool
+	readonly bool
+	env      *Env
+	_txn     *C.MDB_txn
+	errLogf  func(format string, v ...interface{})
 }
 
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
 // write transaction.
 func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
-	txn := &Txn{env: env}
+	txn := &Txn{
+		readonly: (flags&Readonly != 0),
+		env:      env,
+	}
 	var ptxn *C.MDB_txn
 	if parent == nil {
 		ptxn = nil
@@ -66,14 +71,15 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	return txn, nil
 }
 
-// Commit commits all operations of the transaction to the database.  A Txn
-// cannot be used again after Commit is called.
+// Commit persists all transaction operations to the database and clears the
+// finalizer on txn.  A Txn cannot be used again after Commit is called.
 //
 // See mdb_txn_commit.
 func (txn *Txn) Commit() error {
 	if txn.managed {
 		panic("managed transaction cannot be comitted directly")
 	}
+	runtime.SetFinalizer(txn, nil)
 	return txn.commit()
 }
 
@@ -83,15 +89,15 @@ func (txn *Txn) commit() error {
 	return operrno("mdb_txn_commit", ret)
 }
 
-// Abort discards pending writes in the transaction.  A Txn cannot be used
-// again after Abort is called.
+// Abort discards pending writes in the transaction and clears the finalizer on
+// txn.  A Txn cannot be used again after Abort is called.
 //
 // See mdb_txn_abort.
 func (txn *Txn) Abort() {
 	if txn.managed {
 		panic("managed transaction cannot be aborted directly")
 	}
-
+	runtime.SetFinalizer(txn, nil)
 	txn.abort()
 }
 
@@ -320,7 +326,11 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 //
 // See mdb_cursor_open.
 func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
-	return openCursor(txn, dbi)
+	cur, err := openCursor(txn, dbi)
+	if cur != nil && txn.readonly {
+		runtime.SetFinalizer(cur, (*Cursor).close)
+	}
+	return cur, err
 }
 
 func (txn *Txn) errf(format string, v ...interface{}) {
