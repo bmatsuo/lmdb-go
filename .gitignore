@@ -1,3 +1,6 @@
+# c repository for updating after each release
+/lmdb/lmdb
+
 /bin/
 
 # Test databases and benchmark data
