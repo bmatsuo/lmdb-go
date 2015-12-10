@@ -2,8 +2,11 @@
 
 ##v1.4.0
 
-- lmdb: pass CFLAGS -Wno-format-extra-args to silence compilation warning (OS X)
-- lmdb: update C library to 0.9.17
+- development: The LMDB C library can be cloned under /lmdb -- it will be
+  ignored.
+- lmdb: Pass CFLAGS -Wno-format-extra-args to silence compilation warning (OS
+  X).
+- lmdb: Update the LMDB C library to 0.9.17
 
 ```
     Fix ITS#7377 catch calloc failure
