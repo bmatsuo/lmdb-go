@@ -5,6 +5,7 @@
 - lmdb: pass CFLAGS -Wno-format-extra-args to silence compilation warning (OS X)
 - lmdb: update C library to 0.9.17
 
+```
     Fix ITS#7377 catch calloc failure
     Fix ITS#8237 regression from ITS#7589
     Fix ITS#8238 page_split for DUPFIXED pages
@@ -40,6 +41,7 @@
         Use O_SYNC if O_DSYNC,MDB_DSYNC are not defined (ITS#7209)
         Allow passing AR to make (ITS#8168)
         Allow passing mandir to make install (ITS#8169)
+```
 
 
 ##v1.3.0
