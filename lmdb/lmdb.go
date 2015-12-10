@@ -55,9 +55,6 @@ package lmdb
 
 /*
 #cgo CFLAGS: -pthread -W -Wall -Wno-unused-parameter -Wno-format-extra-args -Wbad-function-cast -O2 -g
-#cgo freebsd CFLAGS: -DMDB_DSYNC=O_SYNC
-#cgo openbsd CFLAGS: -DMDB_DSYNC=O_SYNC
-#cgo netbsd CFLAGS: -DMDB_DSYNC=O_SYNC
 
 #include "lmdb.h"
 */
