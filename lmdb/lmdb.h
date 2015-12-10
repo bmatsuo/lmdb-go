@@ -50,15 +50,14 @@
  *
  *	  Fix: Check for stale readers periodically, using the
  *	  #mdb_reader_check function or the \ref mdb_stat_1 "mdb_stat" tool.
- *	  Stale writers will be cleared automatically on most systems:
+ *	  Stale writers will be cleared automatically on some systems:
  *	  - Windows - automatic
- *	  - BSD, systems using SysV semaphores - automatic
  *	  - Linux, systems using POSIX mutexes with Robust option - automatic
+ *	  - not on BSD, systems using POSIX semaphores.
  *	  Otherwise just make all programs using the database close it;
  *	  the lockfile is always reset on first open of the environment.
  *
- *	- On BSD systems or others configured with MDB_USE_SYSV_SEM or
- *	  MDB_USE_POSIX_SEM,
+ *	- On BSD systems or others configured with MDB_USE_POSIX_SEM,
  *	  startup can fail due to semaphores owned by another userid.
  *
  *	  Fix: Open and close the database as the user which owns the
@@ -192,7 +191,7 @@ typedef int mdb_filehandle_t;
 /** Library minor version */
 #define MDB_VERSION_MINOR	9
 /** Library patch version */
-#define MDB_VERSION_PATCH	16
+#define MDB_VERSION_PATCH	17
 
 /** Combine args a,b,c into a single integer for easy version comparisons */
 #define MDB_VERINT(a,b,c)	(((a) << 24) | ((b) << 16) | (c))
@@ -202,7 +201,7 @@ typedef int mdb_filehandle_t;
 	MDB_VERINT(MDB_VERSION_MAJOR,MDB_VERSION_MINOR,MDB_VERSION_PATCH)
 
 /** The release date of this library version */
-#define MDB_VERSION_DATE	"August 14, 2015"
+#define MDB_VERSION_DATE	"November 30, 2015"
 
 /** A stringifier for the version info */
 #define MDB_VERSTR(a,b,c,d)	"LMDB " #a "." #b "." #c ": (" d ")"
@@ -938,10 +937,6 @@ int  mdb_env_set_assert(MDB_env *env, MDB_assert_func *func);
 	 * <ul>
 	 *	<li>#MDB_RDONLY
 	 *		This transaction will not perform any write operations.
-	 *	<li>#MDB_NOSYNC
-	 *		Don't flush system buffers to disk when committing this transaction.
-	 *	<li>#MDB_NOMETASYNC
-	 *		Flush system buffers but omit metadata flush when committing this transaction.
 	 * </ul>
 	 * @param[out] txn Address where the new #MDB_txn handle will be stored
 	 * @return A non-zero error value on failure and 0 on success. Some possible
