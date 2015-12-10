@@ -1,5 +1,52 @@
 #Release Change Log
 
+##v1.4.0
+
+- development: The LMDB C library can be cloned under /lmdb -- it will be
+  ignored.
+- lmdb: Pass CFLAGS -Wno-format-extra-args to silence compilation warning (OS
+  X).
+- lmdb: Update the LMDB C library to 0.9.17
+
+```
+    Fix ITS#7377 catch calloc failure
+    Fix ITS#8237 regression from ITS#7589
+    Fix ITS#8238 page_split for DUPFIXED pages
+    Fix ITS#8221 MDB_PAGE_FULL on delete/rebalance
+    Fix ITS#8258 rebalance/split assert
+    Fix ITS#8263 cursor_put cursor tracking
+    Fix ITS#8264 cursor_del cursor tracking
+    Fix ITS#8310 cursor_del cursor tracking
+    Fix ITS#8299 mdb_del cursor tracking
+    Fix ITS#8300 mdb_del cursor tracking
+    Fix ITS#8304 mdb_del cursor tracking
+    Fix ITS#7771 fakepage cursor tracking
+    Fix ITS#7789 ensure mapsize >= pages in use
+    Fix ITS#7971 mdb_txn_renew0() new reader slots
+    Fix ITS#7969 use __sync_synchronize on non-x86
+    Fix ITS#8311 page_split from update_key
+    Fix ITS#8312 loose pages in nested txn
+    Fix ITS#8313 mdb_rebalance dummy cursor
+    Fix ITS#8315 dirty_room in nested txn
+    Fix ITS#8323 dirty_list in nested txn
+    Fix ITS#8316 page_merge cursor tracking
+    Fix ITS#8321 cursor tracking
+    Fix ITS#8319 mdb_load error messages
+    Fix ITS#8320 mdb_load plaintext input
+    Added mdb_txn_id() (ITS#7994)
+    Added robust mutex support
+    Miscellaneous cleanup/simplification
+    Build
+        Create install dirs if needed (ITS#8256)
+        Fix ThreadProc decl on Win32/MSVC (ITS#8270)
+        Added ssize_t typedef for MSVC (ITS#8067)
+        Use ANSI apis on Windows (ITS#8069)
+        Use O_SYNC if O_DSYNC,MDB_DSYNC are not defined (ITS#7209)
+        Allow passing AR to make (ITS#8168)
+        Allow passing mandir to make install (ITS#8169)
+```
+
+
 ##v1.3.0
 
 - all: Builds on Windows with passing tests. Fixes #33.
