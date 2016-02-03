@@ -121,6 +121,7 @@ func (txn *Txn) Reset() {
 		panic("managed transaction cannot be reset directly")
 	}
 	txn.reset()
+	runtime.SetFinalizer(txn, nil)
 }
 
 func (txn *Txn) reset() {
@@ -135,7 +136,12 @@ func (txn *Txn) Renew() error {
 	if txn.managed {
 		panic("managed transaction cannot be renewed directly")
 	}
-	return txn.renew()
+	err := txn.renew()
+	if err != nil {
+		return err
+	}
+	runtime.SetFinalizer(txn, func(v interface{}) { v.(*Txn).finalize() })
+	return nil
 }
 
 func (txn *Txn) renew() error {
@@ -339,6 +345,13 @@ func (txn *Txn) errf(format string, v ...interface{}) {
 		return
 	}
 	log.Printf(format, v...)
+}
+
+func (txn *Txn) finalize() {
+	if txn._txn != nil {
+		txn.errf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
+		txn.Abort()
+	}
 }
 
 // TxnOp is an operation applied to a managed transaction.  The Txn passed to a

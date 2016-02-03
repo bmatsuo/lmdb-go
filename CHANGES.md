@@ -1,5 +1,9 @@
 #Release Change Log
 
+##v1.5.0-dev
+
+- lmdb: fix crash from bad interaction with Txn finalizer and Txn.Reset/.Renew.
+
 ##v1.4.0
 
 - development: The LMDB C library can be cloned under /lmdb -- it will be

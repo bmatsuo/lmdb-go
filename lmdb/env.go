@@ -391,12 +391,7 @@ func (env *Env) SetMaxDBs(size int) error {
 func (env *Env) BeginTxn(parent *Txn, flags uint) (*Txn, error) {
 	txn, err := beginTxn(env, parent, flags)
 	if txn != nil {
-		runtime.SetFinalizer(txn, func(txn *Txn) {
-			if txn._txn != nil {
-				txn.errf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
-				txn.Abort()
-			}
-		})
+		runtime.SetFinalizer(txn, func(v interface{}) { v.(*Txn).finalize() })
 	}
 	return txn, err
 }
