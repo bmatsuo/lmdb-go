@@ -35,7 +35,7 @@ func main() {
 	}
 }
 
-// WriteRandomItems writes numitem items with checksize sized values full of
+// WriteRandomItems writes numitem items with chunksize sized values full of
 // random data.
 func WriteRandomItems(path string, numitem, chunksize int64) error {
 	env, err := OpenEnv(path)
