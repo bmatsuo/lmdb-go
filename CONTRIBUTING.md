@@ -49,11 +49,11 @@ contributors to follow.
     discussion about design or overall merit must take place in the
     corresponding issue.
 
-4.  All contributions must pass tests and format/style checks in the Makefile,
-    invoked with the command.  Specifically, code must be formatted with
-    `goimports` and must not produce any warnings or errors from `go test`,
-    `go vet`, or `golint`.
+4.  All contributions must compile and pass the tests and format/style checks
+    in the Makefile, invoked with the command `make all`.  Specifically, code
+    must be formatted with `goimports` and must not produce any warnings or
+    errors from `go test`, `go vet`, or `golint`.
 
 By submitting a pull request for this project, you are asserting that you have
-the rights and agree to license your contribution under the MIT license to this
-project.
+the rights to provide it and agree to license your contribution under the MIT
+license to this project.
