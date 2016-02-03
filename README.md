@@ -29,8 +29,8 @@ import "github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 ```
 
 A utility package for scanning database ranges. The API is inspired by
-[bufio.Scanner](https://godoc.org/bufio#Scanner) and the python cursor iterator
-implementation.
+[bufio.Scanner](https://godoc.org/bufio#Scanner) and the python cursor
+[implementation](https://lmdb.readthedocs.org/en/release/#cursor-class).
 
 The **lmdbscan** package is unstable. The API is properly scoped and adequately
 tested.  And no features that exist now will be removed without a similar
