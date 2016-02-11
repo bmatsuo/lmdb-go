@@ -123,19 +123,25 @@ Building commands and running tests can be done with `go` or with `make`
 
 #Documentation
 
+##Go doc
+
+The `go doc` documentation available on
+[godoc.org](https://godoc.org/github.com/bmatsuo/lmdb-go) is the primary source
+of developer documentation for lmdb-go.  It provides an overview of the API
+with a lot of usage examples.  Where necessary the documentation points out
+differences between the semantics of methods and their C counterparts.
+
 ##LMDB
 
-The best source of documentation regarding the low-level usage of LMDB
-environments is the official LMDB C API documentation reachable through the
-LMDB [homepage](http://symas.com/mdb/).
+The LMDB [homepage](http://symas.com/mdb/) and mailing list
+([archives](http://www.openldap.org/lists/openldap-technical/)) are the
+official source of documentation regarding the low-level LMDB operation and
+internals.
 
-##Godoc
-
-The "godoc" documentation available on
-[godoc.org](https://godoc.org/github.com/bmatsuo/lmdb-go) has all remaining
-developer documentation for lmdb-go.  Godoc documentation covers specifics to
-the Go bindings, how methods differ from their underlying C counterparts, and
-lots of usage examples.
+Along with an API reference LMDB provides a high-level
+[summary](http://symas.com/mdb/doc/starting.html) of the library.  While
+lmdb-go abstracts many of the thread and transaction details by default the
+rest of the guide is still useful to compare with `go doc`.
 
 ##Versioning and Stability
 
