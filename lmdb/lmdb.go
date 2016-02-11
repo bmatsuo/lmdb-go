@@ -30,7 +30,7 @@ database serves as an index for named databases.
 
 A database is referenced by an opaque handle known as its DBI which must be
 opened inside a transaction with the OpenDBI or OpenRoot methods.  DBIs may be
-closed but it is not required.  Typically, applications aquire handles for all
+closed but it is not required.  Typically, applications acquire handles for all
 their databases immediately after opening an environment and retain them for
 the lifetime of the process.
 
