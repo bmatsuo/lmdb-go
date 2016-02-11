@@ -44,6 +44,10 @@ func (c HandlerChain) Append(h ...Handler) HandlerChain {
 // transactions.  Adopting the new map size requires all transactions to
 // terminate first.  If any transactions wait for other transactions to
 // complete they may deadlock in the presence of a MapResized error.
+//
+// If maxRetry consecutive transactions fail due to MapResized then the Handler
+// returned by MapResizedHandler will give up and the transaction will fail,
+// returning MapResized to the caller.
 func MapResizedHandler(maxRetry int, repeatDelay func(retry int) time.Duration) Handler {
 	return &resizedHandler{
 		RetryResize:       maxRetry,
@@ -60,8 +64,9 @@ type MapFullFunc func(size int64) (int64, bool)
 // MapFullHandler returns a Handler that retries Txns that failed due to
 // MapFull errors by increasing the environment map size according to fn.
 //
-// A lmdb.TxnOp which is handled by the returned Handler will execute multiple
-// times in the occurrance of a MapFull error.
+// When using MapFullHandler it is important that transactions are idempotent.
+// A lmdb.TxnOp func which returns MapFull will execute multiple times due to
+// MapFullHandler.
 //
 // When MapFullHandler is in use update transactions must not be nested inside
 // view transactions.  Resizing the database requires all transactions to
