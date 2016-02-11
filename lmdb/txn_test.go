@@ -836,6 +836,56 @@ func TestTxn_RunTxn(t *testing.T) {
 	}
 }
 
+func TestTxn_Stat(t *testing.T) {
+	env := setup(t)
+	path, err := env.Path()
+	if err != nil {
+		env.Close()
+		t.Error(err)
+		return
+	}
+	defer os.RemoveAll(path)
+	defer env.Close()
+
+	var dbi DBI
+	err = env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.CreateDBI("testdb")
+		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		put := func(k, v []byte) {
+			if err == nil {
+				err = txn.Put(dbi, k, v, 0)
+			}
+		}
+		put([]byte("a"), []byte("1"))
+		put([]byte("b"), []byte("2"))
+		put([]byte("c"), []byte("3"))
+		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	var stat *Stat
+	err = env.View(func(txn *Txn) (err error) {
+		stat, err = txn.Stat(dbi)
+		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+		return
+	}
+	if stat.Entries != 3 {
+		t.Errorf("unexpected entries: %d (expected %d)", stat.Entries, 3)
+	}
+}
+
 func BenchmarkTxn_Sub_commit(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
