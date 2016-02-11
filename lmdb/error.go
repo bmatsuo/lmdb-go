@@ -12,8 +12,8 @@ import (
 )
 
 // OpError is an error returned by the C API.  Not all errors returned by
-// lmdb-go but typically they are.  The Errno field type will either be Errno
-// or syscall.Errno.
+// lmdb-go have type OpError but typically they do.  The Errno field will
+// either have type Errno or syscall.Errno.
 type OpError struct {
 	Op    string
 	Errno error
