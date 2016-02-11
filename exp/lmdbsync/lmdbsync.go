@@ -65,13 +65,17 @@ not OS X).
 
 See mdb_env_set_mapsize.
 
-Multi-processing (MapResized)
+MapResized
+
+When multiple processes access and resize an environment it is not uncommon to
+encounter a MapResized error which requires synchronized action before
+continuing normal operations.
 
 Using the Handler interface provided by the package MapResizedHandler can be
 used to automatically resize an enviornment when a lmdb.MapResized error is
-encountered.  Usage of the MapResizedHandler puts important caveats on how one
-can safely work with transactions.  See the function documentation for more
-detailed information.
+encountered.  However, usage of the MapResizedHandler puts important caveats on
+how one can safely work with transactions.  See the function documentation for
+more detailed information.
 
 When other processes may change an environment's map size it is extremely
 important to ensure that transactions terminate independent of all other
