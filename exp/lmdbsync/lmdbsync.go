@@ -226,49 +226,33 @@ func (r *Env) BeginTxn(parent *lmdb.Txn, flags uint) (*lmdb.Txn, error) {
 //
 // If lmdb.NoLock is set on r.Env then RunTxn will block while other updates
 // are in progress, regardless of flags.
-//
-// If RunTxn returns MapResized it means another process(es) was writing too
-// fast to the database and the calling process could not get a valid
-// transaction handle.
 func (r *Env) RunTxn(flags uint, op lmdb.TxnOp) (err error) {
 	readonly := flags&lmdb.Readonly != 0
 	return r.runHandler(readonly, func() error { return r.Env.RunTxn(flags, op) }, r.Handlers)
 }
 
-// View is a proxy for r.Env.RunTxn().
+// View is a proxy for r.Env.View().
 //
 // If lmdb.NoLock is set on r.Env then View will block until any running update
 // completes.
-//
-// If View returns MapResized it means another process(es) was writing too fast
-// to the database and the calling process could not get a valid transaction
-// handle.
 func (r *Env) View(op lmdb.TxnOp) error {
 	return r.runHandler(true, func() error { return r.Env.View(op) }, r.Handlers)
 }
 
-// Update is a proxy for r.Env.RunTxn().
+// Update is a proxy for r.Env.Update().
 //
 // If lmdb.NoLock is set on r.Env then Update blocks until all other
 // transactions have terminated and blocks all other transactions from running
 // while in progress (including readonly transactions).
-//
-// If Update returns MapResized it means another process(es) was writing too
-// fast to the database and the calling process could not get a valid
-// transaction handle.
 func (r *Env) Update(op lmdb.TxnOp) error {
 	return r.runHandler(false, func() error { return r.Env.Update(op) }, r.Handlers)
 }
 
-// UpdateLocked is a proxy for r.Env.RunTxn().
+// UpdateLocked is a proxy for r.Env.UpdateLocked().
 //
 // If lmdb.NoLock is set on r.Env then UpdateLocked blocks until all other
 // transactions have terminated and blocks all other transactions from running
 // while in progress (including readonly transactions).
-//
-// If UpdateLocked returns MapResized it means another process(es) was writing
-// too fast to the database and the calling process could not get a valid
-// transaction handle.
 func (r *Env) UpdateLocked(op lmdb.TxnOp) error {
 	return r.runHandler(false, func() error { return r.Env.UpdateLocked(op) }, r.Handlers)
 }

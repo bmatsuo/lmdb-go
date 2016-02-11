@@ -37,7 +37,7 @@ func (c HandlerChain) Append(h ...Handler) HandlerChain {
 	return _c
 }
 
-// MapResizedHandler returns a Handler than transparently retrie Txns that
+// MapResizedHandler returns a Handler that transparently retries Txns that
 // failed to start due to MapResized errors.
 //
 // When MapResizeHandler is in use transactions must not be nested inside other
