@@ -359,7 +359,7 @@ func (txn *Txn) finalize() {
 // Reset on it.
 //
 // IMPORTANT:
-// TxnOps that write to the database (those passed to Update or BeginUpdate)
+// TxnOps that write to the database (those passed to Env.Update or Txn.Sub)
 // must not use the Txn in another goroutine (passing it directly or otherwise
 // through closure).  Doing so has undefined results.
 type TxnOp func(txn *Txn) error
