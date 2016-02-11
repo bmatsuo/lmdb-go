@@ -1,6 +1,6 @@
 #Release Change Log
 
-##v1.5.0-dev
+##v1.5.0
 
 - lmdb: fix crash from bad interaction with Txn finalizer and Txn.Reset/.Renew.
 - lmdb: Update the LMDB C library to 0.9.18
