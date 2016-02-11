@@ -3,6 +3,23 @@
 ##v1.5.0-dev
 
 - lmdb: fix crash from bad interaction with Txn finalizer and Txn.Reset/.Renew.
+- lmdb: Update the LMDB C library to 0.9.18
+
+```
+    Fix robust mutex detection on glibc 2.10-11 (ITS#8330)
+    Fix page_search_root assert on FreeDB (ITS#8336)
+    Fix MDB_APPENDDUP vs. rewrite(single item) (ITS#8334)
+    Fix mdb_copy of large files on Windows
+    Fix subcursor move after delete (ITS#8355)
+    Fix mdb_midl_shirnk off-by-one (ITS#8363)
+    Check for utf8_to_utf16 failures (ITS#7992)
+    Catch strdup failure in mdb_dbi_open
+    Build
+        Additional makefile var tweaks (ITS#8169)
+    Documentation
+        Add Getting Started page
+        Update WRITEMAP description
+```
 
 ##v1.4.0
 
