@@ -530,3 +530,34 @@ func TestEnv_MaxKeySize_nil(t *testing.T) {
 	}
 	t.Logf("mdb_env_get_maxkeysize: %d", n)
 }
+
+func TestEnv_CloseDBI(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	const numdb = 1000
+	for i := 0; i < numdb; i++ {
+		dbname := fmt.Sprintf("db%d", i)
+
+		var dbi DBI
+		err := env.Update(func(txn *Txn) (err error) {
+			dbi, err = txn.CreateDBI(dbname)
+			return err
+		})
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+
+		env.CloseDBI(dbi)
+	}
+
+	stat, err := env.Stat()
+	if err != nil {
+		t.Errorf("%s", err)
+		return
+	}
+
+	if stat.Entries != numdb {
+		t.Errorf("unexpected entries: %d (not %d)", stat.Entries, numdb)
+	}
+}
