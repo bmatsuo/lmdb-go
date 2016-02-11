@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"testing"
@@ -357,23 +358,47 @@ func TestEnv_ReaderCheck(t *testing.T) {
 }
 
 func TestEnv_Copy(t *testing.T) {
-	testEnvCopy(t, 0, false)
+	testEnvCopy(t, 0, false, false)
 }
 
 func TestEnv_CopyFlags(t *testing.T) {
-	testEnvCopy(t, CopyCompact, true)
+	testEnvCopy(t, CopyCompact, true, false)
 }
 
 func TestEnv_CopyFlags_zero(t *testing.T) {
-	testEnvCopy(t, 0, true)
+	testEnvCopy(t, 0, true, false)
 }
 
-func testEnvCopy(t *testing.T, flags uint, useflags bool) {
+func TestEnv_CopyFD(t *testing.T) {
+	testEnvCopy(t, 0, false, true)
+}
+
+func TestEnv_CopyFDFlags(t *testing.T) {
+	testEnvCopy(t, CopyCompact, true, true)
+}
+
+func TestEnv_CopyFDFlags_zero(t *testing.T) {
+	testEnvCopy(t, 0, true, true)
+}
+
+func testEnvCopy(t *testing.T, flags uint, useflags bool, usefd bool) {
 	dircp, err := ioutil.TempDir("", "test-env-copy-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dircp)
+
+	var fd uintptr
+	if usefd {
+		path := filepath.Join(dircp, "data.mdb")
+		f, err := os.Create(path)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		fd = f.Fd()
+		defer f.Close()
+	}
 
 	env := setup(t)
 	defer clean(env, t)
@@ -394,9 +419,14 @@ func testEnvCopy(t *testing.T, flags uint, useflags bool) {
 		t.Error(err)
 	}
 
-	if useflags {
+	switch {
+	case usefd && useflags:
+		err = env.CopyFDFlag(fd, flags)
+	case usefd && !useflags:
+		err = env.CopyFD(fd)
+	case !usefd && useflags:
 		err = env.CopyFlag(dircp, flags)
-	} else {
+	case !usefd && !useflags:
 		err = env.Copy(dircp)
 	}
 	if err != nil {
