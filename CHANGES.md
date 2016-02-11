@@ -1,5 +1,7 @@
 #Release Change Log
 
+##v1.6.0-dev
+
 ##v1.5.0
 
 - lmdb: fix crash from bad interaction with Txn finalizer and Txn.Reset/.Renew.
