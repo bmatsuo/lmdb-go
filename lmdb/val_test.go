@@ -31,6 +31,38 @@ func TestMultiVal(t *testing.T) {
 	}
 }
 
+func TestMultiVal_panic(t *testing.T) {
+	var p bool
+	defer func() {
+		if e := recover(); e != nil {
+			p = true
+		}
+		if !p {
+			t.Errorf("expected a panic")
+		}
+	}()
+	WrapMulti([]byte("123"), 2)
+}
+
+func TestValBytes(t *testing.T) {
+	ptr, n := valBytes(nil)
+	if ptr != nil {
+		t.Errorf("unexpected non-nil pointer")
+	}
+	if n != 0 {
+		t.Errorf("unexpected length: %d (expected 0)", n)
+	}
+
+	b := []byte("abc")
+	ptr, n = valBytes(b)
+	if ptr == nil {
+		t.Errorf("unexpected nil pointer")
+	}
+	if n != 3 {
+		t.Errorf("unexpected length: %d (expected %d)", n, len(b))
+	}
+}
+
 func TestVal(t *testing.T) {
 	orig := "hey hey"
 	val := wrapVal([]byte(orig))
