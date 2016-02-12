@@ -11,6 +11,45 @@ import (
 	"time"
 )
 
+func TestTxn_ID(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var id1, id2, id3 uintptr
+	var txnInvalid *Txn
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err := txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		id1 = txn.ID()
+		return txn.Put(dbi, []byte("key"), []byte("val"), 0)
+	})
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	err = env.View(func(txn *Txn) (err error) {
+		id2 = txn.ID()
+		txnInvalid = txn
+		return nil
+	})
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+	id3 = txnInvalid.ID()
+	t.Logf("txn id: %v", id1)
+	t.Logf("ro txn id: %v", id2)
+	t.Logf("bad txn id: %v", id3)
+	if id1 != id2 {
+		t.Errorf("unexpected readonly id: %v (!= %v)", id2, id1)
+	}
+	if id2 == id3 {
+		t.Errorf("unexpected invalid id: %v (!= %v)", id3, 0)
+	}
+}
+
 func TestTxn_errLogf(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
