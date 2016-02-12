@@ -135,7 +135,7 @@ differences between the semantics of methods and their C counterparts.
 
 The LMDB [homepage](http://symas.com/mdb/) and mailing list
 ([archives](http://www.openldap.org/lists/openldap-technical/)) are the
-official source of documentation regarding the low-level LMDB operation and
+official source of documentation regarding low-level LMDB operation and
 internals.
 
 Along with an API reference LMDB provides a high-level
