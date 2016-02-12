@@ -261,11 +261,11 @@ func (txn *Txn) subFlag(flags uint, fn TxnOp) error {
 	return sub.commit()
 }
 
-func (txn *Txn) bytes(val *mdbVal) []byte {
+func (txn *Txn) bytes(val *C.MDB_val) []byte {
 	if txn.RawRead {
-		return val.Bytes()
+		return getBytes(val)
 	}
-	return val.BytesCopy()
+	return getBytesCopy(val)
 }
 
 // Get retrieves items from database dbi.  If txn.RawRead is true the slice
@@ -275,7 +275,7 @@ func (txn *Txn) bytes(val *mdbVal) []byte {
 // See mdb_get.
 func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 	kdata, kn := valBytes(key)
-	val := new(mdbVal)
+	val := new(C.MDB_val)
 	ret := C.lmdbgo_mdb_get(
 		txn._txn, C.MDB_dbi(dbi),
 		kdata, C.size_t(kn),
@@ -308,7 +308,7 @@ func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
 // before it has terminated.
 func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, error) {
 	kdata, kn := valBytes(key)
-	val := &mdbVal{mv_size: C.size_t(n)}
+	val := &C.MDB_val{mv_size: C.size_t(n)}
 	ret := C.lmdbgo_mdb_put1(
 		txn._txn, C.MDB_dbi(dbi),
 		kdata, C.size_t(kn),
@@ -319,7 +319,7 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	return val.Bytes(), nil
+	return getBytes(val), nil
 }
 
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the

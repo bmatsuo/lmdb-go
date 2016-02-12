@@ -78,9 +78,6 @@ func (m *Multi) Page() []byte {
 	return m.page[:len(m.page):len(m.page)]
 }
 
-// MDB_val
-type mdbVal C.MDB_val
-
 func valBytes(b []byte) (unsafe.Pointer, int) {
 	if len(b) == 0 {
 		return nil, 0
@@ -88,26 +85,15 @@ func valBytes(b []byte) (unsafe.Pointer, int) {
 	return unsafe.Pointer(&b[0]), len(b)
 }
 
-// wrapVal creates an mdbVal that points to p's data. the mdbVal's data must
-// not be freed manually and C references must not survive the garbage
-// collection of p.
-func wrapVal(p []byte) *mdbVal {
-	if len(p) == 0 {
-		return new(mdbVal)
-	}
-	return &mdbVal{
-		mv_size: C.size_t(len(p)),
-		mv_data: unsafe.Pointer(&p[0]),
+func wrapVal(b []byte) *C.MDB_val {
+	ptr, n := valBytes(b)
+	return &C.MDB_val{
+		mv_data: unsafe.Pointer(ptr),
+		mv_size: C.size_t(n),
 	}
 }
 
-// BytesCopy returns a slice copied from the region pointed to by val.
-func (val *mdbVal) BytesCopy() []byte {
-	return C.GoBytes(val.mv_data, C.int(val.mv_size))
-}
-
-// Bytes creates a slice referencing the region referenced by val.
-func (val *mdbVal) Bytes() []byte {
+func getBytes(val *C.MDB_val) []byte {
 	hdr := reflect.SliceHeader{
 		Data: uintptr(unsafe.Pointer(val.mv_data)),
 		Len:  int(val.mv_size),
@@ -116,7 +102,6 @@ func (val *mdbVal) Bytes() []byte {
 	return *(*[]byte)(unsafe.Pointer(&hdr))
 }
 
-// If val is nil, an empty string is returned.
-func (val *mdbVal) String() string {
-	return C.GoStringN((*C.char)(val.mv_data), C.int(val.mv_size))
+func getBytesCopy(val *C.MDB_val) []byte {
+	return C.GoBytes(val.mv_data, C.int(val.mv_size))
 }

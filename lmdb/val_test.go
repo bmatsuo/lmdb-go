@@ -64,31 +64,22 @@ func TestValBytes(t *testing.T) {
 }
 
 func TestVal(t *testing.T) {
-	orig := "hey hey"
-	val := wrapVal([]byte(orig))
+	orig := []byte("hey hey")
+	val := wrapVal(orig)
 
-	s := val.String()
-	if s != orig {
-		t.Errorf("String() not the same as original data: %q", s)
+	p := getBytes(val)
+	if !bytes.Equal(p, orig) {
+		t.Errorf("getBytes() not the same as original data: %q", p)
+	}
+	if &p[0] != &orig[0] {
+		t.Errorf("getBytes() is not the same slice as original")
 	}
 
-	p := val.Bytes()
-	if string(p) != orig {
-		t.Errorf("Bytes() not the same as original data: %q", p)
+	p = getBytesCopy(val)
+	if !bytes.Equal(p, orig) {
+		t.Errorf("getBytesCopy() not the same as original data: %q", p)
 	}
-}
-
-func TestValCopy(t *testing.T) {
-	orig := "hey hey"
-	val := wrapVal([]byte(orig))
-
-	s := val.String()
-	if s != orig {
-		t.Errorf("String() not the same as original data: %q", s)
-	}
-
-	p := val.BytesCopy()
-	if string(p) != orig {
-		t.Errorf("Bytes() not the same as original data: %q", p)
+	if &p[0] == &orig[0] {
+		t.Errorf("getBytesCopy() overlaps with orignal slice")
 	}
 }
