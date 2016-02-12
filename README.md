@@ -102,6 +102,46 @@ commands can be found in the [exp/cmd/](exp/cmd) directory.  Aside from
 providing minor utility these programs are provided as examples of lmdb in
 practice.
 
+##LMDB compared to BoltDB
+
+BoltDB is a quality database with a design similar to LMDB.  Both store
+key-value data in a file and provide ACID transactions.  So there are often
+questions of why to use one database or the other.
+
+###Advantages of BoltDB
+
+- Nested databases allow for hierarchical data organization.
+
+- Operating systems that do not support sparse files do not use up excessive
+  space due to a large pre-allocation of file space.  The exp/lmdbsync package
+  is intended to resolve this problem with LMDB but it is not ready.
+
+- As a pure Go package bolt can be easily cross-compiled using the `go`
+  toolchain and `GOOS`/`GOARCH` variables.
+
+###Advantages of LMDB
+
+- Keys can contain multiple values using the DupSort flag.
+
+- Updates can have sub-updates for atomic batching of changes.
+
+- Databases remain open for the application lifetime which reduces management
+  overhead at the transaction level.
+
+- Significantly faster than BoltDB.  The raw speed of LMDB easily surpasses
+  BoltDB.  Additionally, LMDB provides optimizations ranging from safe,
+  feature-specific optimizations to generally unsafe, extremely situational
+  ones.  Applications are free to enable any optimizations that fit their data,
+  access, and reliability models.
+
+- LMDB allows multiple applications to access a database simultaneously.
+  Updates from concurrent processes are synchronized using a database lock
+  file.
+
+- As a C library, applications in any language can interact with LMDB
+  databases.  Mission critical Go applications can use a database while Python
+  scripts perform analysis on the side.
+
 ##Build
 
 There is no dependency on shared libraries.  So most users can simply install
