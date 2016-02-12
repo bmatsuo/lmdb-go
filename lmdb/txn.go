@@ -71,6 +71,15 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	return txn, nil
 }
 
+// ID returns the identifier for txn.  A view transaction identifier
+// corresponds to the Env snapshot being viewed and may be shared with other
+// view transactions.
+//
+// See mdb_txn_id.
+func (txn *Txn) ID() uintptr {
+	return uintptr(C.mdb_txn_id(txn._txn))
+}
+
 // Commit persists all transaction operations to the database and clears the
 // finalizer on txn.  A Txn cannot be used again after Commit is called.
 //
