@@ -1,15 +1,18 @@
 
-.PHONY: all test bin
+.PHONY: all test full-test bin
 
 bin:
 	mkdir -p bin
 	GOBIN=${PWD}/bin go install ./exp/cmd/...
 	GOBIN=${PWD}/bin go install ./cmd/...
 
-all: check test bin
+all: check full-test bin
 
 test:
-	go test ./...
+	go test -cover ./...
+
+full-test: test
+	go test -race ./...
 
 check:
 	which goimports > /dev/null
