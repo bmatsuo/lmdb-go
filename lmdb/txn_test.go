@@ -66,14 +66,14 @@ func TestTxn_finalizer(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
-	called := false
+	called := make(chan struct{})
 	func() {
 		txn, err := env.BeginTxn(nil, 0)
 		if err != nil {
 			t.Error(err)
 		} else {
 			txn.errLogf = func(string, ...interface{}) {
-				called = true
+				close(called)
 			}
 		}
 	}()
@@ -82,11 +82,10 @@ func TestTxn_finalizer(t *testing.T) {
 	// may not be consistent across versions of go.
 	runtime.GC()
 	runtime.Gosched()
-	time.Sleep(500 * time.Nanosecond)
-	runtime.GC()
-	runtime.Gosched()
 
-	if !called {
+	select {
+	case <-called:
+	case <-time.After(time.Second):
 		t.Errorf("error logging function was not called")
 	}
 }
