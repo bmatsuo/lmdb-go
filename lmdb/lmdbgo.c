@@ -18,7 +18,9 @@ int lmdbgo_mdb_msg_func_proxy(const char *msg, void *ctx) {
 int lmdbgo_mdb_reader_list(MDB_env *env, size_t ctx) {
     // list readers using a static proxy function that does dynamic dispatch on
     // ctx.
-    return mdb_reader_list(env, &lmdbgo_mdb_msg_func_proxy, (void *)ctx);
+	if (ctx)
+		return mdb_reader_list(env, &lmdbgo_mdb_msg_func_proxy, (void *)ctx);
+	return mdb_reader_list(env, 0, (void *)ctx);
 }
 
 int lmdbgo_mdb_del(MDB_txn *txn, MDB_dbi dbi, void *kdata, size_t kn, void *vdata, size_t vn) {

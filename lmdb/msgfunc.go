@@ -17,10 +17,6 @@ import (
 //export lmdbgoMDBMsgFuncBridge
 func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx C.size_t) C.int {
 	ctx := msgctx(_ctx).get()
-	if ctx.fn == nil {
-		return 0
-	}
-
 	msg := C.GoString(cmsg.p)
 	err := ctx.fn(msg)
 	if err != nil {
@@ -52,8 +48,12 @@ var msgctxn uint32
 var msgctxm = map[msgctx]*_msgctx{}
 var msgctxmlock sync.RWMutex
 
+func nextctx() msgctx {
+	return msgctx(atomic.AddUint32(&msgctxn, 1))
+}
+
 func newMsgFunc(fn msgfunc) (ctx msgctx, done func()) {
-	ctx = msgctx(atomic.AddUint32(&msgctxn, 1))
+	ctx = nextctx()
 	ctx.register(fn)
 	return ctx, ctx.deregister
 }
@@ -61,6 +61,7 @@ func newMsgFunc(fn msgfunc) (ctx msgctx, done func()) {
 func (ctx msgctx) register(fn msgfunc) {
 	msgctxmlock.Lock()
 	if _, ok := msgctxm[ctx]; ok {
+		msgctxmlock.Unlock()
 		panic("msgfunc conflict")
 	}
 	msgctxm[ctx] = &_msgctx{fn: fn}
