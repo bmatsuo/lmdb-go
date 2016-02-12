@@ -170,7 +170,7 @@ The LMDB C source is licensed under the OpenLDAP Public License.
 
 An experimental backend for
 [github.com/hashicorp/raft](https://github.com/hashicorp/raft) forked from
-[github.com/hashicorp/raft-mdb](github.com/hashicorp/raft-mdb).
+[github.com/hashicorp/raft-mdb](https://github.com/hashicorp/raft-mdb).
 
 ####[github.com/bmatsuo/cayley/graph/lmdb](https://github.com/bmatsuo/cayley/tree/master/graph/lmdb) ([godoc](https://godoc.org/github.com/bmatsuo/cayley/graph/lmdb))
 
