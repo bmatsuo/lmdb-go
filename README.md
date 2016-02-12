@@ -102,7 +102,7 @@ commands can be found in the [exp/cmd/](exp/cmd) directory.  Aside from
 providing minor utility these programs are provided as examples of lmdb in
 practice.
 
-#Build
+##Build
 
 There is no dependency on shared libraries.  So most users can simply install
 using `go get`.
@@ -121,9 +121,9 @@ Building commands and running tests can be done with `go` or with `make`
     make check
     make all
 
-#Documentation
+##Documentation
 
-##Go doc
+###Go doc
 
 The `go doc` documentation available on
 [godoc.org](https://godoc.org/github.com/bmatsuo/lmdb-go) is the primary source
@@ -131,7 +131,7 @@ of developer documentation for lmdb-go.  It provides an overview of the API
 with a lot of usage examples.  Where necessary the documentation points out
 differences between the semantics of methods and their C counterparts.
 
-##LMDB
+###LMDB
 
 The LMDB [homepage](http://symas.com/mdb/) and mailing list
 ([archives](http://www.openldap.org/lists/openldap-technical/)) are the
@@ -143,7 +143,7 @@ Along with an API reference LMDB provides a high-level
 lmdb-go abstracts many of the thread and transaction details by default the
 rest of the guide is still useful to compare with `go doc`.
 
-##Versioning and Stability
+###Versioning and Stability
 
 The lmdb-go project makes regular releases with IDs `X.Y.Z`.  All packages
 outside of the `exp/` directory are considered stable and adhere to the
@@ -164,7 +164,7 @@ the MIT open source license.
 
 The LMDB C source is licensed under the OpenLDAP Public License.
 
-#Links
+##Links
 
 ####[github.com/bmatsuo/raft-mdb](https://github.com/bmatsuo/raft-mdb) ([godoc](https://godoc.org/github.com/bmatsuo/raft-mdb))
 
