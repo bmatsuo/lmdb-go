@@ -124,12 +124,15 @@ func (env *Env) FD() (uintptr, error) {
 func (env *Env) ReaderList(fn func(string) error) error {
 	ctx, done := newMsgFunc(fn)
 	defer done()
+	if fn == nil {
+		ctx = 0
+	}
 
 	ret := C.lmdbgo_mdb_reader_list(env._env, C.size_t(ctx))
 	if ret >= 0 {
 		return nil
 	}
-	if ret < 0 {
+	if ret < 0 && ctx != 0 {
 		err := ctx.get().err
 		if err != nil {
 			return err

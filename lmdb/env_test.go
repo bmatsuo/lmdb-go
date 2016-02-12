@@ -344,6 +344,27 @@ func TestEnv_ReaderList_error(t *testing.T) {
 	}
 }
 
+func TestEnv_ReaderList_envInvalid(t *testing.T) {
+	err := (&Env{}).ReaderList(func(msg string) error {
+		t.Logf("%s", msg)
+		return nil
+	})
+	if err == nil {
+		t.Errorf("expected error")
+	}
+}
+
+func TestEnv_ReaderList_nilFunc(t *testing.T) {
+	env, err := NewEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = env.ReaderList(nil)
+	if err == nil {
+		t.Errorf("expected error")
+	}
+}
+
 func TestEnv_ReaderCheck(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)

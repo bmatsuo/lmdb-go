@@ -17,10 +17,6 @@ import (
 //export lmdbgoMDBMsgFuncBridge
 func lmdbgoMDBMsgFuncBridge(cmsg C.lmdbgo_ConstCString, _ctx C.size_t) C.int {
 	ctx := msgctx(_ctx).get()
-	if ctx.fn == nil {
-		return 0
-	}
-
 	msg := C.GoString(cmsg.p)
 	err := ctx.fn(msg)
 	if err != nil {
