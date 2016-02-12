@@ -2,7 +2,8 @@
 
 ##v1.6.0-dev
 
-- lmdb: method Txn.ID() exposing mdb_txn_id.
+- lmdb: method Txn.ID() exposing mdb_txn_id. (#47)
+- lmdb: Env.ReaderList() returns an error if passed a nil function. (#48)
 
 ##v1.5.0
 
