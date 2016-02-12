@@ -2,6 +2,8 @@
 
 ##v1.6.0-dev
 
+- lmdb: method Txn.ID() exposing mdb_txn_id.
+
 ##v1.5.0
 
 - lmdb: fix crash from bad interaction with Txn finalizer and Txn.Reset/.Renew.
