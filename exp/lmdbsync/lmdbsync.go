@@ -128,13 +128,13 @@ type envKey int
 
 // GetEnv returns the Env corresponding to a Env in the HandleTxnErr method of
 // a Handler.
-func GetEnv(b context.Context) *Env {
-	env, _ := b.Value(envKey(0)).(*Env)
+func GetEnv(ctx context.Context) *Env {
+	env, _ := ctx.Value(envKey(0)).(*Env)
 	return env
 }
 
-func bagWithEnv(b context.Context, env *Env) context.Context {
-	return context.WithValue(b, envKey(0), env)
+func withEnv(ctx context.Context, env *Env) context.Context {
+	return context.WithValue(ctx, envKey(0), env)
 }
 
 // Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
@@ -154,7 +154,7 @@ func bagWithEnv(b context.Context, env *Env) context.Context {
 type Env struct {
 	*lmdb.Env
 	Handlers HandlerChain
-	bag      context.Context
+	ctx      context.Context
 	noLock   bool
 	txnlock  sync.RWMutex
 }
@@ -182,7 +182,7 @@ func NewEnv(env *lmdb.Env, h ...Handler) (*Env, error) {
 		Env:      env,
 		Handlers: chain,
 		noLock:   noLock,
-		bag:      context.Background(),
+		ctx:      context.Background(),
 	}
 	return _env, nil
 }
@@ -273,10 +273,10 @@ func (r *Env) WithHandler(h Handler) TxnRunner {
 }
 
 func (r *Env) runHandler(readonly bool, fn func() error, h Handler) error {
-	b := bagWithEnv(r.bag, r)
+	ctx := withEnv(r.ctx, r)
 	for {
 		err := r.run(readonly, fn)
-		b, err = h.HandleTxnErr(b, err)
+		ctx, err = h.HandleTxnErr(ctx, err)
 		if err != ErrTxnRetry {
 			return err
 		}

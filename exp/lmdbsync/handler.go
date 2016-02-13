@@ -13,7 +13,7 @@ import (
 // application-specific way, including by resizing the environment and retrying
 // the transaction by returning ErrTxnRetry.
 type Handler interface {
-	HandleTxnErr(c context.Context, err error) (context.Context, error)
+	HandleTxnErr(ctx context.Context, err error) (context.Context, error)
 }
 
 // HandlerChain is a Handler implementation that iteratively calls each handler
@@ -22,11 +22,11 @@ type HandlerChain []Handler
 
 // HandleTxnErr implements the Handler interface.  Each handler in c processes
 // the context.Context and error returned by the previous handler.
-func (c HandlerChain) HandleTxnErr(b context.Context, err error) (context.Context, error) {
+func (c HandlerChain) HandleTxnErr(ctx context.Context, err error) (context.Context, error) {
 	for _, h := range c {
-		b, err = h.HandleTxnErr(b, err)
+		ctx, err = h.HandleTxnErr(ctx, err)
 	}
-	return b, err
+	return ctx, err
 }
 
 // Append returns a new HandlerChain that will evaluate h in sequence after the
@@ -137,22 +137,22 @@ type mapFullHandler struct {
 	fn MapFullFunc
 }
 
-func (h *mapFullHandler) HandleTxnErr(b context.Context, err error) (context.Context, error) {
+func (h *mapFullHandler) HandleTxnErr(ctx context.Context, err error) (context.Context, error) {
 	if !lmdb.IsMapFull(err) {
-		return b, err
+		return ctx, err
 	}
 
-	env := GetEnv(b)
+	env := GetEnv(ctx)
 
 	newsize, ok := h.getNewSize(env)
 	if !ok {
-		return b, err
+		return ctx, err
 	}
 	if env.setMapSize(newsize, 0) != nil {
-		return b, err
+		return ctx, err
 	}
 
-	return b, ErrTxnRetry
+	return ctx, ErrTxnRetry
 }
 
 func (h *mapFullHandler) getNewSize(env *Env) (int64, bool) {
@@ -187,13 +187,13 @@ func (r *resizeRetryCount) Add(n int) *resizeRetryCount {
 	return &resizeRetryCount{r.n + 1}
 }
 
-func bagResizedRetryCount(b context.Context) *resizeRetryCount {
-	v, _ := b.Value(resizedHandlerKey(0)).(*resizeRetryCount)
+func getResizedRetryCount(ctx context.Context) *resizeRetryCount {
+	v, _ := ctx.Value(resizedHandlerKey(0)).(*resizeRetryCount)
 	return v
 }
 
-func bagWithResizedRetryCount(b context.Context, count *resizeRetryCount) context.Context {
-	return context.WithValue(b, resizedHandlerKey(0), count)
+func withResizedRetryCount(ctx context.Context, count *resizeRetryCount) context.Context {
+	return context.WithValue(ctx, resizedHandlerKey(0), count)
 }
 
 type resizedHandler struct {
@@ -217,29 +217,29 @@ func (h *resizedHandler) getDelayRepeatResize(i int) time.Duration {
 	return DefaultDelayRepeatResize
 }
 
-func (h *resizedHandler) HandleTxnErr(b context.Context, err error) (context.Context, error) {
+func (h *resizedHandler) HandleTxnErr(ctx context.Context, err error) (context.Context, error) {
 	if !lmdb.IsMapResized(err) {
-		b := context.WithValue(b, resizedHandlerKey(0), nil)
-		return b, err
+		ctx := context.WithValue(ctx, resizedHandlerKey(0), nil)
+		return ctx, err
 	}
 
-	env := GetEnv(b)
-	count := bagResizedRetryCount(b)
+	env := GetEnv(ctx)
+	count := getResizedRetryCount(ctx)
 	numRetry := count.Get()
 
 	// fail the transaction with MapResized error when too many attempts have
 	// been made.
 	maxRetry := h.getRetryResize()
 	if maxRetry == 0 {
-		b := bagWithResizedRetryCount(b, nil)
-		return b, err
+		ctx := withResizedRetryCount(ctx, nil)
+		return ctx, err
 	}
 	if maxRetry > 0 && numRetry >= maxRetry {
-		b := bagWithResizedRetryCount(b, nil)
-		return b, err
+		ctx := withResizedRetryCount(ctx, nil)
+		return ctx, err
 	}
 
-	b = bagWithResizedRetryCount(b, count.Add(1))
+	ctx = withResizedRetryCount(ctx, count.Add(1))
 
 	var delay time.Duration
 	if numRetry > 0 {
@@ -248,7 +248,7 @@ func (h *resizedHandler) HandleTxnErr(b context.Context, err error) (context.Con
 
 	err = env.setMapSize(0, delay)
 	if err != nil {
-		return b, err
+		return ctx, err
 	}
-	return b, ErrTxnRetry
+	return ctx, ErrTxnRetry
 }
