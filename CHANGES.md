@@ -4,6 +4,7 @@
 
 - lmdb: method Txn.ID() exposing mdb_txn_id. (#47)
 - lmdb: Env.ReaderList() returns an error if passed a nil function. (#48)
+- lmdbsync: realistic test of resizing functionality (#7)
 
 ##v1.5.0
 
