@@ -5,17 +5,19 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/bmatsuo/lmdb-go/internal/lmdbtest"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 type testHandler struct {
 	called bool
-	bag    Bag
+	bag    context.Context
 	err    error
 }
 
-func (h *testHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
+func (h *testHandler) HandleTxnErr(b context.Context, err error) (context.Context, error) {
 	h.called = true
 	h.bag = b
 	h.err = err
@@ -29,7 +31,7 @@ func TestHandlerChain(t *testing.T) {
 	}
 	defer lmdbtest.Destroy(env.Env)
 
-	b := bagWithEnv(Background(), env)
+	b := bagWithEnv(context.Background(), env)
 
 	var chain1 HandlerChain
 	errother := fmt.Errorf("testerr")
@@ -54,14 +56,14 @@ func TestHandlerChain(t *testing.T) {
 
 type retryHandler struct{}
 
-func (*retryHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
+func (*retryHandler) HandleTxnErr(b context.Context, err error) (context.Context, error) {
 	return b, ErrTxnRetry
 
 }
 
 type passthroughHandler struct{}
 
-func (*passthroughHandler) HandleTxnErr(b Bag, err error) (Bag, error) {
+func (*passthroughHandler) HandleTxnErr(b context.Context, err error) (context.Context, error) {
 	return b, err
 
 }
@@ -80,7 +82,7 @@ func TestMapFullHandler(t *testing.T) {
 	}
 	orig := info.MapSize
 
-	b := bagWithEnv(Background(), env)
+	b := bagWithEnv(context.Background(), env)
 	doubleSize := func(size int64) (int64, bool) { return size * 2, true }
 	handler := MapFullHandler(doubleSize)
 
@@ -119,7 +121,7 @@ func TestMapResizedHandler(t *testing.T) {
 	}
 	defer lmdbtest.Destroy(env.Env)
 
-	b := bagWithEnv(Background(), env)
+	b := bagWithEnv(context.Background(), env)
 	handler := MapResizedHandler(2, func(int) time.Duration { return 100 * time.Microsecond })
 
 	errother := fmt.Errorf("testerr")

@@ -119,20 +119,22 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-type envBagKey int
+type envKey int
 
-// BagEnv returns the Env corresponding to a Bag in the HandleTxnErr method of
+// GetEnv returns the Env corresponding to a Env in the HandleTxnErr method of
 // a Handler.
-func BagEnv(b Bag) *Env {
-	env, _ := b.Value(envBagKey(0)).(*Env)
+func GetEnv(b context.Context) *Env {
+	env, _ := b.Value(envKey(0)).(*Env)
 	return env
 }
 
-func bagWithEnv(b Bag, env *Env) Bag {
-	return BagWith(b, envBagKey(0), env)
+func bagWithEnv(b context.Context, env *Env) context.Context {
+	return context.WithValue(b, envKey(0), env)
 }
 
 // Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
@@ -152,7 +154,7 @@ func bagWithEnv(b Bag, env *Env) Bag {
 type Env struct {
 	*lmdb.Env
 	Handlers HandlerChain
-	bag      Bag
+	bag      context.Context
 	noLock   bool
 	txnlock  sync.RWMutex
 }
@@ -180,7 +182,7 @@ func NewEnv(env *lmdb.Env, h ...Handler) (*Env, error) {
 		Env:      env,
 		Handlers: chain,
 		noLock:   noLock,
-		bag:      Background(),
+		bag:      context.Background(),
 	}
 	return _env, nil
 }

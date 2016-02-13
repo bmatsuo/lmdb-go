@@ -10,6 +10,8 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/bmatsuo/lmdb-go/exp/lmdbsync"
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -60,14 +62,14 @@ func WriteRandomItems(path string, numitem, chunksize int64) (err error) {
 			}
 		}
 	}()
-	mapResizedLogger := func(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
+	mapResizedLogger := func(b context.Context, err error) (context.Context, error) {
 		if lmdb.IsMapResized(err) {
 			log.Printf("map resized")
 			numResized++
 		}
 		return b, err
 	}
-	mapFullLogger := func(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
+	mapFullLogger := func(b context.Context, err error) (context.Context, error) {
 		if lmdb.IsMapFull(err) {
 			log.Printf("resize required")
 			numResize++
@@ -142,8 +144,8 @@ func OpenEnv(path string) (*lmdbsync.Env, error) {
 	return env, nil
 }
 
-type handlerFunc func(b lmdbsync.Bag, err error) (lmdbsync.Bag, error)
+type handlerFunc func(b context.Context, err error) (context.Context, error)
 
-func (fn handlerFunc) HandleTxnErr(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
+func (fn handlerFunc) HandleTxnErr(b context.Context, err error) (context.Context, error) {
 	return fn(b, err)
 }

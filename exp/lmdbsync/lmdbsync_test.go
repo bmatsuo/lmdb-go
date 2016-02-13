@@ -460,7 +460,7 @@ func TestEnv_WithHandler_View(t *testing.T) {
 
 	testView(t, runner)
 
-	if BagEnv(handler.bag) != env {
+	if GetEnv(handler.bag) != env {
 		t.Errorf("handler does not include original env")
 	}
 	if !handler.called {
@@ -480,7 +480,7 @@ func TestEnv_WithHandler_Update(t *testing.T) {
 
 	testUpdate(t, runner)
 
-	if BagEnv(handler.bag) != env {
+	if GetEnv(handler.bag) != env {
 		t.Errorf("handler does not include original env")
 	}
 	if !handler.called {
@@ -500,7 +500,7 @@ func TestEnv_WithHandler_UpdateLocked(t *testing.T) {
 
 	testUpdateLocked(t, runner)
 
-	if BagEnv(handler.bag) != env {
+	if GetEnv(handler.bag) != env {
 		t.Errorf("handler does not include original env")
 	}
 	if !handler.called {
@@ -520,7 +520,7 @@ func TestEnv_WithHandler_RunTxn(t *testing.T) {
 
 	testRunTxn(t, runner)
 
-	if BagEnv(handler.bag) != env {
+	if GetEnv(handler.bag) != env {
 		t.Errorf("handler does not include original env")
 	}
 	if !handler.called {
