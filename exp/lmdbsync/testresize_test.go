@@ -1,7 +1,9 @@
 package lmdbsync
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -72,15 +74,17 @@ func TestResize(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	defer w1.Close()
-	defer w2.Close()
+	closePipes := func() {
+		w1.Close()
+		w2.Close()
+		r1.Close()
+		r2.Close()
+	}
 
 	cmd1 := exec.Command(bin)
 	cmd1.Dir = tempdir
-	cmd1.Stderr = os.Stderr
 	cmd2 := exec.Command(bin)
 	cmd2.Dir = tempdir
-	cmd2.Stderr = os.Stderr
 
 	cmd1.Stdin = r1
 	cmd2.Stdout = w1
@@ -88,17 +92,39 @@ func TestResize(t *testing.T) {
 	cmd2.Stdin = r2
 	cmd1.Stdout = w2
 
+	stderr1, err := cmd1.StderrPipe()
+	if err != nil {
+		t.Error(err)
+		closePipes()
+		return
+	}
+	stderr2, err := cmd2.StderrPipe()
+	if err != nil {
+		t.Error(err)
+		closePipes()
+		return
+	}
+	stderr := io.MultiReader(stderr1, stderr2)
+
 	err = cmd1.Start()
 	if err != nil {
 		t.Errorf("start 1: %v", err)
+		closePipes()
 		return
 	}
 	err = cmd2.Start()
 	if err != nil {
 		t.Errorf("start 2: %v", err)
+		closePipes()
 		return
 	}
 	go fmt.Fprintln(w1, "start")
+
+	scanner := bufio.NewScanner(stderr)
+	for scanner.Scan() {
+		t.Log(scanner.Text())
+	}
+	closePipes()
 
 	err1 := cmd1.Wait()
 	if err1 != nil {
