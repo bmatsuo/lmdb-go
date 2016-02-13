@@ -1,3 +1,19 @@
+/*
+Command testresize is a utility used by the lmdbsync tests to validate its
+multiprocessing capabilities.  An external command like testresize command is
+required because a process is not allowed to map the same process twice.
+
+Testresize writes batches of updates into a databaes, transparently handling
+any lmdb.MapResized or lmdb.MapFull errors that occur.  To ensure that resizing
+behavior is observed testresize waits for input before updating the environment
+and writes a line to stdout after the update is committed.  If testresize
+process observes zero of either error it will exit with a non-zero exit code.
+
+Two testresize processes can communicate to each other using two unix pipes, if
+the output of each pipe is connected to the input of the other.  Writing a
+single line to one of the pipes will cause updates to ping-pong back and forth
+between processes.
+*/
 package main
 
 import (
