@@ -45,27 +45,37 @@ func NewEnv(opt *EnvOptions) (env *lmdb.Env, err error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var maxreaders int
+	var maxdbs int
+	var mapsize int64
+	var flags uint
 	if opt != nil {
-		if opt.MaxReaders != 0 {
-			err = env.SetMaxReaders(opt.MaxReaders)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if opt.MaxDBs != 0 {
-			err = env.SetMaxDBs(opt.MaxDBs)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if opt.MapSize != 0 {
-			err = env.SetMapSize(opt.MapSize)
-			if err != nil {
-				return nil, err
-			}
+		maxreaders = opt.MaxReaders
+		maxdbs = opt.MaxDBs
+		mapsize = opt.MapSize
+		flags = opt.Flags
+	}
+
+	if maxreaders != 0 {
+		err = env.SetMaxReaders(maxreaders)
+		if err != nil {
+			return nil, err
 		}
 	}
-	err = env.Open(dir, 0, 0644)
+	if maxdbs != 0 {
+		err = env.SetMaxDBs(maxdbs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if mapsize != 0 {
+		err = env.SetMapSize(mapsize)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = env.Open(dir, flags, 0644)
 	if err != nil {
 		return nil, err
 	}
