@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"flag"
 	"fmt"
@@ -14,6 +15,8 @@ import (
 )
 
 func main() {
+	numitems := flag.Int64("n", 5<<10, "the number of items to write")
+	chunksize := flag.Int64("c", 100, "the number of items to write per txn")
 	flag.Parse()
 
 	failed := false
@@ -27,7 +30,7 @@ func main() {
 		log.Print(err)
 	}
 
-	err := WriteRandomItems("db", 1<<20, 10<<10)
+	err := WriteRandomItems("db", *numitems, *chunksize)
 	if err != nil {
 		fail(err)
 	} else {
@@ -37,7 +40,7 @@ func main() {
 
 // WriteRandomItems writes numitem items with chunksize sized values full of
 // random data.
-func WriteRandomItems(path string, numitem, chunksize int64) error {
+func WriteRandomItems(path string, numitem, chunksize int64) (err error) {
 	env, err := OpenEnv(path)
 	if err != nil {
 		return err
@@ -45,21 +48,38 @@ func WriteRandomItems(path string, numitem, chunksize int64) error {
 	defer env.Close()
 
 	numResize := 0
+	numResized := 0
 	defer func() {
 		log.Printf("%d resizes", numResize)
+		log.Printf("%d size adoptions", numResized)
+		if err == nil {
+			if numResize == 0 {
+				err = fmt.Errorf("process did not resize the memory map")
+			} else if numResized == 0 {
+				err = fmt.Errorf("process did not adopt a new map size")
+			}
+		}
 	}()
+	mapResizedLogger := func(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
+		if lmdb.IsMapResized(err) {
+			log.Printf("map resized")
+			numResized++
+		}
+		return b, err
+	}
 	mapFullLogger := func(b lmdbsync.Bag, err error) (lmdbsync.Bag, error) {
 		if lmdb.IsMapFull(err) {
-			log.Printf("resize required: %v", err)
+			log.Printf("resize required")
 			numResize++
 		}
 		return b, err
 	}
 	env.Handlers = env.Handlers.Append(
+		handlerFunc(mapResizedLogger),
 		lmdbsync.MapResizedHandler(2, func(int) time.Duration { return 100 * time.Microsecond }),
 		handlerFunc(mapFullLogger),
 		lmdbsync.MapFullHandler(func(size int64) (int64, bool) {
-			newsize := size * 2
+			newsize := size + 128<<10 // linear scale is bad -- but useful to test
 			log.Printf("oldsize=%d newsize=%d", size, newsize)
 			return newsize, true
 		}),
@@ -67,7 +87,12 @@ func WriteRandomItems(path string, numitem, chunksize int64) error {
 
 	pid := os.Getpid()
 
+	scanner := bufio.NewScanner(os.Stdin)
 	for i := int64(0); i < numitem; {
+		if !scanner.Scan() {
+			return scanner.Err()
+		}
+
 		start := i
 		chunkmax := i + chunksize
 		if chunkmax > numitem {
@@ -78,7 +103,6 @@ func WriteRandomItems(path string, numitem, chunksize int64) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("i=%d", i)
 		err = env.Update(func(txn *lmdb.Txn) (err error) {
 			dbi, err := txn.OpenRoot(0)
 			if err != nil {
@@ -86,7 +110,7 @@ func WriteRandomItems(path string, numitem, chunksize int64) error {
 			}
 
 			for i = start; i < chunkmax; i++ {
-				k := fmt.Sprintf("%d-%016x", pid, i)
+				k := fmt.Sprintf("%06d-%016x", pid, i)
 				err = txn.Put(dbi, []byte(k), v, 0)
 				if err != nil {
 					return err
@@ -98,6 +122,7 @@ func WriteRandomItems(path string, numitem, chunksize int64) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println("ok")
 	}
 
 	return nil
