@@ -122,18 +122,12 @@ func TestNewEnv_noLock(t *testing.T) {
 }
 
 func TestNewEnv_noLock2(t *testing.T) {
-	dir, err := ioutil.TempDir("", "lmdbsync-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
 	env, err := newEnv(optNoLock)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	defer env.Close()
+	defer lmdbtest.Destroy(env.Env)
 
 	if !env.noLock {
 		t.Errorf("flag lmdb.NoLock not detected correctly")
