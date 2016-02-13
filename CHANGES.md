@@ -5,6 +5,8 @@
 - lmdb: method Txn.ID() exposing mdb_txn_id. (#47)
 - lmdb: Env.ReaderList() returns an error if passed a nil function. (#48)
 - lmdbsync: realistic test of resizing functionality (#7)
+- lmdbsync: use context.Context instead of a hand-rolled Bag (#51)
+- lmdbsync: Handler Env is now an argument instead of a context value (#52)
 
 ##v1.5.0
 
