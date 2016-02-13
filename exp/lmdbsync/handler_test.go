@@ -14,29 +14,30 @@ import (
 type testHandler struct {
 	called bool
 	ctx    context.Context
+	env    *Env
 	err    error
 }
 
-func (h *testHandler) HandleTxnErr(ctx context.Context, err error) (context.Context, error) {
+func (h *testHandler) HandleTxnErr(ctx context.Context, env *Env, err error) (context.Context, error) {
 	h.called = true
 	h.ctx = ctx
+	h.env = env
 	h.err = err
 	return ctx, err
 }
 
 func TestHandlerChain(t *testing.T) {
+	ctx := context.Background()
 	env, err := newEnv(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer lmdbtest.Destroy(env.Env)
 
-	ctx := withEnv(context.Background(), env)
-
 	var chain1 HandlerChain
 	errother := fmt.Errorf("testerr")
 
-	ctx1, err := chain1.HandleTxnErr(ctx, errother)
+	ctx1, err := chain1.HandleTxnErr(ctx, env, errother)
 	if err != errother {
 		t.Error(err)
 	}
@@ -45,7 +46,7 @@ func TestHandlerChain(t *testing.T) {
 	}
 
 	chain2 := chain1.Append(&passthroughHandler{})
-	ctx2, err := chain2.HandleTxnErr(ctx, errother)
+	ctx2, err := chain2.HandleTxnErr(ctx, env, errother)
 	if err != errother {
 		t.Error(err)
 	}
@@ -56,19 +57,20 @@ func TestHandlerChain(t *testing.T) {
 
 type retryHandler struct{}
 
-func (*retryHandler) HandleTxnErr(ctx context.Context, err error) (context.Context, error) {
+func (*retryHandler) HandleTxnErr(ctx context.Context, env *Env, err error) (context.Context, error) {
 	return ctx, ErrTxnRetry
 
 }
 
 type passthroughHandler struct{}
 
-func (*passthroughHandler) HandleTxnErr(ctx context.Context, err error) (context.Context, error) {
+func (*passthroughHandler) HandleTxnErr(ctx context.Context, env *Env, err error) (context.Context, error) {
 	return ctx, err
 
 }
 
 func TestMapFullHandler(t *testing.T) {
+	ctx := context.Background()
 	env, err := newEnv(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -82,12 +84,11 @@ func TestMapFullHandler(t *testing.T) {
 	}
 	orig := info.MapSize
 
-	ctx := withEnv(context.Background(), env)
 	doubleSize := func(size int64) (int64, bool) { return size * 2, true }
 	handler := MapFullHandler(doubleSize)
 
 	errother := fmt.Errorf("testerr")
-	ctx1, err := handler.HandleTxnErr(ctx, errother)
+	ctx1, err := handler.HandleTxnErr(ctx, env, errother)
 	if ctx1 != ctx {
 		t.Errorf("ctx changed: %q (!= %q)", ctx1, ctx)
 	}
@@ -96,7 +97,7 @@ func TestMapFullHandler(t *testing.T) {
 		Op:    "lmdbsync_test_op",
 		Errno: lmdb.MapFull,
 	}
-	ctx1, err = handler.HandleTxnErr(ctx, errmapfull)
+	ctx1, err = handler.HandleTxnErr(ctx, env, errmapfull)
 	if err != ErrTxnRetry {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -115,43 +116,43 @@ func TestMapFullHandler(t *testing.T) {
 }
 
 func TestMapResizedHandler(t *testing.T) {
+	ctx := context.Background()
 	env, err := newEnv(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer lmdbtest.Destroy(env.Env)
 
-	ctx := withEnv(context.Background(), env)
 	handler := MapResizedHandler(2, func(int) time.Duration { return 100 * time.Microsecond })
 
 	errother := fmt.Errorf("testerr")
-	_, err = handler.HandleTxnErr(ctx, errother)
+	_, err = handler.HandleTxnErr(ctx, env, errother)
 
 	errmapresized := &lmdb.OpError{
 		Op:    "lmdbsync_test_op",
 		Errno: lmdb.MapResized,
 	}
-	ctx1, err := handler.HandleTxnErr(ctx, errmapresized)
+	ctx1, err := handler.HandleTxnErr(ctx, env, errmapresized)
 	if err != ErrTxnRetry {
 		t.Errorf("unexpected error: %v", err)
 	}
-	ctx2, err := handler.HandleTxnErr(ctx1, errmapresized)
+	ctx2, err := handler.HandleTxnErr(ctx1, env, errmapresized)
 	if err != ErrTxnRetry {
 		t.Errorf("unexpected error: %v", err)
 	}
 
 	// after MapResized has been encountered enough times consecutively the
 	// handler starts passing MapResized through to the caller.
-	_, err = handler.HandleTxnErr(ctx2, errmapresized)
+	_, err = handler.HandleTxnErr(ctx2, env, errmapresized)
 	if !lmdb.IsMapResized(err) {
 		t.Errorf("unexpected error: %v", err)
 	}
-	ctx3, err := handler.HandleTxnErr(ctx2, errmapresized)
+	ctx3, err := handler.HandleTxnErr(ctx2, env, errmapresized)
 	if !lmdb.IsMapResized(err) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	ctx4, err := handler.HandleTxnErr(ctx3, errother)
+	ctx4, err := handler.HandleTxnErr(ctx3, env, errother)
 	if err != errother {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -159,11 +160,11 @@ func TestMapResizedHandler(t *testing.T) {
 	// after encountering an error other than MapResized the handler resets its
 	// failure count and will continue attempting to adopt the new map size
 	// when MapResized is encountered.
-	ctx5, err := handler.HandleTxnErr(ctx4, errmapresized)
+	ctx5, err := handler.HandleTxnErr(ctx4, env, errmapresized)
 	if err != ErrTxnRetry {
 		t.Errorf("unexpected error: %v", err)
 	}
-	_, err = handler.HandleTxnErr(ctx5, errmapresized)
+	_, err = handler.HandleTxnErr(ctx5, env, errmapresized)
 	if err != ErrTxnRetry {
 		t.Errorf("unexpected error: %v", err)
 	}

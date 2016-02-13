@@ -170,7 +170,7 @@ type resizeTracer struct {
 	resized int
 }
 
-func (t *resizeTracer) HandleTxnErr(c context.Context, err error) (context.Context, error) {
+func (t *resizeTracer) HandleTxnErr(c context.Context, env *Env, err error) (context.Context, error) {
 	if lmdb.IsMapResized(err) {
 		t.resized++
 	}

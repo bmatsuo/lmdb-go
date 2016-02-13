@@ -62,14 +62,14 @@ func WriteRandomItems(path string, numitem, chunksize int64) (err error) {
 			}
 		}
 	}()
-	mapResizedLogger := func(ctx context.Context, err error) (context.Context, error) {
+	mapResizedLogger := func(ctx context.Context, env *lmdbsync.Env, err error) (context.Context, error) {
 		if lmdb.IsMapResized(err) {
 			log.Printf("map resized")
 			numResized++
 		}
 		return ctx, err
 	}
-	mapFullLogger := func(ctx context.Context, err error) (context.Context, error) {
+	mapFullLogger := func(ctx context.Context, env *lmdbsync.Env, err error) (context.Context, error) {
 		if lmdb.IsMapFull(err) {
 			log.Printf("resize required")
 			numResize++
@@ -144,8 +144,8 @@ func OpenEnv(path string) (*lmdbsync.Env, error) {
 	return env, nil
 }
 
-type handlerFunc func(ctx context.Context, err error) (context.Context, error)
+type handlerFunc func(ctx context.Context, env *lmdbsync.Env, err error) (context.Context, error)
 
-func (fn handlerFunc) HandleTxnErr(ctx context.Context, err error) (context.Context, error) {
-	return fn(ctx, err)
+func (fn handlerFunc) HandleTxnErr(ctx context.Context, env *lmdbsync.Env, err error) (context.Context, error) {
+	return fn(ctx, env, err)
 }

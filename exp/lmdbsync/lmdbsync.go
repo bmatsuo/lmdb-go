@@ -124,19 +124,6 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-type envKey int
-
-// GetEnv returns the Env corresponding to a Env in the HandleTxnErr method of
-// a Handler.
-func GetEnv(ctx context.Context) *Env {
-	env, _ := ctx.Value(envKey(0)).(*Env)
-	return env
-}
-
-func withEnv(ctx context.Context, env *Env) context.Context {
-	return context.WithValue(ctx, envKey(0), env)
-}
-
 // Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
 // provide transaction management.  Transactions run by an Env handle
 // lmdb.MapResized error transparently through additional synchronization.
@@ -273,10 +260,10 @@ func (r *Env) WithHandler(h Handler) TxnRunner {
 }
 
 func (r *Env) runHandler(readonly bool, fn func() error, h Handler) error {
-	ctx := withEnv(r.ctx, r)
+	ctx := r.ctx
 	for {
 		err := r.run(readonly, fn)
-		ctx, err = h.HandleTxnErr(ctx, err)
+		ctx, err = h.HandleTxnErr(ctx, r, err)
 		if err != ErrTxnRetry {
 			return err
 		}
