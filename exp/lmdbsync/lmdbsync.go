@@ -119,21 +119,10 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
-
-type envBagKey int
-
-// BagEnv returns the Env corresponding to a Bag in the HandleTxnErr method of
-// a Handler.
-func BagEnv(b Bag) *Env {
-	env, _ := b.Value(envBagKey(0)).(*Env)
-	return env
-}
-
-func bagWithEnv(b Bag, env *Env) Bag {
-	return BagWith(b, envBagKey(0), env)
-}
 
 // Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
 // provide transaction management.  Transactions run by an Env handle
@@ -152,7 +141,7 @@ func bagWithEnv(b Bag, env *Env) Bag {
 type Env struct {
 	*lmdb.Env
 	Handlers HandlerChain
-	bag      Bag
+	ctx      context.Context
 	noLock   bool
 	txnlock  sync.RWMutex
 }
@@ -180,7 +169,7 @@ func NewEnv(env *lmdb.Env, h ...Handler) (*Env, error) {
 		Env:      env,
 		Handlers: chain,
 		noLock:   noLock,
-		bag:      Background(),
+		ctx:      context.Background(),
 	}
 	return _env, nil
 }
@@ -271,10 +260,10 @@ func (r *Env) WithHandler(h Handler) TxnRunner {
 }
 
 func (r *Env) runHandler(readonly bool, fn func() error, h Handler) error {
-	b := bagWithEnv(r.bag, r)
+	ctx := r.ctx
 	for {
 		err := r.run(readonly, fn)
-		b, err = h.HandleTxnErr(b, err)
+		ctx, err = h.HandleTxnErr(ctx, r, err)
 		if err != ErrTxnRetry {
 			return err
 		}

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
@@ -168,9 +170,9 @@ type resizeTracer struct {
 	resized int
 }
 
-func (t *resizeTracer) HandleTxnErr(b Bag, err error) (Bag, error) {
+func (t *resizeTracer) HandleTxnErr(c context.Context, env *Env, err error) (context.Context, error) {
 	if lmdb.IsMapResized(err) {
 		t.resized++
 	}
-	return b, err
+	return c, err
 }

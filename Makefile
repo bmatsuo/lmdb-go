@@ -1,12 +1,15 @@
 
-.PHONY: all test full-test bin
+.PHONY: deps all test full-test bin
+
+deps:
+	go get -d ./...
 
 bin:
 	mkdir -p bin
 	GOBIN=${PWD}/bin go install ./exp/cmd/...
 	GOBIN=${PWD}/bin go install ./cmd/...
 
-all: check full-test bin
+all: deps check full-test bin
 
 test:
 	go test -cover ./...
