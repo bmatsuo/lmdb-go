@@ -15,11 +15,11 @@ caveats, be safely called in the presence of concurrent transactions after an
 environment has been opened.  All running transactions must complete before the
 method will be called on the underlying lmdb.Env.
 
-If an open transaction depends on a change in map size then the Env will
+If an open transaction depends on a call to Env.SetMapSize then the Env will
 deadlock and block all future transactions.  When using a Handler to
-automatically resize the map this implies the restriction that transactions
-must terminate independently of the creation and termination of other
-transactions to avoid deadlock
+automatically call Env.SetMapSize this implies the restriction that
+transactions must terminate independently of the creation/termination of other
+transactions to avoid deadlock.
 
 In the simplest example, a view transaction that attempts an update on the
 underlying Env will deadlock the environment if the map is full and a Handler
@@ -65,38 +65,30 @@ not OS X).
 
 See mdb_env_set_mapsize.
 
+MapFull
+
+The MapFullHandler function configures an Env to automatically call increase
+the map size with Env.SetMapSize and retry transactions when a lmdb.MapFull
+error prevents an update from being committed.
+
+Because updates may need to execute multiple times in the presence of
+lmdb.MapFull it is important to make sure their TxnOp functions are idempotent
+and do not cause unwanted additive change to the program state.
+
+See mdb_txn_commit and MDB_MAP_FULL.
+
 MapResized
 
 When multiple processes access and resize an environment it is not uncommon to
-encounter a MapResized error which requires synchronized action before
-continuing normal operations.
+encounter a MapResized error which prevents the TxnOp from being executed and
+requires a synchronized call to Env.SetMapSize before continuing normal
+operation.
 
-Using the Handler interface provided by the package MapResizedHandler can be
-used to automatically resize an enviornment when a lmdb.MapResized error is
-encountered.  However, usage of the MapResizedHandler puts important caveats on
-how one can safely work with transactions.  See the function documentation for
-more detailed information.
-
-When other processes may change an environment's map size it is extremely
-important to ensure that transactions terminate independent of all other
-transactions.  The MapResized error may be returned at the beginning of any
-transaction.
+The MapResizedHandler function configures an Env to automatically adopt a new
+map size when a lmdb.MapResized error is encountered and retry execution of the
+TxnOp.
 
 See mdb_txn_begin and MDB_MAP_RESIZED.
-
-MapFull
-
-Similar to the MapResizedHandler the MapFullHandler will automatically resize
-the map and retry transactions when a MapFull error is encountered.  Usage of
-the MapFullHandler puts important caveats on how one can safely work with
-transactions.  See the function documentation for more detailed information.
-
-The caveats on transactions are lessened if lmdb.MapFull is the only error
-being handled (when multi-processing is not a concern).  The only requirement
-then is that view transactions not depend on the termination of updates
-transactions.
-
-See mdb_env_set_mapsize and MDB_MAP_FULL.
 
 NoLock
 
