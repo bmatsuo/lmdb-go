@@ -141,7 +141,9 @@ func TestResize(t *testing.T) {
 	runner := env.WithHandler(HandlerChain{
 		trace,
 		MapResizedHandler(2, func(retry int) time.Duration {
-			t.Error("unable to reopen")
+			if retry > 0 {
+				t.Errorf("failed to reopen at %d times", retry)
+			}
 			return time.Millisecond
 		}),
 	})

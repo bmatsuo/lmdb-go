@@ -169,3 +169,30 @@ func TestMapResizedHandler(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
+
+func TestExponentialBackoff(t *testing.T) {
+	base := time.Millisecond
+	max := 3 * time.Millisecond
+	factor := 2.0
+	backoff := ExponentialBackoff(base, max, factor)
+
+	const numtest = 100
+	for i := 0; i < numtest; i++ {
+		n := backoff(0)
+		if n < 0 || n > base {
+			t.Errorf("unexpected backoff: %v", n)
+		}
+	}
+	for i := 0; i < numtest; i++ {
+		n := backoff(1)
+		if n < 0 || n > 2*base {
+			t.Errorf("unexpected backoff: %v", n)
+		}
+	}
+	for i := 0; i < numtest; i++ {
+		n := backoff(2)
+		if n < 0 || n > max {
+			t.Errorf("unexpected backoff: %v", n)
+		}
+	}
+}
