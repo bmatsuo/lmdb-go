@@ -47,9 +47,8 @@ func (c HandlerChain) Append(h ...Handler) HandlerChain {
 //
 // If the database is growing too rapidly and maxRetry consecutive transactions
 // fail due to lmdb.MapResized then the Handler returned by MapResizedHandler
-// gives up and returns the lmdb.MapResized error to the caller.  When
-// repeatDelay is not nil it will be called to insert a delay between attempts
-// to adopt the new map size.
+// gives up and returns the lmdb.MapResized error to the caller.  Delay will be
+// called before each call to Env.SetMapSize to insert an optional delay.
 //
 // Open transactions must not directly create new (non-child) transactions when
 // using MapResizedHandler or the environment will deadlock.
@@ -66,17 +65,17 @@ func MapResizedHandler(maxRetry int, delay DelayFunc) Handler {
 	}
 }
 
-// MapResizedDefaultRetry is the default number of times the MapResizedHandler
-// will adopt a new map size and attempt start a transaction when
-// lmdb.MapResized is encountered.
+// MapResizedDefaultRetry is the default number of attempts MapResizedHandler
+// will make adopt a new map size when lmdb.MapResized is encountered
+// repeatedly.
 var MapResizedDefaultRetry = 2
 
-// DelayFunc takes as input an attempt number and returns the delay before
-// making the attempt.
+// DelayFunc takes as input the number of previous attempts and returns the
+// delay before making another attempt.
 type DelayFunc func(attempt int) time.Duration
 
-// ExponentialBackoff returns a delay function that is a random number between
-// 0 and the minimum of max and base*factor^attempt.
+// ExponentialBackoff returns a function that delays each attempt by random
+// number between 0 and the minimum of max and base*factor^attempt.
 func ExponentialBackoff(base time.Duration, max time.Duration, factor float64) DelayFunc {
 	return func(attempt int) time.Duration {
 		_max := float64(base) * math.Pow(factor, float64(attempt))
