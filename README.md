@@ -33,8 +33,8 @@ A utility package for scanning database ranges. The API is inspired by
 [implementation](https://lmdb.readthedocs.org/en/release/#cursor-class).
 
 The **lmdbscan** package is unstable. The API is properly scoped and adequately
-tested.  And no features that exist now will be removed without a similar
-substitute.  See the versioning documentation for more information.
+tested.  And no features that exist now will be removed without notice and a
+similar substitute.  See the versioning documentation for more information.
 
 ####exp/lmdbsync [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) [![experimental](https://img.shields.io/badge/stability-experimental-red.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbsync)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbsync)
 
@@ -44,13 +44,15 @@ import "github.com/bmatsuo/lmdb-go/exp/lmdbsync"
 ```
 
 An experimental utility package that provides synchronization necessary to
-change an environment's map size after initialization.  Facilities are provided
-to automatically manage database size, similar to BoltDB.
+change an environment's map size after initialization.  The package provides
+error handlers to automatically manage database size and retry failed
+transactions.
 
-The **lmdbsync** package is usable for synchronization but its resizing
-behavior should be considered highly unstable and may change without notice
-between releases.  Its use case is real but somewhat niche and requires much
-more feedback driven development before it can be considered stable.
+The **lmdbsync** package is usable but the implementation of Handlers are
+unstable and may change in incompatible ways without notice.  The use cases of
+dynamic map sizes and multiprocessing are niche and the package requires much
+more development driven by practical feedback before the Handler API and the
+provided implementations can be considered stable.
 
 ## Key Features
 
