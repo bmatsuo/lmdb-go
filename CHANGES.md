@@ -7,6 +7,7 @@
 - lmdbsync: realistic test of resizing functionality (#7)
 - lmdbsync: use context.Context instead of a hand-rolled Bag (#51)
 - lmdbsync: Handler Env is now an argument instead of a context value (#52)
+- lmdbsync: Changes to MapResizedHandler and its default values (#54)
 
 ##v1.5.0
 
