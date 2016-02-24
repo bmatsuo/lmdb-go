@@ -46,8 +46,8 @@ func TestMultiVal_panic(t *testing.T) {
 
 func TestValBytes(t *testing.T) {
 	ptr, n := valBytes(nil)
-	if ptr != nil {
-		t.Errorf("unexpected non-nil pointer")
+	if len(ptr) == 0 {
+		t.Errorf("unexpected unadressable slice")
 	}
 	if n != 0 {
 		t.Errorf("unexpected length: %d (expected 0)", n)
@@ -55,8 +55,8 @@ func TestValBytes(t *testing.T) {
 
 	b := []byte("abc")
 	ptr, n = valBytes(b)
-	if ptr == nil {
-		t.Errorf("unexpected nil pointer")
+	if len(ptr) == 0 {
+		t.Errorf("unexpected unadressable slice")
 	}
 	if n != 3 {
 		t.Errorf("unexpected length: %d (expected %d)", n, len(b))

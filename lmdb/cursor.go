@@ -7,7 +7,10 @@ package lmdb
 #include "lmdbgo.h"
 */
 import "C"
-import "runtime"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // These flags are used exclusively for Cursor.Get.
 const (
@@ -172,7 +175,7 @@ func (c *Cursor) getVal1(setkey []byte, op uint) (key, val *C.MDB_val, err error
 	kdata, kn := valBytes(setkey)
 	ret := C.lmdbgo_mdb_cursor_get1(
 		c._c,
-		kdata, C.size_t(kn),
+		unsafe.Pointer(&kdata[0]), C.size_t(kn),
 		(*C.MDB_val)(key), (*C.MDB_val)(val),
 		C.MDB_cursor_op(op),
 	)
@@ -190,8 +193,8 @@ func (c *Cursor) getVal2(setkey, setval []byte, op uint) (key, val *C.MDB_val, e
 	vdata, vn := valBytes(setval)
 	ret := C.lmdbgo_mdb_cursor_get2(
 		c._c,
-		kdata, C.size_t(kn),
-		vdata, C.size_t(vn),
+		unsafe.Pointer(&kdata[0]), C.size_t(kn),
+		unsafe.Pointer(&vdata[0]), C.size_t(vn),
 		(*C.MDB_val)(key), (*C.MDB_val)(val),
 		C.MDB_cursor_op(op),
 	)
@@ -206,8 +209,8 @@ func (c *Cursor) Put(key, val []byte, flags uint) error {
 	vdata, vn := valBytes(val)
 	ret := C.lmdbgo_mdb_cursor_put2(
 		c._c,
-		kdata, C.size_t(kn),
-		vdata, C.size_t(vn),
+		unsafe.Pointer(&kdata[0]), C.size_t(kn),
+		unsafe.Pointer(&vdata[0]), C.size_t(vn),
 		C.uint(flags),
 	)
 	return operrno("mdb_cursor_put", ret)
@@ -221,7 +224,7 @@ func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 	val := &C.MDB_val{mv_size: C.size_t(n)}
 	ret := C.lmdbgo_mdb_cursor_put1(
 		c._c,
-		kdata, C.size_t(kn),
+		unsafe.Pointer(&kdata[0]), C.size_t(kn),
 		(*C.MDB_val)(val),
 		C.uint(flags|C.MDB_RESERVE),
 	)
@@ -243,8 +246,8 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 	vn := WrapMulti(page, stride).Len()
 	ret := C.lmdbgo_mdb_cursor_putmulti(
 		c._c,
-		kdata, C.size_t(kn),
-		vdata, C.size_t(vn), C.size_t(stride),
+		unsafe.Pointer(&kdata[0]), C.size_t(kn),
+		unsafe.Pointer(&vdata[0]), C.size_t(vn), C.size_t(stride),
 		C.uint(flags|C.MDB_MULTIPLE),
 	)
 	return operrno("mdb_cursor_put", ret)
