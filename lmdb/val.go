@@ -108,8 +108,9 @@ func getBytesCopy(val *C.MDB_val) []byte {
 
 // Value is data that can be written to an LMDB environment.
 type Value interface {
-	MemAddr() unsafe.Pointer
-	MemSize() uintptr
+	tobytes() []byte
+	//MemAddr() unsafe.Pointer
+	//MemSize() uintptr
 }
 
 // Bytes returns a Value describing the bytes underlying b.
@@ -148,6 +149,10 @@ type bytesValue []byte
 
 var _ Value = bytesValue(nil)
 
+func (v bytesValue) tobytes() []byte {
+	return []byte(v)
+}
+
 func (v bytesValue) MemAddr() unsafe.Pointer {
 	if len(v) == 0 {
 		return nil
@@ -167,6 +172,18 @@ var _ Value = (*uintValue)(nil)
 
 func (v *uintValue) SetUint(x uint) {
 	*v = uintValue(x)
+}
+
+func (v *uintValue) tobytes() []byte {
+	if v == nil {
+		return nil
+	}
+	hdr := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(v)),
+		Len:  int(uintSize),
+		Cap:  int(uintSize),
+	}
+	return *(*[]byte)(unsafe.Pointer(&hdr))
 }
 
 func (v *uintValue) MemAddr() unsafe.Pointer {
@@ -195,6 +212,18 @@ var sizetSize = unsafe.Sizeof(C.size_t(0))
 
 func (v *sizetValue) SetUintptr(x uintptr) {
 	*v = sizetValue(x)
+}
+
+func (v *sizetValue) tobytes() []byte {
+	if v == nil {
+		return nil
+	}
+	hdr := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(v)),
+		Len:  int(sizetSize),
+		Cap:  int(sizetSize),
+	}
+	return *(*[]byte)(unsafe.Pointer(&hdr))
 }
 
 func (v *sizetValue) MemAddr() unsafe.Pointer {
