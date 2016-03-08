@@ -2,6 +2,7 @@ package lmdb
 
 import (
 	crand "crypto/rand"
+	"encoding/binary"
 	"math/rand"
 	"os"
 	"sync/atomic"
@@ -59,6 +60,284 @@ func (r *readerList) Next(ln string) error {
 	return nil
 }
 
+type BenchOpt struct {
+	RandSeed int64
+	NumEntry uint64
+	MaxVal   uint64
+	MaxKey   uint64
+	EnvFlags uint
+	DBIFlags uint
+	Put      func(*Txn, DBI, uint64, uint64) error
+	Get      func(*Txn, DBI, uint64) ([]byte, error)
+}
+
+func (opt *BenchOpt) randSeed() int64 {
+	if opt.RandSeed == 0 {
+		return 0xDEADC0DE
+	}
+	return opt.RandSeed
+}
+
+func (opt *BenchOpt) maxkey() uint64 {
+	if opt.MaxKey == 0 {
+		return 10000
+	}
+	return opt.MaxKey
+}
+
+func (opt *BenchOpt) maxval() uint64 {
+	if opt.MaxVal == 0 {
+		return 1000
+	}
+	return opt.MaxVal
+}
+
+func (opt *BenchOpt) numentry() uint64 {
+	if opt.NumEntry == 0 {
+		return 2 * opt.maxkey()
+	}
+	return opt.NumEntry
+}
+
+func (opt *BenchOpt) SeedRand(r *rand.Rand) {
+	if r != nil {
+		r.Seed(opt.randSeed())
+		return
+	}
+	rand.Seed(opt.randSeed())
+}
+
+// arguments to put are guaranteed to be less then math.MaxUint32
+func benchTxnPutUint64(b *testing.B, opt *BenchOpt) {
+	env := setupFlags(b, NoSync)
+	defer clean(env, b)
+
+	r := rand.New(rand.NewSource(opt.randSeed()))
+	opt.SeedRand(r)
+
+	dbi, err := loadUint64(env, r, opt)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		defer b.StopTimer()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			k := uint64(int(r.Intn(int(opt.maxkey()))))
+			v := uint64(int(r.Intn(int(opt.maxval()))))
+			err = opt.Put(txn, dbi, k, v)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
+
+func benchTxnGetUint64(b *testing.B, opt *BenchOpt) {
+	env := setupFlags(b, NoSync)
+	defer clean(env, b)
+
+	r := rand.New(rand.NewSource(opt.randSeed()))
+	opt.SeedRand(r)
+
+	dbi, err := loadUint64(env, r, opt)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		defer b.StopTimer()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			k := uint64(r.Intn(int(opt.maxkey())))
+			_, err = opt.Get(txn, dbi, k)
+			if err != nil && !IsNotFound(err) {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
+
+func loadUint64(env *Env, r *rand.Rand, opt *BenchOpt) (DBI, error) {
+	err := env.SetMapSize(100 << 20)
+	if err != nil {
+		return 0, err
+	}
+
+	var dbi DBI
+	err = env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenDBI("benchmark", opt.DBIFlags|Create)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		n := int(opt.numentry())
+		for i := 0; i < n; i++ {
+			k := uint64(r.Intn(int(opt.maxkey())))
+			v := uint64(r.Intn(int(opt.maxval())))
+			err = opt.Put(txn, dbi, k, v)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return dbi, nil
+}
+
+func BenchmarkTxn_GetValue_U_(b *testing.B) {
+	type UintValue interface {
+		Value
+		SetUint(uint)
+	}
+	key := Uint(0).(UintValue)
+	val := Uint(0).(UintValue)
+	benchTxnGetUint64(b, &BenchOpt{
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key.SetUint(uint(k))
+			val.SetUint(uint(v))
+			return txn.PutValue(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			key.SetUint(uint(k))
+			return txn.GetValue(dbi, key)
+		},
+	})
+}
+
+func BenchmarkTxn_GetValue_Z_(b *testing.B) {
+	type UintptrValue interface {
+		Value
+		SetUintptr(uintptr)
+	}
+	key := Uintptr(0).(UintptrValue)
+	val := Uintptr(0).(UintptrValue)
+	benchTxnGetUint64(b, &BenchOpt{
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key.SetUintptr(uintptr(k))
+			val.SetUintptr(uintptr(v))
+			return txn.PutValue(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			key.SetUintptr(uintptr(k))
+			return txn.GetValue(dbi, key)
+		},
+	})
+}
+
+func BenchmarkTxn_GetValue_B_(b *testing.B) {
+	key := make([]byte, 8)
+	val := make([]byte, 8)
+	benchTxnGetUint64(b, &BenchOpt{
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			binary.BigEndian.PutUint64(key, k)
+			binary.BigEndian.PutUint64(val, v)
+			return txn.Put(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			binary.BigEndian.PutUint64(key, k)
+			return txn.Get(dbi, key)
+		},
+	})
+}
+
+func BenchmarkTxn_PutValue_u_(b *testing.B) {
+	benchTxnPutUint64(b, &BenchOpt{
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			return txn.PutValue(dbi, Uint(uint(k)), Uint(uint(v)), 0)
+		},
+	})
+}
+
+func BenchmarkTxn_PutValue_z_(b *testing.B) {
+	benchTxnPutUint64(b, &BenchOpt{
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			return txn.PutValue(dbi, Uintptr(uintptr(k)), Uintptr(uintptr(v)), 0)
+		},
+	})
+}
+
+func BenchmarkTxn_PutValue_b_(b *testing.B) {
+	benchTxnPutUint64(b, &BenchOpt{
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key := make([]byte, 8)
+			val := make([]byte, 8)
+			binary.BigEndian.PutUint64(key, k)
+			binary.BigEndian.PutUint64(val, v)
+			return txn.Put(dbi, key, val, 0)
+		},
+	})
+}
+
+func BenchmarkTxn_PutValue_U_(b *testing.B) {
+	type UintValue interface {
+		Value
+		SetUint(uint)
+	}
+	key := Uint(0).(UintValue)
+	val := Uint(0).(UintValue)
+	benchTxnPutUint64(b, &BenchOpt{
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key.SetUint(uint(k))
+			val.SetUint(uint(v))
+			return txn.PutValue(dbi, key, val, 0)
+		},
+	})
+}
+
+func BenchmarkTxn_PutValue_Z_(b *testing.B) {
+	type UintptrValue interface {
+		Value
+		SetUintptr(uintptr)
+	}
+	key := Uintptr(0).(UintptrValue)
+	val := Uintptr(0).(UintptrValue)
+	benchTxnPutUint64(b, &BenchOpt{
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key.SetUintptr(uintptr(k))
+			val.SetUintptr(uintptr(v))
+			return txn.PutValue(dbi, key, val, 0)
+		},
+	})
+}
+
+func BenchmarkTxn_PutValue_B_(b *testing.B) {
+	key := make([]byte, 8)
+	val := make([]byte, 8)
+	benchTxnPutUint64(b, &BenchOpt{
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			binary.BigEndian.PutUint64(key, k)
+			binary.BigEndian.PutUint64(val, v)
+			return txn.Put(dbi, key, val, 0)
+		},
+	})
+}
+
 // repeatedly put (overwrite) keys.
 func BenchmarkTxn_Put(b *testing.B) {
 	initRandSource(b)
@@ -81,6 +360,40 @@ func BenchmarkTxn_Put(b *testing.B) {
 			k := ps[rand.Intn(len(ps)/2)*2]
 			v := makeBenchDBVal(&rc)
 			err := txn.Put(dbi, k, v, 0)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
+
+// repeatedly put (overwrite) keys.
+func BenchmarkTxn_PutValue(b *testing.B) {
+	initRandSource(b)
+	env := setup(b)
+	defer clean(env, b)
+
+	dbi := openBenchDBI(b, env)
+
+	rc := newRandSourceCursor()
+	ps, err := populateBenchmarkDB(env, dbi, &rc)
+	if err != nil {
+		b.Errorf("populate db: %v", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			k := ps[rand.Intn(len(ps)/2)*2]
+			v := makeBenchDBVal(&rc)
+			err := txn.PutValue(dbi, Bytes(k), Bytes(v), 0)
 			if err != nil {
 				return err
 			}

@@ -18,10 +18,6 @@ import (
 // This flags are used exclusively for Txn.OpenDBI and Txn.OpenRoot.  The
 // Create flag must always be supplied when opening a non-root DBI for the
 // first time.
-//
-// BUG(bmatsuo):
-// MDB_INTEGERKEY and MDB_INTEGERDUP aren't usable. I'm not sure they would be
-// faster with the cgo bridge.  They need to be tested and benchmarked.
 const (
 	// Flags for Txn.OpenDBI.
 
@@ -29,6 +25,8 @@ const (
 	DupSort    = C.MDB_DUPSORT    // Use sorted duplicates.
 	DupFixed   = C.MDB_DUPFIXED   // Duplicate items have a fixed size (DupSort).
 	ReverseDup = C.MDB_REVERSEDUP // Reverse duplicate values (DupSort).
+	IntegerKey = C.MDB_INTEGERKEY // Keys are compared as unsigned integer or size_t values.
+	IntegerDup = C.MDB_INTEGERDUP // Values with duplicate keys are compared as unsigned integer or size_t values (DupSort).
 	Create     = C.MDB_CREATE     // Create DB if not already existing.
 )
 
@@ -288,6 +286,26 @@ func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 	return txn.bytes(val), nil
 }
 
+// GetValue retrieves items from database dbi.  If txn.RawRead is true the slice
+// returned by Get references a readonly section of memory that must not be
+// accessed after txn has terminated.
+//
+// See mdb_get.
+func (txn *Txn) GetValue(dbi DBI, key Value) ([]byte, error) {
+	kdata, kn := key.MemAddr(), key.MemSize()
+	val := new(C.MDB_val)
+	ret := C.lmdbgo_mdb_get(
+		txn._txn, C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		(*C.MDB_val)(val),
+	)
+	err := operrno("mdb_get", ret)
+	if err != nil {
+		return nil, err
+	}
+	return txn.bytes(val), nil
+}
+
 // Put stores an item in database dbi.
 //
 // See mdb_put.
@@ -320,6 +338,20 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 		return nil, err
 	}
 	return getBytes(val), nil
+}
+
+// PutValue writes the key-value item data to dbi.
+func (txn *Txn) PutValue(dbi DBI, key Value, val Value, flags uint) error {
+	kdata, kn := key.MemAddr(), key.MemSize()
+	vdata, vn := val.MemAddr(), val.MemSize()
+	ret := C.lmdbgo_mdb_put2(
+		txn._txn,
+		C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+		C.uint(flags),
+	)
+	return operrno("mdb_put", ret)
 }
 
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the

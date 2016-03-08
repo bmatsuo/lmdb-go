@@ -154,6 +154,26 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	return c.txn.bytes(k), c.txn.bytes(v), nil
 }
 
+// GetValue retrieves items from the database. If c.Txn().RawRead is true the
+// slices returned by Get reference readonly sections of memory that must not
+// be accessed after the transaction has terminated.
+//
+// See mdb_cursor_get.
+func (c *Cursor) GetValue(setkey, setval Value, op uint) (key, val []byte, err error) {
+	ckey := new(C.MDB_val)
+	cval := new(C.MDB_val)
+	kdata, kn := setkey.MemAddr(), setkey.MemSize()
+	vdata, vn := setval.MemAddr(), setval.MemSize()
+	ret := C.lmdbgo_mdb_cursor_get2(
+		c._c,
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+		(*C.MDB_val)(ckey), (*C.MDB_val)(cval),
+		C.MDB_cursor_op(op),
+	)
+	return c.txn.bytes(ckey), c.txn.bytes(cval), operrno("mdb_cursor_get", ret)
+}
+
 // getVal0 retrieves items from the database without using given key or value
 // data for reference (Next, First, Last, etc).
 //
@@ -249,6 +269,19 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 		unsafe.Pointer(&kdata[0]), C.size_t(kn),
 		unsafe.Pointer(&vdata[0]), C.size_t(vn), C.size_t(stride),
 		C.uint(flags|C.MDB_MULTIPLE),
+	)
+	return operrno("mdb_cursor_put", ret)
+}
+
+// PutValue writes the key-value item data to dbi.
+func (c *Cursor) PutValue(key Value, val Value, flags uint) error {
+	kdata, kn := key.MemAddr(), key.MemSize()
+	vdata, vn := val.MemAddr(), val.MemSize()
+	ret := C.lmdbgo_mdb_cursor_put2(
+		c._c,
+		kdata, C.size_t(kn),
+		vdata, C.size_t(vn),
+		C.uint(flags),
 	)
 	return operrno("mdb_cursor_put", ret)
 }

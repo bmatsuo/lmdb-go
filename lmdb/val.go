@@ -107,3 +107,111 @@ func getBytes(val *C.MDB_val) []byte {
 func getBytesCopy(val *C.MDB_val) []byte {
 	return C.GoBytes(val.mv_data, C.int(val.mv_size))
 }
+
+// Value is data that can be written to an LMDB environment.
+type Value interface {
+	MemAddr() unsafe.Pointer
+	MemSize() uintptr
+}
+
+// Bytes returns a Value describing the bytes underlying b.
+func Bytes(b []byte) Value {
+	return bytesValue(b)
+}
+
+// String returns a Value describing the bytes in s.
+//
+// BUG(bmatsuo):
+// String creates a copy of the bytes in s.
+func String(s string) Value {
+	return Bytes([]byte(s))
+}
+
+// Uint allocates and returns a new Value that points to a value equal to
+// C.uint(x).
+func Uint(x uint) Value {
+	v := new(uintValue)
+	*v = uintValue(x)
+	if uint(*v) != x {
+		panic("value overflows unsigned int")
+	}
+	return v
+}
+
+// Uintptr allocates and returns a new Value that points to a value equal to
+// C.size_t(x).
+func Uintptr(x uintptr) Value {
+	v := new(sizetValue)
+	*v = sizetValue(x)
+	return v
+}
+
+type bytesValue []byte
+
+var _ Value = bytesValue(nil)
+
+func (v bytesValue) MemAddr() unsafe.Pointer {
+	if len(v) == 0 {
+		return nil
+	}
+	return unsafe.Pointer(&v[0])
+}
+
+func (v bytesValue) MemSize() uintptr {
+	return uintptr(len(v))
+}
+
+type uintValue C.uint
+
+var uintSize = unsafe.Sizeof(C.uint(0))
+
+var _ Value = (*uintValue)(nil)
+
+func (v *uintValue) SetUint(x uint) {
+	*v = uintValue(x)
+}
+
+func (v *uintValue) MemAddr() unsafe.Pointer {
+	return unsafe.Pointer(v)
+}
+
+func (v *uintValue) MemSize() uintptr {
+	return uintSize
+}
+
+// UintValue interprets the bytes of b as an unsigned int and returns the value.
+//
+// BUG(bmatsuo):
+// Does not check for overflow.
+func UintValue(b []byte) (x uint, ok bool) {
+	if uintptr(len(b)) != uintSize {
+		return 0, false
+	}
+	x = uint(*(*C.uint)(unsafe.Pointer(&b[0])))
+	return x, true
+}
+
+type sizetValue C.size_t
+
+var sizetSize = unsafe.Sizeof(C.size_t(0))
+
+func (v *sizetValue) SetUintptr(x uintptr) {
+	*v = sizetValue(x)
+}
+
+func (v *sizetValue) MemAddr() unsafe.Pointer {
+	return unsafe.Pointer(v)
+}
+
+func (v *sizetValue) MemSize() uintptr {
+	return sizetSize
+}
+
+// UintptrValue interprets the bytes of b as a size_t and returns the value.
+func UintptrValue(b []byte) (x uintptr, ok bool) {
+	if uintptr(len(b)) != sizetSize {
+		return 0, false
+	}
+	x = uintptr(*(*C.size_t)(unsafe.Pointer(&b[0])))
+	return x, true
+}
