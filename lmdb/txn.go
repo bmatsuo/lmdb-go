@@ -288,18 +288,36 @@ func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 	return txn.bytes(val), nil
 }
 
+func (txn *Txn) putNilKey(dbi DBI, flags uint) error {
+	// mdb_put with an empty key will always fail
+	ret := C.lmdbgo_mdb_put2(txn._txn, C.MDB_dbi(dbi), nil, 0, nil, 0, C.uint(flags))
+	return operrno("mdb_put", ret)
+}
+
 // Put stores an item in database dbi.
 //
 // See mdb_put.
 func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
-	kdata, kn := valBytes(key)
-	vdata, vn := valBytes(val)
-	ret := C.lmdbgo_mdb_put2(
-		txn._txn, C.MDB_dbi(dbi),
-		unsafe.Pointer(&kdata[0]), C.size_t(kn),
-		unsafe.Pointer(&vdata[0]), C.size_t(vn),
-		C.uint(flags),
-	)
+	if len(key) == 0 {
+		return txn.putNilKey(dbi, flags)
+	}
+
+	var ret C.int
+	if len(val) != 0 {
+		ret = C.lmdbgo_mdb_put2(
+			txn._txn, C.MDB_dbi(dbi),
+			unsafe.Pointer(&key[0]), C.size_t(len(key)),
+			unsafe.Pointer(&val[0]), C.size_t(len(val)),
+			C.uint(flags),
+		)
+	} else {
+		ret = C.lmdbgo_mdb_put2(
+			txn._txn, C.MDB_dbi(dbi),
+			unsafe.Pointer(&key[0]), C.size_t(len(key)),
+			nil, 0,
+			C.uint(flags),
+		)
+	}
 	return operrno("mdb_put", ret)
 }
 
@@ -307,11 +325,13 @@ func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
 // avoiding a memcopy.  The returned byte slice is only valid in txn's thread,
 // before it has terminated.
 func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, error) {
-	kdata, kn := valBytes(key)
+	if len(key) == 0 {
+		return nil, txn.putNilKey(dbi, flags)
+	}
 	val := &C.MDB_val{mv_size: C.size_t(n)}
 	ret := C.lmdbgo_mdb_put1(
 		txn._txn, C.MDB_dbi(dbi),
-		unsafe.Pointer(&kdata[0]), C.size_t(kn),
+		unsafe.Pointer(&key[0]), C.size_t(len(key)),
 		(*C.MDB_val)(val),
 		C.uint(flags|C.MDB_RESERVE),
 	)
