@@ -286,6 +286,26 @@ func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 	return txn.bytes(val), nil
 }
 
+// GetValue retrieves items from database dbi.  If txn.RawRead is true the slice
+// returned by Get references a readonly section of memory that must not be
+// accessed after txn has terminated.
+//
+// See mdb_get.
+func (txn *Txn) GetValue(dbi DBI, key Value) ([]byte, error) {
+	kdata, kn := key.MemAddr(), key.MemSize()
+	val := new(C.MDB_val)
+	ret := C.lmdbgo_mdb_get(
+		txn._txn, C.MDB_dbi(dbi),
+		kdata, C.size_t(kn),
+		(*C.MDB_val)(val),
+	)
+	err := operrno("mdb_get", ret)
+	if err != nil {
+		return nil, err
+	}
+	return txn.bytes(val), nil
+}
+
 // Put stores an item in database dbi.
 //
 // See mdb_put.
