@@ -121,7 +121,7 @@ func benchTxnPutUint64(b *testing.B, opt *BenchOpt) {
 		return
 	}
 
-	err = env.View(func(txn *Txn) (err error) {
+	err = env.Update(func(txn *Txn) (err error) {
 		defer b.StopTimer()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
