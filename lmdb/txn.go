@@ -298,26 +298,21 @@ func (txn *Txn) putNilKey(dbi DBI, flags uint) error {
 //
 // See mdb_put.
 func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
-	if len(key) == 0 {
+	kn := len(key)
+	if kn == 0 {
 		return txn.putNilKey(dbi, flags)
 	}
-
-	var ret C.int
-	if len(val) != 0 {
-		ret = C.lmdbgo_mdb_put2(
-			txn._txn, C.MDB_dbi(dbi),
-			unsafe.Pointer(&key[0]), C.size_t(len(key)),
-			unsafe.Pointer(&val[0]), C.size_t(len(val)),
-			C.uint(flags),
-		)
-	} else {
-		ret = C.lmdbgo_mdb_put2(
-			txn._txn, C.MDB_dbi(dbi),
-			unsafe.Pointer(&key[0]), C.size_t(len(key)),
-			nil, 0,
-			C.uint(flags),
-		)
+	vn := len(val)
+	if vn == 0 {
+		val = []byte{0}
 	}
+
+	ret := C.lmdbgo_mdb_put2(
+		txn._txn, C.MDB_dbi(dbi),
+		unsafe.Pointer(&key[0]), C.size_t(kn),
+		unsafe.Pointer(&val[0]), C.size_t(vn),
+		C.uint(flags),
+	)
 	return operrno("mdb_put", ret)
 }
 

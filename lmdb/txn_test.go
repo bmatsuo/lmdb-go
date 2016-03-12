@@ -214,6 +214,35 @@ func TestTxn_Del_dup(t *testing.T) {
 	}
 }
 
+func TestTexn_Put_emptyValue(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(db, []byte("k"), nil, 0)
+		if err != nil {
+			return err
+		}
+		v, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if len(v) != 0 {
+			t.Errorf("value: %q (!= \"\")", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
 func TestTxn_PutReserve(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
