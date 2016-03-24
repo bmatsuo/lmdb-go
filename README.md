@@ -163,6 +163,13 @@ Building commands and running tests can be done with `go` or with `make`
     make check
     make all
 
+On Linux, you can specify the `pwritev` build tag to reduce the number of syscalls
+required when committing a transaction. In your own package you can then do
+
+    go build -tags pwritev .
+
+to enable the optimisation.
+
 ##Documentation
 
 ###Go doc
