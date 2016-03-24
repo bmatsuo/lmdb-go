@@ -214,6 +214,35 @@ func TestTxn_Del_dup(t *testing.T) {
 	}
 }
 
+func TestTexn_Put_emptyValue(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(db, []byte("k"), nil, 0)
+		if err != nil {
+			return err
+		}
+		v, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if len(v) != 0 {
+			t.Errorf("value: %q (!= \"\")", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
 func TestTxn_PutReserve(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
@@ -244,6 +273,46 @@ func TestTxn_PutReserve(t *testing.T) {
 		}
 		if string(v) != "v" {
 			return fmt.Errorf("value: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestTxn_bytesBuffer(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	db, err := openRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		k := new(bytes.Buffer)
+		k.WriteString("hello")
+		v := new(bytes.Buffer)
+		v.WriteString("world")
+		return txn.Put(db, k.Bytes(), v.Bytes(), 0)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		k := new(bytes.Buffer)
+		k.WriteString("hello")
+		v, err := txn.Get(db, k.Bytes())
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(v, []byte("world")) {
+			return fmt.Errorf("unexpected value: %q", v)
 		}
 		return nil
 	})
