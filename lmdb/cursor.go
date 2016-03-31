@@ -139,63 +139,62 @@ func (c *Cursor) DBI() DBI {
 //
 // See mdb_cursor_get.
 func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
-	var k, v *C.MDB_val
 	switch {
 	case len(setkey) == 0:
-		k, v, err = c.getVal0(op)
+		err = c.getVal0(op)
 	case len(setval) == 0:
-		k, v, err = c.getVal1(setkey, op)
+		err = c.getVal1(setkey, op)
 	default:
-		k, v, err = c.getVal2(setkey, setval, op)
+		err = c.getVal2(setkey, setval, op)
 	}
 	if err != nil {
+		*c.txn.key = C.MDB_val{}
+		*c.txn.val = C.MDB_val{}
 		return nil, nil, err
 	}
-	return c.txn.bytes(k), c.txn.bytes(v), nil
+	k := c.txn.bytes(c.txn.key)
+	v := c.txn.bytes(c.txn.val)
+	*c.txn.key = C.MDB_val{}
+	*c.txn.val = C.MDB_val{}
+	return k, v, nil
 }
 
 // getVal0 retrieves items from the database without using given key or value
 // data for reference (Next, First, Last, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal0(op uint) (key, val *C.MDB_val, err error) {
-	key = new(C.MDB_val)
-	val = new(C.MDB_val)
-	ret := C.mdb_cursor_get(c._c, (*C.MDB_val)(key), (*C.MDB_val)(val), C.MDB_cursor_op(op))
-	return key, val, operrno("mdb_cursor_get", ret)
+func (c *Cursor) getVal0(op uint) error {
+	ret := C.mdb_cursor_get(c._c, c.txn.key, c.txn.val, C.MDB_cursor_op(op))
+	return operrno("mdb_cursor_get", ret)
 }
 
 // getVal1 retrieves items from the database using key data for reference
 // (Set, SetRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal1(setkey []byte, op uint) (key, val *C.MDB_val, err error) {
-	key = new(C.MDB_val)
-	val = new(C.MDB_val)
+func (c *Cursor) getVal1(setkey []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get1(
 		c._c,
 		unsafe.Pointer(&setkey[0]), C.size_t(len(setkey)),
-		(*C.MDB_val)(key), (*C.MDB_val)(val),
+		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
-	return key, val, operrno("mdb_cursor_get", ret)
+	return operrno("mdb_cursor_get", ret)
 }
 
 // getVal2 retrieves items from the database using key and value data for
 // reference (GetBoth, GetBothRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal2(setkey, setval []byte, op uint) (key, val *C.MDB_val, err error) {
-	key = new(C.MDB_val)
-	val = new(C.MDB_val)
+func (c *Cursor) getVal2(setkey, setval []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get2(
 		c._c,
 		unsafe.Pointer(&setkey[0]), C.size_t(len(setkey)),
 		unsafe.Pointer(&setval[0]), C.size_t(len(setval)),
-		(*C.MDB_val)(key), (*C.MDB_val)(val),
+		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
-	return key, val, operrno("mdb_cursor_get", ret)
+	return operrno("mdb_cursor_get", ret)
 }
 
 func (c *Cursor) putNilKey(flags uint) error {
@@ -231,18 +230,21 @@ func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 		return nil, c.putNilKey(flags)
 	}
 
-	val := &C.MDB_val{mv_size: C.size_t(n)}
+	c.txn.val.mv_size = C.size_t(n)
 	ret := C.lmdbgo_mdb_cursor_put1(
 		c._c,
 		unsafe.Pointer(&key[0]), C.size_t(len(key)),
-		(*C.MDB_val)(val),
+		c.txn.val,
 		C.uint(flags|C.MDB_RESERVE),
 	)
 	err := operrno("mdb_cursor_put", ret)
 	if err != nil {
+		*c.txn.val = C.MDB_val{}
 		return nil, err
 	}
-	return getBytes(val), nil
+	b := getBytes(c.txn.val)
+	*c.txn.val = C.MDB_val{}
+	return b, nil
 }
 
 // PutMulti stores a set of contiguous items with stride size under key.
