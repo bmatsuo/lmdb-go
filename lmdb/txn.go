@@ -284,7 +284,7 @@ func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 	kdata, kn := valBytes(key)
 	ret := C.lmdbgo_mdb_get(
 		txn._txn, C.MDB_dbi(dbi),
-		unsafe.Pointer(&kdata[0]), C.size_t(kn),
+		(*C.char)(unsafe.Pointer(&kdata[0])), C.size_t(kn),
 		txn.val,
 	)
 	err := operrno("mdb_get", ret)
@@ -318,8 +318,8 @@ func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
 
 	ret := C.lmdbgo_mdb_put2(
 		txn._txn, C.MDB_dbi(dbi),
-		unsafe.Pointer(&key[0]), C.size_t(kn),
-		unsafe.Pointer(&val[0]), C.size_t(vn),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(kn),
+		(*C.char)(unsafe.Pointer(&val[0])), C.size_t(vn),
 		C.uint(flags),
 	)
 	return operrno("mdb_put", ret)
@@ -335,7 +335,7 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 	txn.val.mv_size = C.size_t(n)
 	ret := C.lmdbgo_mdb_put1(
 		txn._txn, C.MDB_dbi(dbi),
-		unsafe.Pointer(&key[0]), C.size_t(len(key)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
 		txn.val,
 		C.uint(flags|C.MDB_RESERVE),
 	)
@@ -358,8 +358,8 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 	vdata, vn := valBytes(val)
 	ret := C.lmdbgo_mdb_del(
 		txn._txn, C.MDB_dbi(dbi),
-		unsafe.Pointer(&kdata[0]), C.size_t(kn),
-		unsafe.Pointer(&vdata[0]), C.size_t(vn),
+		(*C.char)(unsafe.Pointer(&kdata[0])), C.size_t(kn),
+		(*C.char)(unsafe.Pointer(&vdata[0])), C.size_t(vn),
 	)
 	return operrno("mdb_del", ret)
 }
