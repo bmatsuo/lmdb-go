@@ -811,3 +811,45 @@ func BenchmarkCursor_Renew(b *testing.B) {
 		return nil
 	})
 }
+
+func BenchmarkCursor_Get_missing_raw(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	var db DBI
+	err := env.View(func(txn *Txn) (err error) {
+		db, err = txn.OpenRoot(0)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		key := []byte("does not exist")
+
+		b.ResetTimer()
+		defer b.StopTimer()
+
+		for i := 0; i < b.N; i++ {
+			if _, _, err := cur.Get(key, nil, SetKey); !IsNotFound(err) {
+				b.Fatal("found key that should not exist")
+			}
+		}
+		return
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
