@@ -67,6 +67,7 @@ type BenchOpt struct {
 	MaxKey   uint64
 	EnvFlags uint
 	DBIFlags uint
+	RawRead  bool
 	Put      func(*Txn, DBI, uint64, uint64) error
 	Get      func(*Txn, DBI, uint64) ([]byte, error)
 }
@@ -154,6 +155,7 @@ func benchTxnGetUint64(b *testing.B, opt *BenchOpt) {
 	}
 
 	err = env.View(func(txn *Txn) (err error) {
+		txn.RawRead = opt.RawRead
 		defer b.StopTimer()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -202,6 +204,67 @@ func loadUint64(env *Env, r *rand.Rand, opt *BenchOpt) (DBI, error) {
 		return 0, err
 	}
 	return dbi, nil
+}
+
+func BenchmarkTxn_GetValue_U_raw(b *testing.B) {
+	type UintValue interface {
+		Value
+		SetUint(uint)
+	}
+	key := Uint(0).(UintValue)
+	val := Uint(0).(UintValue)
+	benchTxnGetUint64(b, &BenchOpt{
+		RawRead:  true,
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key.SetUint(uint(k))
+			val.SetUint(uint(v))
+			return txn.PutValue(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			key.SetUint(uint(k))
+			return txn.GetValue(dbi, key)
+		},
+	})
+}
+
+func BenchmarkTxn_GetValue_Z_raw(b *testing.B) {
+	type UintptrValue interface {
+		Value
+		SetUintptr(uintptr)
+	}
+	key := Uintptr(0).(UintptrValue)
+	val := Uintptr(0).(UintptrValue)
+	benchTxnGetUint64(b, &BenchOpt{
+		RawRead:  true,
+		DBIFlags: IntegerKey,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key.SetUintptr(uintptr(k))
+			val.SetUintptr(uintptr(v))
+			return txn.PutValue(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			key.SetUintptr(uintptr(k))
+			return txn.GetValue(dbi, key)
+		},
+	})
+}
+
+func BenchmarkTxn_GetValue_B_raw(b *testing.B) {
+	key := make([]byte, 8)
+	val := make([]byte, 8)
+	benchTxnGetUint64(b, &BenchOpt{
+		RawRead: true,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			binary.BigEndian.PutUint64(key, k)
+			binary.BigEndian.PutUint64(val, v)
+			return txn.Put(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			binary.BigEndian.PutUint64(key, k)
+			return txn.Get(dbi, key)
+		},
+	})
 }
 
 func BenchmarkTxn_GetValue_U_(b *testing.B) {
