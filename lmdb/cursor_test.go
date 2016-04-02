@@ -107,6 +107,59 @@ func TestCursor_Close(t *testing.T) {
 	}
 }
 
+func TestCursor_bytesBuffer(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	db, err := openRoot(env, 0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+		k := new(bytes.Buffer)
+		k.WriteString("hello")
+		v := new(bytes.Buffer)
+		v.WriteString("world")
+		return cur.Put(k.Bytes(), v.Bytes(), 0)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+		k := new(bytes.Buffer)
+		k.WriteString("hello")
+		_k, v, err := cur.Get(k.Bytes(), nil, SetKey)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(_k, k.Bytes()) {
+			return fmt.Errorf("unexpected key: %q", _k)
+		}
+		if !bytes.Equal(v, []byte("world")) {
+			return fmt.Errorf("unexpected value: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
 func TestCursor_PutReserve(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)

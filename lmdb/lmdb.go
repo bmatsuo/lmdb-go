@@ -55,6 +55,7 @@ package lmdb
 
 /*
 #cgo CFLAGS: -pthread -W -Wall -Wno-unused-parameter -Wno-format-extra-args -Wbad-function-cast -O2 -g
+#cgo linux,pwritev CFLAGS: -DMDB_USE_PWRITEV
 
 #include "lmdb.h"
 */

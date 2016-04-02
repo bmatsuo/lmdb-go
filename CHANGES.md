@@ -8,6 +8,12 @@
 - lmdbsync: use context.Context instead of a hand-rolled Bag (#51)
 - lmdbsync: Handler Env is now an argument instead of a context value (#52)
 - lmdbsync: Changes to MapResizedHandler and its default values (#54)
+- lmdb: Fix CGO argument check panic for certain []byte values produced from a
+  bytes.Buffer (#56)
+- lmdb: Support building the C library with support for the pwritev(2) system
+  call (#58)
+- lmdb: Reuse MDB_val values within transactions to reduce allocations in
+  transactions issuing multiple Get operations (#61).
 
 ##v1.5.0
 

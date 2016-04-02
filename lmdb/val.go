@@ -78,17 +78,19 @@ func (m *Multi) Page() []byte {
 	return m.page[:len(m.page):len(m.page)]
 }
 
-func valBytes(b []byte) (unsafe.Pointer, int) {
+var eb = []byte{0}
+
+func valBytes(b []byte) ([]byte, int) {
 	if len(b) == 0 {
-		return nil, 0
+		return eb, 0
 	}
-	return unsafe.Pointer(&b[0]), len(b)
+	return b, len(b)
 }
 
 func wrapVal(b []byte) *C.MDB_val {
-	ptr, n := valBytes(b)
+	p, n := valBytes(b)
 	return &C.MDB_val{
-		mv_data: unsafe.Pointer(ptr),
+		mv_data: unsafe.Pointer(&p[0]),
 		mv_size: C.size_t(n),
 	}
 }
