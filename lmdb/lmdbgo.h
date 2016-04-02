@@ -7,6 +7,16 @@
 
 #include "lmdb.h"
 
+/* Proxy functions for lmdb get/put operations. The functions are defined to
+ * take char* values instead of void* to keep cgo from cheking their data for
+ * nested pointers and causing a couple of allocations per argument.
+ *
+ * For more information see github issues for more information about the
+ * problem and the decision.
+ *      https://github.com/golang/go/issues/14387
+ *      https://github.com/golang/go/issues/15048
+ *      https://github.com/bmatsuo/lmdb-go/issues/63
+ * */
 int lmdbgo_mdb_del(MDB_txn *txn, MDB_dbi dbi, char *kdata, size_t kn, char *vdata, size_t vn);
 int lmdbgo_mdb_get(MDB_txn *txn, MDB_dbi dbi, char *kdata, size_t kn, MDB_val *val);
 int lmdbgo_mdb_put1(MDB_txn *txn, MDB_dbi dbi, char *kdata, size_t kn, MDB_val *val, unsigned int flags);
