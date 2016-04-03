@@ -7,10 +7,9 @@ package lmdb
 */
 import "C"
 
-import (
-	"reflect"
-	"unsafe"
-)
+import "unsafe"
+
+const valMaxSize = 1<<32 - 1
 
 // Multi is a wrapper for a contiguous page of sorted, fixed-length values
 // passed to Cursor.PutMulti or retrieved using Cursor.Get with the
@@ -96,12 +95,7 @@ func wrapVal(b []byte) *C.MDB_val {
 }
 
 func getBytes(val *C.MDB_val) []byte {
-	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(val.mv_data)),
-		Len:  int(val.mv_size),
-		Cap:  int(val.mv_size),
-	}
-	return *(*[]byte)(unsafe.Pointer(&hdr))
+	return (*[valMaxSize]byte)(unsafe.Pointer(val.mv_data))[:val.mv_size:val.mv_size]
 }
 
 func getBytesCopy(val *C.MDB_val) []byte {
