@@ -15,7 +15,7 @@ import "unsafe"
 //
 //		https://github.com/golang/go/blob/a03bdc3e6bea34abd5077205371e6fb9ef354481/src/runtime/malloc.go#L151-L164
 //
-// Luckily, the value 2^32-1 coincides with the maximum data value for LMDB
+// Luckily, the value 2^32-1 coincides with the maximum data size for LMDB
 // (MAXDATASIZE).
 const valMaxSize = 1<<32 - 1
 
