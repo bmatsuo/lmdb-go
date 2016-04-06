@@ -14,6 +14,8 @@
   call (#58)
 - lmdb: Reuse MDB_val values within transactions to reduce allocations in
   transactions issuing multiple Get operations (#61).
+- lmdb: Avoid allocation and linear scan overhead on the cgo boundary for
+  transaction operations (Get/Put and variants) (#63).
 
 ##v1.5.0
 
