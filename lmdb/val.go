@@ -7,10 +7,17 @@ package lmdb
 */
 import "C"
 
-import (
-	"reflect"
-	"unsafe"
-)
+import "unsafe"
+
+// valMaxSize is the largest portable data size allowed by Go (larger can cause
+// an error like "type [...]byte larger than address space").  See runtime
+// source file malloc.go for more information about memory limits.
+//
+//		https://github.com/golang/go/blob/a03bdc3e6bea34abd5077205371e6fb9ef354481/src/runtime/malloc.go#L151-L164
+//
+// Luckily, the value 2^32-1 coincides with the maximum data size for LMDB
+// (MAXDATASIZE).
+const valMaxSize = 1<<32 - 1
 
 // Multi is a wrapper for a contiguous page of sorted, fixed-length values
 // passed to Cursor.PutMulti or retrieved using Cursor.Get with the
@@ -96,12 +103,7 @@ func wrapVal(b []byte) *C.MDB_val {
 }
 
 func getBytes(val *C.MDB_val) []byte {
-	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(val.mv_data)),
-		Len:  int(val.mv_size),
-		Cap:  int(val.mv_size),
-	}
-	return *(*[]byte)(unsafe.Pointer(&hdr))
+	return (*[valMaxSize]byte)(unsafe.Pointer(val.mv_data))[:val.mv_size:val.mv_size]
 }
 
 func getBytesCopy(val *C.MDB_val) []byte {
