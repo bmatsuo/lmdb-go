@@ -16,6 +16,8 @@
   transactions issuing multiple Get operations (#61).
 - lmdb: Avoid allocation and linear scan overhead on the cgo boundary for
   transaction operations (Get/Put and variants) (#63).
+- lmdb: Use a more portable internal conversion from C pointers to slices
+  (#67).
 
 ##v1.5.0
 
