@@ -9,6 +9,8 @@ import "C"
 
 import "unsafe"
 
+// valMaxSize is the largest data sized allowed by lmdb-go.  Luckily, it
+// coincides with the maximum data value for LMDB (MAXDATASIZE).
 const valMaxSize = 1<<32 - 1
 
 // Multi is a wrapper for a contiguous page of sorted, fixed-length values
