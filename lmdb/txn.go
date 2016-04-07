@@ -10,7 +10,6 @@ import "C"
 
 import (
 	"log"
-	"math"
 	"runtime"
 	"unsafe"
 )
@@ -207,7 +206,7 @@ func (txn *Txn) openDBI(cname *C.char, flags uint) (DBI, error) {
 	var dbi C.MDB_dbi
 	ret := C.mdb_dbi_open(txn._txn, cname, C.uint(flags), &dbi)
 	if ret != success {
-		return DBI(math.NaN()), operrno("mdb_dbi_open", ret)
+		return ^DBI(0), operrno("mdb_dbi_open", ret)
 	}
 	return DBI(dbi), nil
 }
