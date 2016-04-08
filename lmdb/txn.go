@@ -10,7 +10,6 @@ import "C"
 
 import (
 	"log"
-	"math"
 	"runtime"
 	"unsafe"
 )
@@ -203,13 +202,15 @@ func (txn *Txn) OpenRoot(flags uint) (DBI, error) {
 	return txn.openDBI(nil, flags)
 }
 
+// openDBI returns returns whatever DBI value was set by mdb_open_dbi.  In an
+// error case, LMDB does not currently set DBI in case of failure, so zero is
+// returned in those cases.  This is not a big deal for now because
+// applications are expected to handle any error encountered opening a
+// database.
 func (txn *Txn) openDBI(cname *C.char, flags uint) (DBI, error) {
 	var dbi C.MDB_dbi
 	ret := C.mdb_dbi_open(txn._txn, cname, C.uint(flags), &dbi)
-	if ret != success {
-		return DBI(math.NaN()), operrno("mdb_dbi_open", ret)
-	}
-	return DBI(dbi), nil
+	return DBI(dbi), operrno("mdb_dbi_open", ret)
 }
 
 // Stat returns a Stat describing the database dbi.
