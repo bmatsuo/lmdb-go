@@ -2,6 +2,8 @@
 
 ##v1.7.0-dev
 
+- lmdb: Removed unnecessary import of the "math" package (#70).
+
 ##v1.6.0 (2016-04-07)
 
 - lmdb: method Txn.ID() exposing mdb_txn_id. (#47)
