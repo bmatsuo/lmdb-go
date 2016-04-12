@@ -1,10 +1,36 @@
 package lmdb
 
 import (
+	"fmt"
 	"syscall"
 	"testing"
 )
 
+func TestErrno_Error(t *testing.T) {
+	operr := &OpError{"testop", fmt.Errorf("testmsg")}
+	msg := operr.Error()
+	if msg != "testop: testmsg" {
+		t.Errorf("message: %q", msg)
+	}
+}
+
+func BenchmarkErrno_Error(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, errno := range []error{
+			syscall.EINVAL,
+			NotFound,
+			MapResized,
+			MapFull,
+		} {
+			operr := &OpError{"mdb_testop", errno}
+			msg := operr.Error()
+			if msg == "" {
+				b.Fatal("empty message")
+			}
+		}
+
+	}
+}
 func TestErrno(t *testing.T) {
 	zeroerr := operrno("testop", 0)
 	if zeroerr != nil {
