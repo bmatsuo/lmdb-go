@@ -3,6 +3,8 @@
 ##v1.7.0-dev
 
 - lmdb: Removed unnecessary import of the "math" package (#70).
+- lmdb: Removed direct dependency on the "fmt" package and reduced error
+  related allocation (#73).
 
 ##v1.6.0 (2016-04-07)
 
