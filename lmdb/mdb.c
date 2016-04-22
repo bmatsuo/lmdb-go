@@ -459,7 +459,7 @@ typedef MDB_ID	txnid_t;
 #endif
 
 #if MDB_DEBUG
-static int mdb_debug;
+static int mdb_debug = 1;
 static txnid_t mdb_debug_start;
 
 	/**	Print a debug message with printf formatting.
