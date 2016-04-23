@@ -1,4 +1,4 @@
-#lmdb-go [![releases/v1.5.0](https://img.shields.io/badge/release-v1.5.0-375eab.svg)](CHANGES.md) [![C/v0.9.18](https://img.shields.io/badge/C-v0.9.18-555555.svg)](https://github.com/LMDB/lmdb/blob/mdb.RE/0.9/libraries/liblmdb/CHANGES) [![Build Status](https://travis-ci.org/bmatsuo/lmdb-go.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb-go)
+#lmdb-go [![releases/v1.6.0](https://img.shields.io/badge/release-v1.6.0-375eab.svg)](CHANGES.md) [![C/v0.9.18](https://img.shields.io/badge/C-v0.9.18-555555.svg)](https://github.com/LMDB/lmdb/blob/mdb.RE/0.9/libraries/liblmdb/CHANGES) [![Build Status](https://travis-ci.org/bmatsuo/lmdb-go.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb-go)
 
 Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
@@ -114,6 +114,8 @@ questions of why to use one database or the other.
 
 - Nested databases allow for hierarchical data organization.
 
+- Far more databases can be accessed concurrently.
+
 - Operating systems that do not support sparse files do not use up excessive
   space due to a large pre-allocation of file space.  The exp/lmdbsync package
   is intended to resolve this problem with LMDB but it is not ready.
@@ -127,8 +129,10 @@ questions of why to use one database or the other.
 
 - Updates can have sub-updates for atomic batching of changes.
 
-- Databases remain open for the application lifetime which reduces management
-  overhead at the transaction level.
+- Databases typically remain open for the application lifetime.  This limits
+  the number of concurrently accessible databases.  But, this minimizes the
+  overhead of database accesses and typically produces cleaner code than
+  an equivalent BoltDB implementation.
 
 - Significantly faster than BoltDB.  The raw speed of LMDB easily surpasses
   BoltDB.  Additionally, LMDB provides optimizations ranging from safe,

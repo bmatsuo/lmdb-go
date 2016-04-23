@@ -1,6 +1,12 @@
 #Release Change Log
 
-##v1.6.0-dev
+##v1.7.0-dev
+
+- lmdb: Removed unnecessary import of the "math" package (#70).
+- lmdb: Removed direct dependency on the "fmt" package and reduced error
+  related allocation (#73).
+
+##v1.6.0 (2016-04-07)
 
 - lmdb: method Txn.ID() exposing mdb_txn_id. (#47)
 - lmdb: Env.ReaderList() returns an error if passed a nil function. (#48)
@@ -12,6 +18,12 @@
   bytes.Buffer (#56)
 - lmdb: Support building the C library with support for the pwritev(2) system
   call (#58)
+- lmdb: Reuse MDB_val values within transactions to reduce allocations in
+  transactions issuing multiple Get operations (#61).
+- lmdb: Avoid allocation and linear scan overhead on the cgo boundary for
+  transaction operations (Get/Put and variants) (#63).
+- lmdb: Use a more portable internal conversion from C pointers to slices
+  (#67).
 
 ##v1.5.0
 

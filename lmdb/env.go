@@ -10,7 +10,6 @@ import "C"
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"runtime"
 	"unsafe"
@@ -89,7 +88,8 @@ func (env *Env) Open(path string, flags uint, mode os.FileMode) error {
 	return operrno("mdb_env_open", ret)
 }
 
-var errNotOpen = fmt.Errorf("enivornment is not open")
+var errNotOpen = errors.New("enivornment is not open")
+var errNegSize = errors.New("negative size")
 
 // FD returns the open file descriptor (or Windows file handle) for the given
 // environment.  An error is returned if the environment has not been
@@ -326,7 +326,7 @@ func (env *Env) Path() (string, error) {
 // See mdb_env_set_mapsize.
 func (env *Env) SetMapSize(size int64) error {
 	if size < 0 {
-		return fmt.Errorf("negative size")
+		return errNegSize
 	}
 	ret := C.mdb_env_set_mapsize(env._env, C.size_t(size))
 	return operrno("mdb_env_set_mapsize", ret)
@@ -337,7 +337,7 @@ func (env *Env) SetMapSize(size int64) error {
 // See mdb_env_set_maxreaders.
 func (env *Env) SetMaxReaders(size int) error {
 	if size < 0 {
-		return fmt.Errorf("negative size")
+		return errNegSize
 	}
 	ret := C.mdb_env_set_maxreaders(env._env, C.uint(size))
 	return operrno("mdb_env_set_maxreaders", ret)
@@ -367,7 +367,7 @@ func (env *Env) MaxKeySize() int {
 // See mdb_env_set_maxdbs.
 func (env *Env) SetMaxDBs(size int) error {
 	if size < 0 {
-		return fmt.Errorf("negative size")
+		return errNegSize
 	}
 	ret := C.mdb_env_set_maxdbs(env._env, C.MDB_dbi(size))
 	return operrno("mdb_env_set_maxdbs", ret)
