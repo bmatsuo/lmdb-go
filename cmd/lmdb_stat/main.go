@@ -230,7 +230,7 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 		s := lmdbscan.New(txn, 0)
 		defer s.Close()
 		for s.Scan() {
-			key := s.Val()
+			key := s.Key()
 			data := s.Val()
 			txid := *(*C.size_t)(unsafe.Pointer(&key[0]))
 			ipages := int64(*(*C.size_t)(unsafe.Pointer(&data[0])))
