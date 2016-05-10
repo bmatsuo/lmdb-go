@@ -218,7 +218,7 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 	return env.View(func(txn *lmdb.Txn) (err error) {
 		txn.RawRead = true
 
-		fmt.Println("Freelist status")
+		fmt.Println("Freelist Status")
 
 		stat, err := txn.Stat(0)
 		if err != nil {
@@ -230,7 +230,7 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 		s := lmdbscan.New(txn, 0)
 		defer s.Close()
 		for s.Scan() {
-			key := s.Val()
+			key := s.Key()
 			data := s.Val()
 			txid := *(*C.size_t)(unsafe.Pointer(&key[0]))
 			ipages := int64(*(*C.size_t)(unsafe.Pointer(&data[0])))
@@ -258,7 +258,7 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 						pg++
 					}
 				}
-				fmt.Printf("    Transaction %x, %d pages, maxspan %d%s\n", txid, ipages, span, bad)
+				fmt.Printf("    Transaction %d, %d pages, maxspan %d%s\n", txid, ipages, span, bad)
 
 				if opt.PrintFreeFull {
 					for j := ipages - 1; j >= 0; {
@@ -270,9 +270,9 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 							span++
 						}
 						if span > 1 {
-							fmt.Printf("     %9x[%d]\n", pg, span)
+							fmt.Printf("     %9d[%d]\n", pg, span)
 						} else {
-							fmt.Printf("     %9x\n", pg)
+							fmt.Printf("     %9d\n", pg)
 						}
 					}
 				}
@@ -298,7 +298,7 @@ func doPrintStatRoot(env *lmdb.Env, opt *Options) error {
 	fmt.Println("Status of Main DB")
 	fmt.Println("  Tree depth:", stat.Depth)
 	fmt.Println("  Branch pages:", stat.BranchPages)
-	fmt.Println("  Lead pages:", stat.LeafPages)
+	fmt.Println("  Leaf pages:", stat.LeafPages)
 	fmt.Println("  Overflow pages:", stat.OverflowPages)
 	fmt.Println("  Entries:", stat.Entries)
 
@@ -336,7 +336,7 @@ func printStatDB(env *lmdb.Env, txn *lmdb.Txn, db string, opt *Options) error {
 func printStat(stat *lmdb.Stat, opt *Options) error {
 	fmt.Println("  Tree depth:", stat.Depth)
 	fmt.Println("  Branch pages:", stat.BranchPages)
-	fmt.Println("  Lead pages:", stat.LeafPages)
+	fmt.Println("  Leaf pages:", stat.LeafPages)
 	fmt.Println("  Overflow pages:", stat.OverflowPages)
 	fmt.Println("  Entries:", stat.Entries)
 
