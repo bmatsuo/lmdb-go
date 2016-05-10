@@ -5,6 +5,8 @@
 - lmdb: Removed unnecessary import of the "math" package (#70).
 - lmdb: Removed direct dependency on the "fmt" package and reduced error
   related allocation (#73).
+- cmd/lmdb_stat: Fix transaction ID decoding and match output of `mdb_stat`
+  1-to-1 (#78).
 
 ##v1.6.0 (2016-04-07)
 
