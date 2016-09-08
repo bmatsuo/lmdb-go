@@ -1,6 +1,6 @@
 #Release Change Log
 
-##v1.7.0-dev
+##v1.7.0
 
 - lmdb: Removed unnecessary import of the "math" package (#70).
 - lmdb: Removed direct dependency on the "fmt" package and reduced error
