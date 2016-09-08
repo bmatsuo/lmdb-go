@@ -7,6 +7,7 @@
   related allocation (#73).
 - cmd/lmdb_stat: Fix transaction ID decoding and match output of `mdb_stat`
   1-to-1 (#78).
+- lmdb: fix compilation for 32-bit architectures (#83).
 
 ##v1.6.0 (2016-04-07)
 
