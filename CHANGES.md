@@ -2,6 +2,9 @@
 
 ##v1.8.0-dev
 
+- lmdbscan: The package was moved out of the exp/ subtree and can now be
+  considered stable and suitable for general use.
+
 ##v1.7.0
 
 - lmdb: Removed unnecessary import of the "math" package (#70).

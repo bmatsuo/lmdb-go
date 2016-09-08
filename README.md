@@ -22,7 +22,7 @@ import "github.com/bmatsuo/lmdb-go/lmdb"
 
 Core bindings allowing low-level access to LMDB.
 
-####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![stable](https://img.shields.io/badge/stability-stable-brightgreen.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
+####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdbscan) [![stable](https://img.shields.io/badge/stability-stable-brightgreen.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/lmdbscan)
 
 ```go
 import "github.com/bmatsuo/lmdb-go/lmdbscan"
