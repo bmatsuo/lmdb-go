@@ -22,19 +22,15 @@ import "github.com/bmatsuo/lmdb-go/lmdb"
 
 Core bindings allowing low-level access to LMDB.
 
-####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![unstable](https://img.shields.io/badge/stability-unstable-yellow.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
+####exp/lmdbscan [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbscan) [![stable](https://img.shields.io/badge/stability-stable-brightgreen.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbscan)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbscan)
 
 ```go
-import "github.com/bmatsuo/lmdb-go/exp/lmdbscan"
+import "github.com/bmatsuo/lmdb-go/lmdbscan"
 ```
 
 A utility package for scanning database ranges. The API is inspired by
 [bufio.Scanner](https://godoc.org/bufio#Scanner) and the python cursor
 [implementation](https://lmdb.readthedocs.org/en/release/#cursor-class).
-
-The **lmdbscan** package is unstable. The API is properly scoped and adequately
-tested.  And no features that exist now will be removed without notice and a
-similar substitute.  See the versioning documentation for more information.
 
 ####exp/lmdbsync [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) [![experimental](https://img.shields.io/badge/stability-experimental-red.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbsync)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbsync)
 
