@@ -172,6 +172,11 @@ func (txn *Txn) renew() error {
 // cfn must be a C function pointer.  See the language wiki for reference.
 //
 // 		https://github.com/golang/go/wiki/cgo#function-pointer-callbacks
+//
+// Calling Go functions from the cfn func is not officially supported.  If it
+// is possible to get working on a platform it is almost guaranteed to provide
+// inadequate performance.  For a complete working example of custom comparison
+// functions see the command github.com/bmatsuo/lmdb-go/exp/cmd/lmdb_cmp_simple.
 func (txn *Txn) SetCmp(dbi DBI, cfn *CmpFunc) error {
 	ret := C.mdb_set_compare(txn._txn, C.MDB_dbi(dbi), (*C.MDB_cmp_func)(cfn))
 	return operrno("mdb_set_compare", ret)
@@ -182,6 +187,11 @@ func (txn *Txn) SetCmp(dbi DBI, cfn *CmpFunc) error {
 // reference.
 //
 //		https://github.com/golang/go/wiki/cgo#function-pointer-callbacks
+//
+// Calling Go functions from the cfn func is not officially supported.  If it
+// is possible to get working on a platform it is almost guaranteed to provide
+// inadequate performance.  For a complete working example of custom comparison
+// functions see the command github.com/bmatsuo/lmdb-go/exp/cmd/lmdb_cmp_simple.
 func (txn *Txn) SetCmpDup(dbi DBI, cfn *CmpFunc) error {
 	ret := C.mdb_set_dupsort(txn._txn, C.MDB_dbi(dbi), (*C.MDB_cmp_func)(cfn))
 	return operrno("mdb_set_dupsort", ret)
