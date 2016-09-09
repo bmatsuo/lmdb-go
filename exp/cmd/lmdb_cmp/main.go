@@ -2,15 +2,7 @@ package main
 
 /*
 #include "lmdb.h"
-
-typedef struct{const MDB_val *a; const MDB_val *b;} lmdb_cmp_t;
-
-extern int lmdbCmp(lmdb_cmp_t cmp);
-extern int lmdbCmpDyn(lmdb_cmp_t cmp, size_t ctx);
-
-int lmdb_cmp_dyn(const MDB_val *a, const MDB_val *b);
-int lmdb_cmp_go(const MDB_val *a, const MDB_val *b);
-int lmdb_cmp_c(const MDB_val *a, const MDB_val *b);
+#include "compare.h"
 */
 import "C"
 import (
