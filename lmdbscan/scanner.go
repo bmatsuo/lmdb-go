@@ -1,6 +1,5 @@
 /*
 Package lmdbscan provides a wrapper for lmdb.Cursor to simplify iteration.
-This package is experimental and it's API may change.
 */
 package lmdbscan
 
