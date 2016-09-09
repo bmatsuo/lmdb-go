@@ -6,13 +6,10 @@ package main
 */
 import "C"
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"math/rand"
 	"os"
-	"reflect"
-	"sync"
 	"unsafe"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -29,7 +26,6 @@ const RootDir = "data"
 
 func main() {
 	randSeed := flag.Int64("seed", 1, "random seed")
-	cmpfunc := flag.String("func", "c", "comparison func implementation to use")
 	flag.Parse()
 
 	err := os.RemoveAll(RootDir)
@@ -63,18 +59,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		switch *cmpfunc {
-		case "c":
-			err = txn.SetCmp(dbi, (*lmdb.CmpFunc)(unsafe.Pointer(C.lmdb_cmp_c)))
-		case "go":
-			err = txn.SetCmp(dbi, (*lmdb.CmpFunc)(unsafe.Pointer(C.lmdb_cmp_go)))
-		case "dyn":
-			err = txn.SetCmp(dbi, (*lmdb.CmpFunc)(unsafe.Pointer(C.lmdb_cmp_dyn)))
-		}
-		if err != nil {
-			return err
-		}
-		return nil
+		return txn.SetCmp(dbi, (*lmdb.CmpFunc)(unsafe.Pointer(C.lmdb_cmp_c)))
 	})
 	if err != nil {
 		panic(err)
@@ -143,36 +128,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-var rwmut = &sync.RWMutex{}
-
-var cmpMap = map[int]func(c C.lmdb_cmp_t) C.int{
-	0: nil,
-	1: nil,
-	2: lmdbCmp,
-}
-
-//export lmdbCmpDyn
-func lmdbCmpDyn(c C.lmdb_cmp_t, ctx C.size_t) C.int {
-	rwmut.RLock()
-	fn := cmpMap[int(ctx)]
-	rwmut.RUnlock()
-	return fn(c)
-}
-
-//export lmdbCmp
-func lmdbCmp(c C.lmdb_cmp_t) C.int {
-	p1 := mdbValBytes(c.a)
-	p2 := mdbValBytes(c.b)
-	return C.int(-bytes.Compare(p1, p2))
-}
-
-func mdbValBytes(val *C.MDB_val) []byte {
-	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(val.mv_data)),
-		Len:  int(val.mv_size),
-		Cap:  int(val.mv_size),
-	}
-	return *(*[]byte)(unsafe.Pointer(&hdr))
 }
