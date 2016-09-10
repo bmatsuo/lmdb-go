@@ -177,6 +177,8 @@ func (txn *Txn) renew() error {
 // is possible to get working on a platform it is almost guaranteed to provide
 // inadequate performance.  For a complete working example of custom comparison
 // functions see the command github.com/bmatsuo/lmdb-go/exp/cmd/lmdb_cmp_simple.
+//
+// See mdb_set_compare.
 func (txn *Txn) SetCmp(dbi DBI, cfn *CmpFunc) error {
 	ret := C.mdb_set_compare(txn._txn, C.MDB_dbi(dbi), (*C.MDB_cmp_func)(cfn))
 	return operrno("mdb_set_compare", ret)
@@ -192,6 +194,8 @@ func (txn *Txn) SetCmp(dbi DBI, cfn *CmpFunc) error {
 // is possible to get working on a platform it is almost guaranteed to provide
 // inadequate performance.  For a complete working example of custom comparison
 // functions see the command github.com/bmatsuo/lmdb-go/exp/cmd/lmdb_cmp_simple.
+//
+// See mdb_set_dupsort.
 func (txn *Txn) SetCmpDup(dbi DBI, cfn *CmpFunc) error {
 	ret := C.mdb_set_dupsort(txn._txn, C.MDB_dbi(dbi), (*C.MDB_cmp_func)(cfn))
 	return operrno("mdb_set_dupsort", ret)

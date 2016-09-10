@@ -1,20 +1,32 @@
 /*
-The lmdb_cmp_simple command demonstrates the recommended way to set up custom
-comparison functions for databases in an lmdb environment.  The example creates
-a database using a custom comparison function to sort keys in an application
-defined order.
+The lmdb_cmp_simple command demonstrates how to set up custom comparison
+functions for databases in an lmdb environment.  The example creates a database
+using a custom comparison function to sort keys in an application defined
+order.
 
-Custom comparison functions are most commonly used key values using structured
-data.  They can be used to create a compound index with keys consisting of
-multiple data fields.  There are many ways that applications can benefit from
-custom comparison functions, but their use comes with a development cost that
-is better avoided when practical.
+Custom comparison functions are most commonly used for key values with
+structured data.  They can be used to create a compound index with keys
+consisting of multiple data fields.  There are many ways that applications can
+benefit from custom comparison functions, but their use comes with a
+development cost that is better avoided if practical.
 
 The only supported method to define custom comparison functinos is to use
 static C functions that are defined in a C (header) file or in the preamble of
 a CGO source file.  Using Go functions for comparison cannot be officially
 supported primarily due to inadequate speed, type checking problems, and
 reliance on unspecified behaviors.
+
+Details
+
+The comparison function is defined in the source file compare.c.  The function
+is declared in the corresponding header file compare.h, included in by the CGO
+preamble for main.go.
+
+The application also contains a symbolic link to the LMDB library header lmdb.h
+included in the lmdb-go source.  A copy of the library header can be used
+instead of a link but is harder to manage in general.  Without the header then
+definitions for the MDB_val type will not be available for the comparison
+function signature.
 */
 package main
 
