@@ -22,9 +22,9 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/bmatsuo/lmdb-go/exp/lmdbscan"
 	"github.com/bmatsuo/lmdb-go/internal/lmdbcmd"
 	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/bmatsuo/lmdb-go/lmdbscan"
 )
 
 func main() {
@@ -218,7 +218,7 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 	return env.View(func(txn *lmdb.Txn) (err error) {
 		txn.RawRead = true
 
-		fmt.Println("Freelist status")
+		fmt.Println("Freelist Status")
 
 		stat, err := txn.Stat(0)
 		if err != nil {
@@ -230,13 +230,15 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 		s := lmdbscan.New(txn, 0)
 		defer s.Close()
 		for s.Scan() {
-			txid, ok := lmdb.UintptrValue(s.Key())
+			key := s.Key()
+			data := s.Val()
+			txid, ok := lmdb.UintptrValue(key)
 			if !ok {
-				panic(fmt.Sprintf("unexpected transaction key: %q", s.Key()))
+				panic(fmt.Sprintf("unexpected transaction key: %q", key))
 			}
-			pages, ok := decodePages(s.Val())
+			pages, ok := decodePages(data)
 			if !ok {
-				panic(fmt.Sprintf("unexpected transaction value: %d bytes", len(s.Val())))
+				panic(fmt.Sprintf("unexpected transaction value: %d bytes", len(data)))
 			}
 			numpages += int64(len(pages))
 			if opt.PrintFreeSummary || opt.PrintFreeFull {
@@ -267,9 +269,9 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 							span++
 						}
 						if span > 1 {
-							fmt.Printf("     %9x[%d]\n", pg, span)
+							fmt.Printf("     %9d[%d]\n", pg, span)
 						} else {
-							fmt.Printf("     %9x\n", pg)
+							fmt.Printf("     %9d\n", pg)
 						}
 					}
 				}
@@ -309,7 +311,7 @@ func doPrintStatRoot(env *lmdb.Env, opt *Options) error {
 	fmt.Println("Status of Main DB")
 	fmt.Println("  Tree depth:", stat.Depth)
 	fmt.Println("  Branch pages:", stat.BranchPages)
-	fmt.Println("  Lead pages:", stat.LeafPages)
+	fmt.Println("  Leaf pages:", stat.LeafPages)
 	fmt.Println("  Overflow pages:", stat.OverflowPages)
 	fmt.Println("  Entries:", stat.Entries)
 
@@ -347,7 +349,7 @@ func printStatDB(env *lmdb.Env, txn *lmdb.Txn, db string, opt *Options) error {
 func printStat(stat *lmdb.Stat, opt *Options) error {
 	fmt.Println("  Tree depth:", stat.Depth)
 	fmt.Println("  Branch pages:", stat.BranchPages)
-	fmt.Println("  Lead pages:", stat.LeafPages)
+	fmt.Println("  Leaf pages:", stat.LeafPages)
 	fmt.Println("  Overflow pages:", stat.OverflowPages)
 	fmt.Println("  Entries:", stat.Entries)
 

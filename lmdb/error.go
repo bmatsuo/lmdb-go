@@ -6,7 +6,6 @@ package lmdb
 import "C"
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 )
@@ -21,7 +20,7 @@ type OpError struct {
 
 // Error implements the error interface.
 func (err *OpError) Error() string {
-	return fmt.Sprintf("%s: %s", err.Op, err.Errno)
+	return err.Op + ": " + err.Errno.Error()
 }
 
 // The most common error codes do not need to be handled explicity.  Errors can

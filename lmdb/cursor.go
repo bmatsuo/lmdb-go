@@ -198,7 +198,7 @@ func (c *Cursor) getVal0(op uint) error {
 func (c *Cursor) getVal1(setkey []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get1(
 		c._c,
-		unsafe.Pointer(&setkey[0]), C.size_t(len(setkey)),
+		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
@@ -212,8 +212,8 @@ func (c *Cursor) getVal1(setkey []byte, op uint) error {
 func (c *Cursor) getVal2(setkey, setval []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get2(
 		c._c,
-		unsafe.Pointer(&setkey[0]), C.size_t(len(setkey)),
-		unsafe.Pointer(&setval[0]), C.size_t(len(setval)),
+		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
+		(*C.char)(unsafe.Pointer(&setval[0])), C.size_t(len(setval)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
@@ -238,8 +238,8 @@ func (c *Cursor) Put(key, val []byte, flags uint) error {
 	}
 	ret := C.lmdbgo_mdb_cursor_put2(
 		c._c,
-		unsafe.Pointer(&key[0]), C.size_t(len(key)),
-		unsafe.Pointer(&val[0]), C.size_t(len(val)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
+		(*C.char)(unsafe.Pointer(&val[0])), C.size_t(len(val)),
 		C.uint(flags),
 	)
 	return operrno("mdb_cursor_put", ret)
@@ -256,7 +256,7 @@ func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 	c.txn.val.mv_size = C.size_t(n)
 	ret := C.lmdbgo_mdb_cursor_put1(
 		c._c,
-		unsafe.Pointer(&key[0]), C.size_t(len(key)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
 		c.txn.val,
 		C.uint(flags|C.MDB_RESERVE),
 	)
@@ -286,8 +286,8 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 	vn := WrapMulti(page, stride).Len()
 	ret := C.lmdbgo_mdb_cursor_putmulti(
 		c._c,
-		unsafe.Pointer(&key[0]), C.size_t(len(key)),
-		unsafe.Pointer(&page[0]), C.size_t(vn), C.size_t(stride),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
+		(*C.char)(unsafe.Pointer(&page[0])), C.size_t(vn), C.size_t(stride),
 		C.uint(flags|C.MDB_MULTIPLE),
 	)
 	return operrno("mdb_cursor_put", ret)
