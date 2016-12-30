@@ -4,6 +4,7 @@
 
 - lmdbscan: The package was moved out of the exp/ subtree and can now be
   considered stable and suitable for general use.
+- lmdb: Update LMDB C library to version 0.9.19 (#92).
 
 ##v1.7.0
 
