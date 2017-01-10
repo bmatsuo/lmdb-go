@@ -54,7 +54,8 @@ applications.
 package lmdb
 
 /*
-#cgo CFLAGS: -pthread -W -Wall -Wno-unused-parameter -Wno-format-extra-args -Wbad-function-cast -O2 -g
+#cgo CFLAGS: -pthread -W -Wall -Wno-missing-field-initializers -Wno-unused-parameter -Wno-format-extra-args -Wbad-function-cast -O2 -g
+#cgo linux CFLAGS: -DMDB_USE_SYSV_SEM
 #cgo linux,pwritev CFLAGS: -DMDB_USE_PWRITEV
 
 #include "lmdb.h"

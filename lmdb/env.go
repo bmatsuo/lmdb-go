@@ -328,7 +328,7 @@ func (env *Env) SetMapSize(size int64) error {
 	if size < 0 {
 		return errNegSize
 	}
-	ret := C.mdb_env_set_mapsize(env._env, C.size_t(size))
+	ret := C.mdb_env_set_mapsize(env._env, C.mdb_size_t(size))
 	return operrno("mdb_env_set_mapsize", ret)
 }
 
