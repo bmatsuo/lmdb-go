@@ -249,11 +249,65 @@ func TestCursor_Get_KV(t *testing.T) {
 			t.Errorf("unexpected key: %q (not %q)", k, "key")
 		}
 		if string(v) != "1" {
-			t.Errorf("unexpected key: %q (not %q)", k, "1")
+			t.Errorf("unexpected value: %q (not %q)", k, "1")
 		}
 
 		_, _, err = cur.Get([]byte("key"), []byte("1"), GetBoth)
 		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+}
+
+func TestCursor_Get_op_Set(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenDBI("testdb", Create|DupSort)
+		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		put := func(k, v []byte) {
+			if err == nil {
+				err = txn.Put(dbi, k, v, 0)
+			}
+		}
+		put([]byte("k1"), []byte("v11"))
+		put([]byte("k1"), []byte("v12"))
+		put([]byte("k1"), []byte("v13"))
+		put([]byte("k2"), []byte("v21"))
+		put([]byte("k2"), []byte("v22"))
+		put([]byte("k2"), []byte("v23"))
+		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		k, v, err := cur.Get([]byte("k2"), nil, Set)
+		if err != nil {
+			return err
+		}
+		if string(k) != "k2" {
+			t.Errorf("unexpected key: %q (not %q)", k, "k2")
+		}
+		if string(v) != "v21" {
+			t.Errorf("unexpected value: %q (not %q)", v, "v21")
+		}
+		return nil
 	})
 	if err != nil {
 		t.Errorf("%s", err)
