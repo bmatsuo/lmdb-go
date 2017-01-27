@@ -240,6 +240,7 @@ func TestCursor_Get_KV(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		defer cur.Close()
 
 		k, v, err := cur.Get([]byte("key"), []byte("0"), GetBothRange)
 		if err != nil {
