@@ -297,6 +297,8 @@ func TestCursor_Get_op_Set(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		defer cur.Close()
+
 		k, v, err := cur.Get([]byte("k2"), nil, Set)
 		if err != nil {
 			return err
@@ -307,6 +309,7 @@ func TestCursor_Get_op_Set(t *testing.T) {
 		if string(v) != "v21" {
 			t.Errorf("unexpected value: %q (not %q)", v, "v21")
 		}
+
 		return nil
 	})
 	if err != nil {
