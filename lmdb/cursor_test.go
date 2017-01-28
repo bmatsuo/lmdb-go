@@ -261,7 +261,7 @@ func TestCursor_Get_KV(t *testing.T) {
 	}
 }
 
-func TestCursor_Get_op_Set(t *testing.T) {
+func TestCursor_Get_op_Set_bytesBuffer(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -300,15 +300,34 @@ func TestCursor_Get_op_Set(t *testing.T) {
 		}
 		defer cur.Close()
 
-		k, v, err := cur.Get([]byte("k2"), nil, Set)
+		// Create bytes.Buffer values containing a amount of bytes.  Byte
+		// slices returned from buf.Bytes() have a history of tricking the cgo
+		// argument checker.
+		var kbuf bytes.Buffer
+		kbuf.WriteString("k2")
+
+		k, _, err := cur.Get(kbuf.Bytes(), nil, Set)
 		if err != nil {
 			return err
 		}
-		if string(k) != "k2" {
-			t.Errorf("unexpected key: %q (not %q)", k, "k2")
+		if string(k) != kbuf.String() {
+			t.Errorf("unexpected key: %q (not %q)", k, kbuf.String())
 		}
-		if string(v) != "v21" {
-			t.Errorf("unexpected value: %q (not %q)", v, "v21")
+
+		// No guarantee is made about the return value of mdb_cursor_get when
+		// MDB_SET is the op, so its value is not checked as part of this test.
+		// That said, it is important that Cursor.Get not panic if given a
+		// short buffer as an input value for a Set op (despite that not really
+		// having any significance)
+		var vbuf bytes.Buffer
+		vbuf.WriteString("v22")
+
+		k, _, err = cur.Get(kbuf.Bytes(), vbuf.Bytes(), Set)
+		if err != nil {
+			return err
+		}
+		if string(k) != kbuf.String() {
+			t.Errorf("unexpected key: %q (not %q)", k, kbuf.String())
 		}
 
 		return nil
