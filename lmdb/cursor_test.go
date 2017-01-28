@@ -250,11 +250,87 @@ func TestCursor_Get_KV(t *testing.T) {
 			t.Errorf("unexpected key: %q (not %q)", k, "key")
 		}
 		if string(v) != "1" {
-			t.Errorf("unexpected key: %q (not %q)", k, "1")
+			t.Errorf("unexpected value: %q (not %q)", k, "1")
 		}
 
 		_, _, err = cur.Get([]byte("key"), []byte("1"), GetBoth)
 		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+}
+
+func TestCursor_Get_op_Set_bytesBuffer(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenDBI("testdb", Create|DupSort)
+		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		put := func(k, v []byte) {
+			if err == nil {
+				err = txn.Put(dbi, k, v, 0)
+			}
+		}
+		put([]byte("k1"), []byte("v11"))
+		put([]byte("k1"), []byte("v12"))
+		put([]byte("k1"), []byte("v13"))
+		put([]byte("k2"), []byte("v21"))
+		put([]byte("k2"), []byte("v22"))
+		put([]byte("k2"), []byte("v23"))
+		return err
+	})
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		// Create bytes.Buffer values containing a amount of bytes.  Byte
+		// slices returned from buf.Bytes() have a history of tricking the cgo
+		// argument checker.
+		var kbuf bytes.Buffer
+		kbuf.WriteString("k2")
+
+		k, _, err := cur.Get(kbuf.Bytes(), nil, Set)
+		if err != nil {
+			return err
+		}
+		if string(k) != kbuf.String() {
+			t.Errorf("unexpected key: %q (not %q)", k, kbuf.String())
+		}
+
+		// No guarantee is made about the return value of mdb_cursor_get when
+		// MDB_SET is the op, so its value is not checked as part of this test.
+		// That said, it is important that Cursor.Get not panic if given a
+		// short buffer as an input value for a Set op (despite that not really
+		// having any significance)
+		var vbuf bytes.Buffer
+		vbuf.WriteString("v22")
+
+		k, _, err = cur.Get(kbuf.Bytes(), vbuf.Bytes(), Set)
+		if err != nil {
+			return err
+		}
+		if string(k) != kbuf.String() {
+			t.Errorf("unexpected key: %q (not %q)", k, kbuf.String())
+		}
+
+		return nil
 	})
 	if err != nil {
 		t.Errorf("%s", err)
