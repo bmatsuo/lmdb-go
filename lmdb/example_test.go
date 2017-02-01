@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -25,8 +26,10 @@ var err error
 var stop chan struct{}
 
 // These values can be used as no-op placeholders in examples.
-func doUpdate(txn *lmdb.Txn) error { return nil }
-func doView(txn *lmdb.Txn) error   { return nil }
+func doUpdate(txn *lmdb.Txn) error  { return nil }
+func doUpdate1(txn *lmdb.Txn) error { return nil }
+func doUpdate2(txn *lmdb.Txn) error { return nil }
+func doView(txn *lmdb.Txn) error    { return nil }
 
 // This example demonstrates a complete workflow for an lmdb environment.  The
 // Env is first created.  After being configured the Env is mapped to memory.
@@ -157,6 +160,69 @@ func ExampleEnv_Copy() {
 			}
 		}
 	}(time.Tick(time.Hour))
+}
+
+// This example shows the basic use of Env.Update, the primary method lmdb-go
+// provides for to store data in an Env.
+func ExampleEnv_Update() {
+	// It is not safe to call runtime.LockOSThread here because Env.Update
+	// would later cause premature unlocking of the goroutine.  If an
+	// application requires that goroutines be locked to threads before
+	// starting an an update on the Env then you must use Env.UpdateLocked
+	// instead of Env.Update.
+
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		// Write several keys to the database within one transaction.  If
+		// either write fails and this function returns an error then readers
+		// in other transactions will not see either value because Env.Update
+		// aborts the transaction if an error is returned.
+
+		err = txn.Put(dbi, []byte("x"), []byte("hello"), 0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("y"), []byte("goodbye"), 0)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// In this example, another C library requires the application to lock a
+// goroutine to its thread.  When writing to the Env this goroutine must use
+// the method Env.UpdateLocked to prevent premature unlocking of the goroutine.
+//
+// Note that there is no way for a goroutine to determine if it is locked to a
+// thread failure to call Env.UpdateLocked in a scenario like this can lead to
+// unspecified and hard to debug failure modes for your application.
+func ExampleEnv_UpdateLocked() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	// ... Do something that requires the goroutine be locked to its thread.
+
+	// Create a transaction that will not interfere with thread locking and
+	// issue some writes with it.
+	err = env.UpdateLocked(func(txn *lmdb.Txn) (err error) {
+		err = txn.Put(dbi, []byte("x"), []byte("hello"), 0)
+		if err != nil {
+			return err
+		}
+		err = txn.Put(dbi, []byte("y"), []byte("goodbye"), 0)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// ... Do something requiring the goroutine still be locked to its thread.
 }
 
 // This example shows the general workflow of LMDB.  An environment is created
