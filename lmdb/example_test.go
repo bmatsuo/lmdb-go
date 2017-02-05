@@ -83,6 +83,70 @@ func Example() {
 	}
 }
 
+// This example demonstrates the simplest (and most naive) way to issue
+// database updates from a goroutine for which it cannot be known ahead of time
+// whether runtime.LockOSThread has been called.
+func Example_threads() {
+	// Create a function that wraps env.Update and sends the resulting error
+	// over a channel.  Because env.Update is called our update function will
+	// call runtime.LockOSThread to safely issue the update operation.
+	update := func(res chan<- error, op *lmdb.TxnOp) {
+		res <- env.Update(op)
+	}()
+
+	// ...
+
+	// Now, in goroutine where we cannot determine if we are locked to a
+	// thread, we can create a new goroutine to process the update(s) we want.
+	res := make(chan error)
+	go update(res, func(txn *lmdb.Txn) (err error) {
+		return txn.Put(dbi, []byte("thisUpdate"), []byte("isSafe"), 0)
+	})
+	err := <-res
+}
+
+// This example demonstrates a more sophisticated way to issue database updates
+// from a goroutine for which it cannot be known ahead of time whether
+// runtime.LockOSThread has been called.
+func Example_worker() {
+	// Wrap operations in a struct that can be passed over a channel to a
+	// worker goroutine.
+	type lmdbop struct {
+		op  lmdb.TxnOp
+		res chan<- error
+	}
+	worker := make(chan *lmdbop)
+	update := func(op lmdb.TxnOp) error {
+		res := make(chan error)
+		worker <- &lmdbop{op, res}
+		return <-res
+	}
+
+	// Start issuing update operations in a goroutine in which we know
+	// runtime.LockOSThread can be called and we can safely issue transactions.
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.LockOSThread()
+
+		// Perform each operation as we get to it.  Because this goroutine is
+		// already locked to a thread, env.UpdateLocked is called to avoid
+		// premature unlocking of the goroutine from its thread.
+		for op := range worker {
+			op.res <- env.UpdateLocked(op.op)
+		}
+	}()
+
+	// ...
+
+	// In another goroutine, where we cannot determine if we are locked to a
+	// thread already.
+	err = update(func(txn *lmdb.Txn) (err error) {
+		// This function will execute safely in the worker goroutine, which is
+		// locked to its thread.
+		return txn.Put(dbi, []byte("thisUpdate"), []byte("isSafe"), 0)
+	})
+}
+
 // This example demonstrates how an application typically uses Env.SetMapSize.
 // The call to Env.SetMapSize() is made before calling env.Open().  Any calls
 // after calling Env.Open() must take special care to synchronize with other
