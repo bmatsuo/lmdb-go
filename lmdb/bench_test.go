@@ -207,12 +207,8 @@ func loadUint64(env *Env, r *rand.Rand, opt *BenchOpt) (DBI, error) {
 }
 
 func BenchmarkTxn_GetValue_U_raw(b *testing.B) {
-	type UintValue interface {
-		Value
-		SetUint(uint)
-	}
-	key := Uint(0).(UintValue)
-	val := Uint(0).(UintValue)
+	key := Uint(0)
+	val := Uint(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		RawRead:  true,
 		DBIFlags: IntegerKey,
@@ -229,12 +225,8 @@ func BenchmarkTxn_GetValue_U_raw(b *testing.B) {
 }
 
 func BenchmarkTxn_GetValue_Z_raw(b *testing.B) {
-	type UintptrValue interface {
-		Value
-		SetUintptr(uintptr)
-	}
-	key := Uintptr(0).(UintptrValue)
-	val := Uintptr(0).(UintptrValue)
+	key := Uintptr(0)
+	val := Uintptr(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		RawRead:  true,
 		DBIFlags: IntegerKey,
@@ -268,12 +260,8 @@ func BenchmarkTxn_GetValue_B_raw(b *testing.B) {
 }
 
 func BenchmarkTxn_GetValue_U_(b *testing.B) {
-	type UintValue interface {
-		Value
-		SetUint(uint)
-	}
-	key := Uint(0).(UintValue)
-	val := Uint(0).(UintValue)
+	key := Uint(0)
+	val := Uint(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
@@ -289,12 +277,8 @@ func BenchmarkTxn_GetValue_U_(b *testing.B) {
 }
 
 func BenchmarkTxn_GetValue_Z_(b *testing.B) {
-	type UintptrValue interface {
-		Value
-		SetUintptr(uintptr)
-	}
-	key := Uintptr(0).(UintptrValue)
-	val := Uintptr(0).(UintptrValue)
+	key := Uintptr(0)
+	val := Uintptr(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
@@ -356,12 +340,8 @@ func BenchmarkTxn_PutValue_b_(b *testing.B) {
 }
 
 func BenchmarkTxn_PutValue_U_(b *testing.B) {
-	type UintValue interface {
-		Value
-		SetUint(uint)
-	}
-	key := Uint(0).(UintValue)
-	val := Uint(0).(UintValue)
+	key := Uint(0)
+	val := Uint(0)
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
@@ -373,12 +353,8 @@ func BenchmarkTxn_PutValue_U_(b *testing.B) {
 }
 
 func BenchmarkTxn_PutValue_Z_(b *testing.B) {
-	type UintptrValue interface {
-		Value
-		SetUintptr(uintptr)
-	}
-	key := Uintptr(0).(UintptrValue)
-	val := Uintptr(0).(UintptrValue)
+	key := Uintptr(0)
+	val := Uintptr(0)
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {

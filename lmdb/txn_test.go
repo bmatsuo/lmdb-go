@@ -238,7 +238,7 @@ func TestTxn_PutValue(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		x, ok := UintValue(v)
+		x, ok := GetUint(v)
 		if !ok {
 			return fmt.Errorf("value: not a uint")
 		}
