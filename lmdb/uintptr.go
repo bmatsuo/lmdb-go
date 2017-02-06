@@ -64,10 +64,10 @@ func (m UintptrMulti) Page() []byte {
 	return []byte(m)
 }
 
-// Val returns the uint and index i.
-func (m UintptrMulti) Val(i int) uint {
+// Uintptr returns the uintptr value at index i.
+func (m UintptrMulti) Uintptr(i int) uintptr {
 	data := m[i*int(sizetSize) : (i+1)*int(sizetSize)]
-	return uint(*(*C.size_t)(unsafe.Pointer(&data[0])))
+	return uintptr(*(*C.size_t)(unsafe.Pointer(&data[0])))
 }
 
 // Append returns the UintptrMulti result of appending x to m as C.size_t data.
@@ -88,6 +88,11 @@ func newSizetValue(x uintptr) *UintptrValue {
 	return v
 }
 
+// Uintptr returns contained data as a uint value.
+func (v *UintptrValue) Uintptr() uintptr {
+	return uintptr(*(*C.size_t)(unsafe.Pointer(&(*v)[0])))
+}
+
 // SetUintptr stores x as a C.size_t in v.
 func (v *UintptrValue) SetUintptr(x uintptr) {
 	*(*C.size_t)(unsafe.Pointer(&(*v)[0])) = C.size_t(x)
@@ -95,4 +100,11 @@ func (v *UintptrValue) SetUintptr(x uintptr) {
 
 func (v *UintptrValue) tobytes() []byte {
 	return (*v)[:]
+}
+
+// csizet is a helper type for tests because tests cannot import C
+type csizet C.size_t
+
+func (x csizet) C() C.size_t {
+	return C.size_t(x)
 }

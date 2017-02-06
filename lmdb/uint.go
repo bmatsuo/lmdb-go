@@ -68,8 +68,8 @@ func (m UintMulti) Page() []byte {
 	return []byte(m)
 }
 
-// Val returns the uint value of data at index i.
-func (m UintMulti) Val(i int) uint {
+// Uint returns the uint value at index i.
+func (m UintMulti) Uint(i int) uint {
 	data := m[i*int(uintSize) : (i+1)*int(uintSize)]
 	x := uint(*(*C.uint)(unsafe.Pointer(&data[0])))
 	if uintSize != gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&data[0])) {
@@ -99,6 +99,15 @@ func newUintValue(x uint) *UintValue {
 	return v
 }
 
+// Uint returns contained data as a uint value.
+func (v *UintValue) Uint() uint {
+	x := *(*C.uint)(unsafe.Pointer(&(*v)[0]))
+	if uintSize != gouintSize && C.uint(uint(x)) != x {
+		panic("value overflows unsigned int")
+	}
+	return uint(x)
+}
+
 // SetUint stores the value of x as a C.uint in v.
 func (v *UintValue) SetUint(x uint) {
 	*(*C.uint)(unsafe.Pointer(&(*v)[0])) = C.uint(x)
@@ -109,4 +118,11 @@ func (v *UintValue) SetUint(x uint) {
 
 func (v *UintValue) tobytes() []byte {
 	return (*v)[:]
+}
+
+// cuint is a helper type for tests because tests cannot import C
+type cuint C.uint
+
+func (x cuint) C() C.uint {
+	return C.uint(x)
 }
