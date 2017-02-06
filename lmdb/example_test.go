@@ -90,9 +90,9 @@ func Example_threads() {
 	// Create a function that wraps env.Update and sends the resulting error
 	// over a channel.  Because env.Update is called our update function will
 	// call runtime.LockOSThread to safely issue the update operation.
-	update := func(res chan<- error, op *lmdb.TxnOp) {
+	update := func(res chan<- error, op lmdb.TxnOp) {
 		res <- env.Update(op)
-	}()
+	}
 
 	// ...
 
@@ -102,7 +102,10 @@ func Example_threads() {
 	go update(res, func(txn *lmdb.Txn) (err error) {
 		return txn.Put(dbi, []byte("thisUpdate"), []byte("isSafe"), 0)
 	})
-	err := <-res
+	err = <-res
+	if err != nil {
+		panic(err)
+	}
 }
 
 // This example demonstrates a more sophisticated way to issue database updates
