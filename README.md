@@ -55,7 +55,7 @@ provided implementations can be considered stable.
 ###Idiomatic API
 
 API inspired by [BoltDB](https://github.com/boltdb/bolt) with automatic
-commit/rollback of transactions.  The goal of lmdb-go is to provide idiomatic,
+commit/rollback of transactions.  The goal of lmdb-go is to provide idiomatic
 database interactions without compromising the flexibility of the C API.
 
 **NOTE:** While the lmdb package tries hard to make LMDB as easy to use as
