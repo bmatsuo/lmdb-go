@@ -103,8 +103,9 @@ func (m *Multi) Val(i int) []byte {
 	return m.page[off : off+m.stride]
 }
 
-// Put appends b to the page.  Put panics if len(b) is not equal to m.Stride()
-func (m *Multi) Put(b []byte) {
+// Append returns a new Multi with page data resulting from appending b to
+// m.Page().  Put panics if len(b) is not equal to m.Stride()
+func (m *Multi) Append(b []byte) {
 	if len(b) != m.stride {
 		panic("bad data size")
 	}

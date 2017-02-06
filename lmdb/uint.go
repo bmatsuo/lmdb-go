@@ -12,8 +12,7 @@ import "unsafe"
 const uintSize = unsafe.Sizeof(C.uint(0))
 const gouintSize = unsafe.Sizeof(uint(0))
 
-// Uint allocates and returns a new Value that points to a value equal to
-// C.uint(x).
+// Uint returns a UintValue containing the value C.uint(x).
 func Uint(x uint) *UintValue {
 	return newUintValue(x)
 }
@@ -33,9 +32,7 @@ func GetUint(b []byte) (x uint, ok bool) {
 
 // UintMulti is a FixedPage implementation that stores C.uint-sized data
 // values.
-type UintMulti struct {
-	page []byte
-}
+type UintMulti []byte
 
 var _ FixedPage = (*UintMulti)(nil)
 
@@ -44,36 +41,36 @@ var _ FixedPage = (*UintMulti)(nil)
 // unsife.Sizeof(C.uint(0)).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func WrapUintMulti(page []byte) *UintMulti {
+func WrapUintMulti(page []byte) UintMulti {
 	if len(page)%int(uintSize) != 0 {
 		panic("incongruent arguments")
 	}
-	return &UintMulti{page: page}
+	return UintMulti(page)
 }
 
 // Len implements FixedPage.
-func (m *UintMulti) Len() int {
-	return len(m.page) / int(uintSize)
+func (m UintMulti) Len() int {
+	return len(m) / int(uintSize)
 }
 
 // Stride implements FixedPage.
-func (m *UintMulti) Stride() int {
+func (m UintMulti) Stride() int {
 	return int(uintSize)
 }
 
 // Size implements FixedPage.
-func (m *UintMulti) Size() int {
-	return len(m.page)
+func (m UintMulti) Size() int {
+	return len(m)
 }
 
 // Page implements FixedPage.
-func (m *UintMulti) Page() []byte {
-	return m.page
+func (m UintMulti) Page() []byte {
+	return []byte(m)
 }
 
 // Val returns the uint value of data at index i.
-func (m *UintMulti) Val(i int) uint {
-	data := m.page[i*int(uintSize) : (i+1)*int(uintSize)]
+func (m UintMulti) Val(i int) uint {
+	data := m[i*int(uintSize) : (i+1)*int(uintSize)]
 	x := uint(*(*C.uint)(unsafe.Pointer(&data[0])))
 	if uintSize != gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&data[0])) {
 		panic("value oveflows uint")
@@ -81,14 +78,14 @@ func (m *UintMulti) Val(i int) uint {
 	return x
 }
 
-// Put appends x to the page.
-func (m *UintMulti) Put(x uint) {
+// Append returns the UintMulti result of appending x to m as C.uint data.
+func (m UintMulti) Append(x uint) UintMulti {
 	var buf [uintSize]byte
 	*(*C.uint)(unsafe.Pointer(&buf[0])) = C.uint(x)
 	if uintSize != gouintSize && uint(*(*C.uint)(unsafe.Pointer(&buf[0]))) != x {
 		panic("value overflows unsigned int")
 	}
-	m.page = append(m.page, buf[:]...)
+	return append(m, buf[:]...)
 }
 
 // UintValue is a Value implementation that contains C.uint-sized data.
