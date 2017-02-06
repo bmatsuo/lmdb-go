@@ -60,7 +60,7 @@ database interactions without compromising the flexibility of the C API.
 
 **NOTE:** While the lmdb package tries hard to make LMDB as easy to use as
 possible there are compromises, gotchas, and caveats that application
-developers must be aware of when relying on LMDB to store there data.  All
+developers must be aware of when relying on LMDB to store their data.  All
 users are encouraged to fully read the
 [documentation](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb) so they are
 aware of these caveats.
@@ -77,7 +77,7 @@ more information about the lmdbsync package.
 The lmdb-go project aims for complete coverage of the LMDB C API (within
 reason).  Some notable features and optimizations that are supported:
 
-- Idiomatic subtransactions ("sub-updates") that do not disrupt thread locking.
+- Idiomatic subtransactions ("sub-updates") that allow the batching of updates.
 
 - Batch IO on databases utilizing the `MDB_DUPSORT` and `MDB_DUPFIXED` flags.
 
