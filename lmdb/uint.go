@@ -91,7 +91,7 @@ func (m *MultiUint) Put(x uint) {
 	m.page = append(m.page, buf[:]...)
 }
 
-// UintValue is a Value implementation for C.uint-sized values.
+// UintValue is a Value implementation that contains C.uint-sized data.
 type UintValue [uintSize]byte
 
 var _ Value = (*UintValue)(nil)

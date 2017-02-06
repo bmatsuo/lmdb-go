@@ -34,6 +34,10 @@ const (
 // Value types are only required when working with databases opened with the
 // IntegerKey or IntegerDup flags.  Using Value types in other situations will
 // only hurt the performance of your application.
+//
+// Value is a controlled interface that cannot be implemented by external
+// types.  The only implementations of Value are BytesValue, UintValue, and
+// UintptrValue.
 type Value interface {
 	tobytes() []byte
 }
@@ -158,23 +162,15 @@ func getBytesCopy(val *C.MDB_val) []byte {
 
 // Bytes returns a Value containg b.  The returned value shares is memory with
 // b and b must not be modified while it is use.
-func Bytes(b []byte) Value {
-	return bytesValue(b)
+func Bytes(b []byte) BytesValue {
+	return BytesValue(b)
 }
 
-// String returns a Value describing the bytes in s.
-//
-// BUG(bmatsuo):
-// String creates a copy of the bytes in s.  Use the Cursor.PutReserve method
-// and explicitly copy string data to avoid unnecessary an allocation/copy.
-func String(s string) Value {
-	return Bytes([]byte(s))
-}
+// BytesValue is a Value that contains arbitrary data.
+type BytesValue []byte
 
-type bytesValue []byte
+var _ Value = BytesValue(nil)
 
-var _ Value = bytesValue(nil)
-
-func (v bytesValue) tobytes() []byte {
+func (v BytesValue) tobytes() []byte {
 	return []byte(v)
 }

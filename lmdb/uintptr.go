@@ -80,7 +80,7 @@ func (m *MultiUintptr) Put(x uintptr) {
 	m.page = append(m.page, buf[:]...)
 }
 
-// UintptrValue is a Value implementation that stores a C.size_t-sized data.
+// UintptrValue is a Value that contains a C.size_t-sized data.
 type UintptrValue [sizetSize]byte
 
 var _ Value = (*UintptrValue)(nil)

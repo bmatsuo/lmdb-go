@@ -226,7 +226,7 @@ func TestTxn_PutValue(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		return txn.PutValue(db, String("k"), Uint(val), 0)
+		return txn.PutValue(db, Bytes([]byte("k")), Uint(val), 0)
 	})
 	if err != nil {
 		t.Error(err)
