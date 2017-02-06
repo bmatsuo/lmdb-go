@@ -311,20 +311,6 @@ func (txn *Txn) putNilKey(dbi DBI, flags uint) error {
 // See mdb_get.
 func (txn *Txn) GetValue(dbi DBI, key Value) ([]byte, error) {
 	return txn.Get(dbi, key.tobytes())
-	/*
-		kdata, kn := key.MemAddr(), key.MemSize()
-		val := new(C.MDB_val)
-		ret := C.lmdbgo_mdb_get(
-			txn._txn, C.MDB_dbi(dbi),
-			kdata, C.size_t(kn),
-			(*C.MDB_val)(val),
-		)
-		err := operrno("mdb_get", ret)
-		if err != nil {
-			return nil, err
-		}
-		return txn.bytes(val), nil
-	*/
 }
 
 // Put stores an item in database dbi.
@@ -376,18 +362,6 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 // PutValue writes the key-value item data to dbi.
 func (txn *Txn) PutValue(dbi DBI, key Value, val Value, flags uint) error {
 	return txn.Put(dbi, key.tobytes(), val.tobytes(), flags)
-	/*
-		kdata, kn := key.MemAddr(), key.MemSize()
-		vdata, vn := val.MemAddr(), val.MemSize()
-		ret := C.lmdbgo_mdb_put2(
-			txn._txn,
-			C.MDB_dbi(dbi),
-			kdata, C.size_t(kn),
-			vdata, C.size_t(vn),
-			C.uint(flags),
-		)
-		return operrno("mdb_put", ret)
-	*/
 }
 
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the
