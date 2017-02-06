@@ -304,13 +304,11 @@ func (txn *Txn) putNilKey(dbi DBI, flags uint) error {
 	return operrno("mdb_put", ret)
 }
 
-// GetValue retrieves items from database dbi.  If txn.RawRead is true the slice
-// returned by Get references a readonly section of memory that must not be
-// accessed after txn has terminated.
+// GetValue behaves like Get but it accepts Value data.
 //
 // See mdb_get.
 func (txn *Txn) GetValue(dbi DBI, key Value) ([]byte, error) {
-	return txn.Get(dbi, key.tobytes())
+	return txn.Get(dbi, valueToBytes(key))
 }
 
 // Put stores an item in database dbi.
@@ -359,9 +357,15 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 	return b, nil
 }
 
-// PutValue writes the key-value item data to dbi.
+// PutValueReserve behaves like PutReserve but it accepts Value data.
+func (txn *Txn) PutValueReserve(dbi DBI, key Value, n int, flags uint) ([]byte, error) {
+	return txn.PutReserve(dbi, valueToBytes(key), n, flags)
+}
+
+// PutValue behaves like Put but accepts Value data.  Passing a nil Value to
+// PutValue is semantically equivalent to passing a nil slice to Put.
 func (txn *Txn) PutValue(dbi DBI, key Value, val Value, flags uint) error {
-	return txn.Put(dbi, key.tobytes(), val.tobytes(), flags)
+	return txn.Put(dbi, valueToBytes(key), valueToBytes(val), flags)
 }
 
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the

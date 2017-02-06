@@ -42,6 +42,13 @@ type Value interface {
 	tobytes() []byte
 }
 
+func valueToBytes(v Value) []byte {
+	if v == nil {
+		return nil
+	}
+	return v.tobytes()
+}
+
 // FixedPage represents a contiguous sequence of fixed sized data items.
 // FixedPage implementations are often mutable and allow construction of data
 // for use with the Cursor.PutMulti method.

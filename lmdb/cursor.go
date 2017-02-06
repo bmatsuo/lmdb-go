@@ -183,13 +183,11 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	return key, val, nil
 }
 
-// GetValue retrieves items from the database. If c.Txn().RawRead is true the
-// slices returned by Get reference readonly sections of memory that must not
-// be accessed after the transaction has terminated.
+// GetValue behaves like Get but it accepts Value data.
 //
 // See mdb_cursor_get.
 func (c *Cursor) GetValue(setkey, setval Value, op uint) (key, val []byte, err error) {
-	return c.Get(setkey.tobytes(), setval.tobytes(), op)
+	return c.Get(valueToBytes(setkey), valueToBytes(setval), op)
 }
 
 // getVal0 retrieves items from the database without using given key or value
@@ -303,9 +301,25 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 	return operrno("mdb_cursor_put", ret)
 }
 
-// PutValue writes the key-value item data to dbi.
+// PutFixedPage wraps PutMulti to write FixedPage data into a database with the
+// DupSort|DupFixed flag combination set.
+func (c *Cursor) PutFixedPage(key []byte, pg FixedPage, flags uint) error {
+	return c.PutMulti(key, pg.Page(), pg.Stride(), flags)
+}
+
+// PutValue behaves like Put but it accepts Value data.
 func (c *Cursor) PutValue(key Value, val Value, flags uint) error {
-	return c.Put(key.tobytes(), val.tobytes(), flags)
+	return c.Put(valueToBytes(key), valueToBytes(val), flags)
+}
+
+// PutValueReserve behaves like PutReserve but it accepts Value data.
+func (c *Cursor) PutValueReserve(key Value, n int, flags uint) ([]byte, error) {
+	return c.PutReserve(valueToBytes(key), n, flags)
+}
+
+// PutValueFixedPage behaves like PutFixedPage but it accepts Value data.
+func (c *Cursor) PutValueFixedPage(key Value, pg FixedPage, flags uint) error {
+	return c.PutFixedPage(valueToBytes(key), pg, flags)
 }
 
 // Del deletes the item referred to by the cursor from the database.
