@@ -32,7 +32,7 @@ const (
 
 // Multi is a wrapper for a contiguous page of sorted, fixed-length values
 // passed to Cursor.PutMulti or retrieved using Cursor.Get with the
-// GetMultiple/NextMultiple flag.
+// GetMultiple/NextMultiple operations.
 //
 // Multi values are only useful in databases opened with DupSort|DupFixed.
 type Multi struct {
@@ -96,6 +96,107 @@ func (m *Multi) Page() []byte {
 	return m.page[:len(m.page):len(m.page)]
 }
 
+// MultiUint is a wrapper for a contiguous page of sorted uint values retreived
+// using the GetMultiple/NextMultiple operations on a Cursor.
+type MultiUint struct {
+	page []byte
+}
+
+// WrapMultiUint converts a page of contiguous uint value into a MultiUint.
+// WrapMultiUint panics if len(page) is not a multiple of
+// unsife.Sizeof(C.uint(0)).
+//
+// See mdb_cursor_get and MDB_GET_MULTIPLE.
+func WrapMultiUint(page []byte) *MultiUint {
+	if len(page)%int(uintSize) != 0 {
+		panic("incongruent arguments")
+	}
+	return &MultiUint{page: page}
+}
+
+// Len returns the number of uint values contained.
+func (m *MultiUint) Len() int {
+	return len(m.page) / int(uintSize)
+}
+
+// Val returns the uint and index i.
+func (m *MultiUint) Val(i int) uint {
+	data := m.page[i*int(uintSize) : (i+1)*int(uintSize)]
+	x := uint(*(*C.uint)(unsafe.Pointer(&data[0])))
+	if uintSize != gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&data[0])) {
+		panic("value oveflows uint")
+	}
+	return x
+}
+
+// Put appends x to the page.
+func (m *MultiUint) Put(x uint) {
+	var buf [uintSize]byte
+	*(*C.uint)(unsafe.Pointer(&buf[0])) = C.uint(x)
+	if uintSize != gouintSize && uint(*(*C.uint)(unsafe.Pointer(&buf[0]))) != x {
+		panic("value overflows unsigned int")
+	}
+	m.page = append(m.page, buf[:]...)
+}
+
+// Page returns raw page data which can be passed to Cursor.Put with the
+// PutMultiple flag.
+func (m *MultiUint) Page() []byte {
+	return m.page
+}
+
+// Stride returns the size and an individual element in m.Page().
+func (m *MultiUint) Stride() int {
+	return int(uintSize)
+}
+
+// MultiUintptr is a wrapper for a contiguous page of sorted uintptr values
+// retreived using the GetMultiple/NextMultiple operations on a Cursor.
+type MultiUintptr struct {
+	page []byte
+}
+
+// WrapMultiUintptr converts a page of contiguous uint value into a MultiUint.
+// WrapMultiUint panics if len(page) is not a multiple of
+// unsife.Sizeof(C.size_t(0)).
+//
+// See mdb_cursor_get and MDB_GET_MULTIPLE.
+func WrapMultiUintptr(page []byte) *MultiUintptr {
+	if len(page)%int(sizetSize) != 0 {
+		panic("incongruent arguments")
+	}
+	return &MultiUintptr{page: page}
+}
+
+// Len returns the number of uint values contained.
+func (m *MultiUintptr) Len() int {
+	return len(m.page) / int(sizetSize)
+}
+
+// Val returns the uint and index i.
+func (m *MultiUintptr) Val(i int) uint {
+	data := m.page[i*int(sizetSize) : (i+1)*int(sizetSize)]
+	return uint(*(*C.size_t)(unsafe.Pointer(&data[0])))
+}
+
+// Put appends x to the page.
+func (m *MultiUintptr) Put(x uintptr) {
+	var buf [sizetSize]byte
+	*(*C.size_t)(unsafe.Pointer(&buf[0])) = C.size_t(x)
+	m.page = append(m.page, buf[:]...)
+}
+
+// Page returns raw page data which can be passed to Cursor.Put with the
+// PutMultiple flag.
+func (m *MultiUintptr) Page() []byte {
+	return m.page
+}
+
+// Stride returns the size and an individual element in m.Page().
+func (m *MultiUintptr) Stride() int {
+	return int(sizetSize)
+}
+
 var eb = []byte{0}
 
 func valBytes(b []byte) ([]byte, int) {
@@ -146,7 +247,7 @@ func String(s string) Value {
 func Uint(x uint) Value {
 	v := new(uintValue)
 	*v = uintValue(x)
-	if uint(*v) != x {
+	if uintSize != gouintSize && uint(*v) != x {
 		panic("value overflows unsigned int")
 	}
 	return v
@@ -181,7 +282,8 @@ func (v bytesValue) MemSize() uintptr {
 
 type uintValue C.uint
 
-var uintSize = unsafe.Sizeof(C.uint(0))
+const uintSize = unsafe.Sizeof(C.uint(0))
+const gouintSize = unsafe.Sizeof(uint(0))
 
 var _ Value = (*uintValue)(nil)
 
@@ -209,21 +311,23 @@ func (v *uintValue) MemSize() uintptr {
 	return uintSize
 }
 
-// UintValue interprets the bytes of b as an unsigned int and returns the value.
-//
-// BUG(bmatsuo):
-// Does not check for overflow.
+// UintValue interprets the bytes of b as an unsigned int and returns the uint
+// value.
 func UintValue(b []byte) (x uint, ok bool) {
 	if uintptr(len(b)) != uintSize {
 		return 0, false
 	}
 	x = uint(*(*C.uint)(unsafe.Pointer(&b[0])))
+	if uintSize != gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&b[0])) {
+		// overflow
+		return 0, false
+	}
 	return x, true
 }
 
 type sizetValue C.size_t
 
-var sizetSize = unsafe.Sizeof(C.size_t(0))
+const sizetSize = unsafe.Sizeof(C.size_t(0))
 
 func (v *sizetValue) SetUintptr(x uintptr) {
 	*v = sizetValue(x)
@@ -249,7 +353,8 @@ func (v *sizetValue) MemSize() uintptr {
 	return sizetSize
 }
 
-// UintptrValue interprets the bytes of b as a size_t and returns the value.
+// UintptrValue interprets the bytes of b as a size_t and returns the uintptr
+// value.
 func UintptrValue(b []byte) (x uintptr, ok bool) {
 	if uintptr(len(b)) != sizetSize {
 		return 0, false
