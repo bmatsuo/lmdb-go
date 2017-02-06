@@ -7,6 +7,7 @@
 - lmdb: Update LMDB C library to version 0.9.19 (#92).
 - lmdb: Fix resource leak in cursor tests (bcf4e9f).
 - lmdb: Fix panic in Cursor.Get when using the Set op (#96).
+- docs: Improve documentation about when runtime.LockOSThread is required
 
 ##v1.7.0
 
