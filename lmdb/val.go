@@ -8,11 +8,14 @@ package lmdb
 import "C"
 
 import (
-	"reflect"
 	"unsafe"
 
 	"github.com/bmatsuo/lmdb-go/internal/lmdbarch"
 )
+
+const uintSize = unsafe.Sizeof(C.uint(0))
+const gouintSize = unsafe.Sizeof(uint(0))
+const sizetSize = unsafe.Sizeof(C.size_t(0))
 
 // valSizeBits is the number of bits which constraining the length of the
 // single values in an LMDB database, either 32 or 31 depending on the
@@ -245,20 +248,13 @@ func String(s string) Value {
 // Uint allocates and returns a new Value that points to a value equal to
 // C.uint(x).
 func Uint(x uint) Value {
-	v := new(uintValue)
-	*v = uintValue(x)
-	if uintSize != gouintSize && uint(*v) != x {
-		panic("value overflows unsigned int")
-	}
-	return v
+	return newUintValue(x)
 }
 
 // Uintptr allocates and returns a new Value that points to a value equal to
 // C.size_t(x).
 func Uintptr(x uintptr) Value {
-	v := new(sizetValue)
-	*v = sizetValue(x)
-	return v
+	return newSizetValue(x)
 }
 
 type bytesValue []byte
@@ -280,35 +276,25 @@ func (v bytesValue) MemSize() uintptr {
 	return uintptr(len(v))
 }
 
-type uintValue C.uint
-
-const uintSize = unsafe.Sizeof(C.uint(0))
-const gouintSize = unsafe.Sizeof(uint(0))
+type uintValue [uintSize]byte
 
 var _ Value = (*uintValue)(nil)
 
+func newUintValue(x uint) *uintValue {
+	v := new(uintValue)
+	v.SetUint(x)
+	return v
+}
+
 func (v *uintValue) SetUint(x uint) {
-	*v = uintValue(x)
+	*(*C.uint)(unsafe.Pointer(&(*v)[0])) = C.uint(x)
+	if uintSize != gouintSize && uint(*(*C.uint)(unsafe.Pointer(&(*v)[0]))) != x {
+		panic("value overflows unsigned int")
+	}
 }
 
 func (v *uintValue) tobytes() []byte {
-	if v == nil {
-		return nil
-	}
-	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(v)),
-		Len:  int(uintSize),
-		Cap:  int(uintSize),
-	}
-	return *(*[]byte)(unsafe.Pointer(&hdr))
-}
-
-func (v *uintValue) MemAddr() unsafe.Pointer {
-	return unsafe.Pointer(v)
-}
-
-func (v *uintValue) MemSize() uintptr {
-	return uintSize
+	return (*v)[:]
 }
 
 // UintValue interprets the bytes of b as an unsigned int and returns the uint
@@ -325,32 +311,22 @@ func UintValue(b []byte) (x uint, ok bool) {
 	return x, true
 }
 
-type sizetValue C.size_t
+type sizetValue [sizetSize]byte
 
-const sizetSize = unsafe.Sizeof(C.size_t(0))
+var _ Value = (*sizetValue)(nil)
+
+func newSizetValue(x uintptr) *sizetValue {
+	v := new(sizetValue)
+	v.SetUintptr(x)
+	return v
+}
 
 func (v *sizetValue) SetUintptr(x uintptr) {
-	*v = sizetValue(x)
+	*(*C.size_t)(unsafe.Pointer(&(*v)[0])) = C.size_t(x)
 }
 
 func (v *sizetValue) tobytes() []byte {
-	if v == nil {
-		return nil
-	}
-	hdr := reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(v)),
-		Len:  int(sizetSize),
-		Cap:  int(sizetSize),
-	}
-	return *(*[]byte)(unsafe.Pointer(&hdr))
-}
-
-func (v *sizetValue) MemAddr() unsafe.Pointer {
-	return unsafe.Pointer(v)
-}
-
-func (v *sizetValue) MemSize() uintptr {
-	return sizetSize
+	return (*v)[:]
 }
 
 // UintptrValue interprets the bytes of b as a size_t and returns the uintptr
