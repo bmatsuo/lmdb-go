@@ -31,48 +31,48 @@ func GetUint(b []byte) (x uint, ok bool) {
 	return x, true
 }
 
-// MultiUint is a FixedPage implementation that stores C.uint-sized data
+// UintMulti is a FixedPage implementation that stores C.uint-sized data
 // values.
-type MultiUint struct {
+type UintMulti struct {
 	page []byte
 }
 
-var _ FixedPage = (*MultiUint)(nil)
+var _ FixedPage = (*UintMulti)(nil)
 
-// WrapMultiUint converts a page of contiguous uint value into a MultiUint.
-// WrapMultiUint panics if len(page) is not a multiple of
+// WrapUintMulti converts a page of contiguous uint value into a UintMulti.
+// WrapUintMulti panics if len(page) is not a multiple of
 // unsife.Sizeof(C.uint(0)).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func WrapMultiUint(page []byte) *MultiUint {
+func WrapUintMulti(page []byte) *UintMulti {
 	if len(page)%int(uintSize) != 0 {
 		panic("incongruent arguments")
 	}
-	return &MultiUint{page: page}
+	return &UintMulti{page: page}
 }
 
 // Len implements FixedPage.
-func (m *MultiUint) Len() int {
+func (m *UintMulti) Len() int {
 	return len(m.page) / int(uintSize)
 }
 
 // Stride implements FixedPage.
-func (m *MultiUint) Stride() int {
+func (m *UintMulti) Stride() int {
 	return int(uintSize)
 }
 
 // Size implements FixedPage.
-func (m *MultiUint) Size() int {
+func (m *UintMulti) Size() int {
 	return len(m.page)
 }
 
 // Page implements FixedPage.
-func (m *MultiUint) Page() []byte {
+func (m *UintMulti) Page() []byte {
 	return m.page
 }
 
 // Val returns the uint value of data at index i.
-func (m *MultiUint) Val(i int) uint {
+func (m *UintMulti) Val(i int) uint {
 	data := m.page[i*int(uintSize) : (i+1)*int(uintSize)]
 	x := uint(*(*C.uint)(unsafe.Pointer(&data[0])))
 	if uintSize != gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&data[0])) {
@@ -82,7 +82,7 @@ func (m *MultiUint) Val(i int) uint {
 }
 
 // Put appends x to the page.
-func (m *MultiUint) Put(x uint) {
+func (m *UintMulti) Put(x uint) {
 	var buf [uintSize]byte
 	*(*C.uint)(unsafe.Pointer(&buf[0])) = C.uint(x)
 	if uintSize != gouintSize && uint(*(*C.uint)(unsafe.Pointer(&buf[0]))) != x {

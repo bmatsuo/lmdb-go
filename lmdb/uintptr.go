@@ -27,54 +27,54 @@ func GetUintptr(b []byte) (x uintptr, ok bool) {
 	return x, true
 }
 
-// MultiUintptr is FixedPage implementation that stores uintptr-sized data
+// UintptrMulti is FixedPage implementation that stores uintptr-sized data
 // values.
-type MultiUintptr struct {
+type UintptrMulti struct {
 	page []byte
 }
 
-var _ FixedPage = (*MultiUint)(nil)
+var _ FixedPage = (*UintptrMulti)(nil)
 
-// WrapMultiUintptr converts a page of contiguous uint value into a MultiUint.
+// WrapUintptrMulti converts a page of contiguous uint value into a MultiUint.
 // WrapMultiUint panics if len(page) is not a multiple of
 // unsife.Sizeof(C.size_t(0)).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func WrapMultiUintptr(page []byte) *MultiUintptr {
+func WrapUintptrMulti(page []byte) *UintptrMulti {
 	if len(page)%int(sizetSize) != 0 {
 		panic("incongruent arguments")
 	}
-	return &MultiUintptr{page: page}
+	return &UintptrMulti{page: page}
 }
 
 // Len implements FixedPage.
-func (m *MultiUintptr) Len() int {
+func (m *UintptrMulti) Len() int {
 	return len(m.page) / int(sizetSize)
 }
 
 // Stride implements FixedPage.
-func (m *MultiUintptr) Stride() int {
+func (m *UintptrMulti) Stride() int {
 	return int(sizetSize)
 }
 
 // Size implements FixedPage.
-func (m *MultiUintptr) Size() int {
+func (m *UintptrMulti) Size() int {
 	return len(m.page)
 }
 
 // Page implements FixedPage.
-func (m *MultiUintptr) Page() []byte {
+func (m *UintptrMulti) Page() []byte {
 	return m.page
 }
 
 // Val returns the uint and index i.
-func (m *MultiUintptr) Val(i int) uint {
+func (m *UintptrMulti) Val(i int) uint {
 	data := m.page[i*int(sizetSize) : (i+1)*int(sizetSize)]
 	return uint(*(*C.size_t)(unsafe.Pointer(&data[0])))
 }
 
 // Put appends x to the page.
-func (m *MultiUintptr) Put(x uintptr) {
+func (m *UintptrMulti) Put(x uintptr) {
 	var buf [sizetSize]byte
 	*(*C.size_t)(unsafe.Pointer(&buf[0])) = C.size_t(x)
 	m.page = append(m.page, buf[:]...)
