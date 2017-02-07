@@ -50,7 +50,7 @@ func TestUintptrMulti(t *testing.T) {
 	for i := uint(0); i < uint(BitWidth); i++ {
 		xs = append(xs, 1<<i)
 	}
-	var m UintptrMulti
+	m := &UintptrMulti{}
 	for i := range xs {
 		m = m.Append(xs[i])
 	}

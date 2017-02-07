@@ -112,11 +112,15 @@ func (m *Multi) Val(i int) []byte {
 
 // Append returns a new Multi with page data resulting from appending b to
 // m.Page().  Put panics if len(b) is not equal to m.Stride()
-func (m *Multi) Append(b []byte) {
+func (m *Multi) Append(b []byte) *Multi {
 	if len(b) != m.stride {
 		panic("bad data size")
 	}
-	m.page = append(m.page, b...)
+
+	_m := &Multi{}
+	*_m = *m
+	_m.page = append(_m.page, b...)
+	return _m
 }
 
 // Len returns the number of values in the Multi.

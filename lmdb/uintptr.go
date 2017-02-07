@@ -26,55 +26,58 @@ func GetUintptr(b []byte) (x uintptr, ok bool) {
 	return x, true
 }
 
-// UintptrMulti is FixedPage implementation that stores C.size_t-sized data
+// UintptrMulti is a FixedPage implementation that stores C.size_t-sized data
 // values.
-type UintptrMulti []byte
+type UintptrMulti struct {
+	page []byte
+}
 
-var _ FixedPage = (UintptrMulti)(nil)
+var _ FixedPage = (*UintptrMulti)(nil)
 
 // WrapUintptrMulti converts a page of contiguous uint value into a MultiUint.
 // WrapMultiUint panics if len(page) is not a multiple of
 // unsife.Sizeof(C.size_t(0)).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func WrapUintptrMulti(page []byte) UintptrMulti {
+func WrapUintptrMulti(page []byte) *UintptrMulti {
 	if len(page)%int(sizetSize) != 0 {
 		panic("incongruent arguments")
 	}
-	return UintptrMulti(page)
+
+	return &UintptrMulti{page}
 }
 
 // Len implements FixedPage.
-func (m UintptrMulti) Len() int {
-	return len(m) / int(sizetSize)
+func (m *UintptrMulti) Len() int {
+	return len(m.page) / int(sizetSize)
 }
 
 // Stride implements FixedPage.
-func (m UintptrMulti) Stride() int {
+func (m *UintptrMulti) Stride() int {
 	return int(sizetSize)
 }
 
 // Size implements FixedPage.
-func (m UintptrMulti) Size() int {
-	return len(m)
+func (m *UintptrMulti) Size() int {
+	return len(m.page)
 }
 
 // Page implements FixedPage.
-func (m UintptrMulti) Page() []byte {
-	return []byte(m)
+func (m *UintptrMulti) Page() []byte {
+	return m.page
 }
 
 // Uintptr returns the uintptr value at index i.
-func (m UintptrMulti) Uintptr(i int) uintptr {
-	data := m[i*int(sizetSize) : (i+1)*int(sizetSize)]
+func (m *UintptrMulti) Uintptr(i int) uintptr {
+	data := m.page[i*int(sizetSize) : (i+1)*int(sizetSize)]
 	return uintptr(*(*C.size_t)(unsafe.Pointer(&data[0])))
 }
 
 // Append returns the UintptrMulti result of appending x to m as C.size_t data.
-func (m UintptrMulti) Append(x uintptr) UintptrMulti {
+func (m *UintptrMulti) Append(x uintptr) *UintptrMulti {
 	var buf [sizetSize]byte
 	*(*C.size_t)(unsafe.Pointer(&buf[0])) = C.size_t(x)
-	return append(m, buf[:]...)
+	return &UintptrMulti{append(m.page, buf[:]...)}
 }
 
 // UintptrValue is a Value that contains a C.size_t-sized data.
