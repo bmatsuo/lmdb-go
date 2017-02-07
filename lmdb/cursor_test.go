@@ -161,7 +161,7 @@ func TestCursor_bytesBuffer(t *testing.T) {
 	}
 }
 
-func TestCursor_PutValue_unfixedUnsignedDup(t *testing.T) {
+func TestCursor_PutData_unfixedUnsignedDup(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -186,7 +186,7 @@ func TestCursor_PutValue_unfixedUnsignedDup(t *testing.T) {
 			key := Uint(1)
 			v1 := uintptr(1 << i)
 			t.Logf("WRITE %016x=%016x", key, v1)
-			err = cur.PutValue(key, Uintptr(v1), 0)
+			err = cur.PutData(key, Uintptr(v1), 0)
 			if err != nil {
 				return err
 			}
@@ -194,7 +194,7 @@ func TestCursor_PutValue_unfixedUnsignedDup(t *testing.T) {
 			if v1 < UintMax {
 				v2 := uint(v1) + 1
 				t.Logf("WRITE %016x=%08x", key, v2)
-				err = cur.PutValue(key, Uint(v2), 0)
+				err = cur.PutData(key, Uint(v2), 0)
 				if err != nil {
 					return err
 				}
@@ -280,7 +280,7 @@ func TestCursor_PutValue_unfixedUnsignedDup(t *testing.T) {
 	}
 }
 
-func TestCursor_PutValue_UintUint(t *testing.T) {
+func TestCursor_PutData(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -310,7 +310,7 @@ func TestCursor_PutValue_UintUint(t *testing.T) {
 			v2 := uint(1 << i)
 			for _, v := range []uint{v1, v2} {
 				t.Logf("WRITE %08x=%08x", k, v)
-				err = cur.PutValue(Uint(k), Uint(v), 0)
+				err = cur.PutData(Uint(k), Uint(v), 0)
 				if err != nil {
 					return err
 				}
@@ -388,7 +388,7 @@ func TestCursor_PutValue_UintUint(t *testing.T) {
 	}
 }
 
-func TestCursor_PutValue_UintptrUintptr(t *testing.T) {
+func TestCursor_PutData_UintptrUintptr(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -415,7 +415,7 @@ func TestCursor_PutValue_UintptrUintptr(t *testing.T) {
 			v2 := uintptr(1 << i)
 			for _, v := range []uintptr{v1, v2} {
 				t.Logf("WRITE %016x=%016x", k, v)
-				err = cur.PutValue(Uintptr(k), Uintptr(v), 0)
+				err = cur.PutData(Uintptr(k), Uintptr(v), 0)
 				if err != nil {
 					return err
 				}

@@ -11,9 +11,9 @@ import "unsafe"
 
 const sizetSize = unsafe.Sizeof(C.size_t(0))
 
-// Uintptr returns a UintptrValue containing the value C.size_t(x).
-func Uintptr(x uintptr) *UintptrValue {
-	return newSizetValue(x)
+// Uintptr returns a UintptrData containing the value C.size_t(x).
+func Uintptr(x uintptr) *UintptrData {
+	return newSizetData(x)
 }
 
 // GetUintptr interprets the bytes of b as a size_t and returns the uintptr
@@ -80,28 +80,28 @@ func (m *UintptrMulti) Append(x uintptr) *UintptrMulti {
 	return &UintptrMulti{append(m.page, buf[:]...)}
 }
 
-// UintptrValue is a Value that contains a C.size_t-sized data.
-type UintptrValue [sizetSize]byte
+// UintptrData is a Data that contains a C.size_t-sized data.
+type UintptrData [sizetSize]byte
 
-var _ Value = (*UintptrValue)(nil)
+var _ Data = (*UintptrData)(nil)
 
-func newSizetValue(x uintptr) *UintptrValue {
-	v := new(UintptrValue)
+func newSizetData(x uintptr) *UintptrData {
+	v := new(UintptrData)
 	v.SetUintptr(x)
 	return v
 }
 
 // Uintptr returns contained data as a uint value.
-func (v *UintptrValue) Uintptr() uintptr {
+func (v *UintptrData) Uintptr() uintptr {
 	return uintptr(*(*C.size_t)(unsafe.Pointer(&(*v)[0])))
 }
 
 // SetUintptr stores x as a C.size_t in v.
-func (v *UintptrValue) SetUintptr(x uintptr) {
+func (v *UintptrData) SetUintptr(x uintptr) {
 	*(*C.size_t)(unsafe.Pointer(&(*v)[0])) = C.size_t(x)
 }
 
-func (v *UintptrValue) tobytes() []byte {
+func (v *UintptrData) tobytes() []byte {
 	return (*v)[:]
 }
 

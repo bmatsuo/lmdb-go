@@ -206,7 +206,7 @@ func loadUint64(env *Env, r *rand.Rand, opt *BenchOpt) (DBI, error) {
 	return dbi, nil
 }
 
-func BenchmarkTxn_GetValue_U_raw(b *testing.B) {
+func BenchmarkTxn_GetData_U_raw(b *testing.B) {
 	key := Uint(0)
 	val := Uint(0)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -215,16 +215,16 @@ func BenchmarkTxn_GetValue_U_raw(b *testing.B) {
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUint(uint(k))
 			val.SetUint(uint(v))
-			return txn.PutValue(dbi, key, val, 0)
+			return txn.PutData(dbi, key, val, 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUint(uint(k))
-			return txn.GetValue(dbi, key)
+			return txn.GetData(dbi, key)
 		},
 	})
 }
 
-func BenchmarkTxn_GetValue_Z_raw(b *testing.B) {
+func BenchmarkTxn_GetData_Z_raw(b *testing.B) {
 	key := Uintptr(0)
 	val := Uintptr(0)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -233,16 +233,16 @@ func BenchmarkTxn_GetValue_Z_raw(b *testing.B) {
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUintptr(uintptr(k))
 			val.SetUintptr(uintptr(v))
-			return txn.PutValue(dbi, key, val, 0)
+			return txn.PutData(dbi, key, val, 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUintptr(uintptr(k))
-			return txn.GetValue(dbi, key)
+			return txn.GetData(dbi, key)
 		},
 	})
 }
 
-func BenchmarkTxn_GetValue_B_raw(b *testing.B) {
+func BenchmarkTxn_GetData_B_raw(b *testing.B) {
 	key := make([]byte, 8)
 	val := make([]byte, 8)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -259,7 +259,7 @@ func BenchmarkTxn_GetValue_B_raw(b *testing.B) {
 	})
 }
 
-func BenchmarkTxn_GetValue_U_(b *testing.B) {
+func BenchmarkTxn_GetData_U_(b *testing.B) {
 	key := Uint(0)
 	val := Uint(0)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -267,16 +267,16 @@ func BenchmarkTxn_GetValue_U_(b *testing.B) {
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUint(uint(k))
 			val.SetUint(uint(v))
-			return txn.PutValue(dbi, key, val, 0)
+			return txn.PutData(dbi, key, val, 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUint(uint(k))
-			return txn.GetValue(dbi, key)
+			return txn.GetData(dbi, key)
 		},
 	})
 }
 
-func BenchmarkTxn_GetValue_Z_(b *testing.B) {
+func BenchmarkTxn_GetData_Z_(b *testing.B) {
 	key := Uintptr(0)
 	val := Uintptr(0)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -284,16 +284,16 @@ func BenchmarkTxn_GetValue_Z_(b *testing.B) {
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUintptr(uintptr(k))
 			val.SetUintptr(uintptr(v))
-			return txn.PutValue(dbi, key, val, 0)
+			return txn.PutData(dbi, key, val, 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUintptr(uintptr(k))
-			return txn.GetValue(dbi, key)
+			return txn.GetData(dbi, key)
 		},
 	})
 }
 
-func BenchmarkTxn_GetValue_B_(b *testing.B) {
+func BenchmarkTxn_GetData_B_(b *testing.B) {
 	key := make([]byte, 8)
 	val := make([]byte, 8)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -309,25 +309,25 @@ func BenchmarkTxn_GetValue_B_(b *testing.B) {
 	})
 }
 
-func BenchmarkTxn_PutValue_u_(b *testing.B) {
+func BenchmarkTxn_PutData_u_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			return txn.PutValue(dbi, Uint(uint(k)), Uint(uint(v)), 0)
+			return txn.PutData(dbi, Uint(uint(k)), Uint(uint(v)), 0)
 		},
 	})
 }
 
-func BenchmarkTxn_PutValue_z_(b *testing.B) {
+func BenchmarkTxn_PutData_z_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			return txn.PutValue(dbi, Uintptr(uintptr(k)), Uintptr(uintptr(v)), 0)
+			return txn.PutData(dbi, Uintptr(uintptr(k)), Uintptr(uintptr(v)), 0)
 		},
 	})
 }
 
-func BenchmarkTxn_PutValue_b_(b *testing.B) {
+func BenchmarkTxn_PutData_b_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key := make([]byte, 8)
@@ -339,7 +339,7 @@ func BenchmarkTxn_PutValue_b_(b *testing.B) {
 	})
 }
 
-func BenchmarkTxn_PutValue_U_(b *testing.B) {
+func BenchmarkTxn_PutData_U_(b *testing.B) {
 	key := Uint(0)
 	val := Uint(0)
 	benchTxnPutUint64(b, &BenchOpt{
@@ -347,12 +347,12 @@ func BenchmarkTxn_PutValue_U_(b *testing.B) {
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUint(uint(k))
 			val.SetUint(uint(v))
-			return txn.PutValue(dbi, key, val, 0)
+			return txn.PutData(dbi, key, val, 0)
 		},
 	})
 }
 
-func BenchmarkTxn_PutValue_Z_(b *testing.B) {
+func BenchmarkTxn_PutData_Z_(b *testing.B) {
 	key := Uintptr(0)
 	val := Uintptr(0)
 	benchTxnPutUint64(b, &BenchOpt{
@@ -360,12 +360,12 @@ func BenchmarkTxn_PutValue_Z_(b *testing.B) {
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUintptr(uintptr(k))
 			val.SetUintptr(uintptr(v))
-			return txn.PutValue(dbi, key, val, 0)
+			return txn.PutData(dbi, key, val, 0)
 		},
 	})
 }
 
-func BenchmarkTxn_PutValue_B_(b *testing.B) {
+func BenchmarkTxn_PutData_B_(b *testing.B) {
 	key := make([]byte, 8)
 	val := make([]byte, 8)
 	benchTxnPutUint64(b, &BenchOpt{
@@ -412,7 +412,7 @@ func BenchmarkTxn_Put(b *testing.B) {
 }
 
 // repeatedly put (overwrite) keys.
-func BenchmarkTxn_PutValue(b *testing.B) {
+func BenchmarkTxn_PutData(b *testing.B) {
 	initRandSource(b)
 	env := setup(b)
 	defer clean(env, b)
@@ -432,7 +432,7 @@ func BenchmarkTxn_PutValue(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			k := ps[rand.Intn(len(ps)/2)*2]
 			v := makeBenchDBVal(&rc)
-			err := txn.PutValue(dbi, Bytes(k), Bytes(v), 0)
+			err := txn.PutData(dbi, Bytes(k), Bytes(v), 0)
 			if err != nil {
 				return err
 			}

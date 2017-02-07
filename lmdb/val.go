@@ -29,20 +29,20 @@ const (
 	valMaxSize  = 1<<valSizeBits - 1
 )
 
-// Value is a container for data that can be written to an LMDB environment.
+// Data is a container for data that can be written to an LMDB environment.
 //
-// Value types are only required when working with databases opened with the
-// IntegerKey or IntegerDup flags.  Using Value types in other situations will
+// Data types are only required when working with databases opened with the
+// IntegerKey or IntegerDup flags.  Using Data types in other situations will
 // only hurt the performance of your application.
 //
-// Value is a controlled interface that cannot be implemented by external
-// types.  The only implementations of Value are BytesValue, UintValue, and
-// UintptrValue.
-type Value interface {
+// Data is a controlled interface that cannot be implemented by external
+// types.  The only implementations of Data are BytesData, UintData, and
+// UintptrData.
+type Data interface {
 	tobytes() []byte
 }
 
-func valueToBytes(v Value) []byte {
+func dataToBytes(v Data) []byte {
 	if v == nil {
 		return nil
 	}
@@ -172,17 +172,17 @@ func getBytesCopy(val *C.MDB_val) []byte {
 	return C.GoBytes(val.mv_data, C.int(val.mv_size))
 }
 
-// Bytes returns a Value containg b.  The returned value shares is memory with
+// Bytes returns a Data containg b.  The returned value shares is memory with
 // b and b must not be modified while it is use.
-func Bytes(b []byte) BytesValue {
-	return BytesValue(b)
+func Bytes(b []byte) BytesData {
+	return BytesData(b)
 }
 
-// BytesValue is a Value that contains arbitrary data.
-type BytesValue []byte
+// BytesData is a Data that contains arbitrary data.
+type BytesData []byte
 
-var _ Value = BytesValue(nil)
+var _ Data = BytesData(nil)
 
-func (v BytesValue) tobytes() []byte {
+func (v BytesData) tobytes() []byte {
 	return []byte(v)
 }

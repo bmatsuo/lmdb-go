@@ -304,11 +304,11 @@ func (txn *Txn) putNilKey(dbi DBI, flags uint) error {
 	return operrno("mdb_put", ret)
 }
 
-// GetValue behaves like Get but it accepts Value data.
+// GetData behaves like Get but it accepts Data types.
 //
 // See mdb_get.
-func (txn *Txn) GetValue(dbi DBI, key Value) ([]byte, error) {
-	return txn.Get(dbi, valueToBytes(key))
+func (txn *Txn) GetData(dbi DBI, key Data) ([]byte, error) {
+	return txn.Get(dbi, dataToBytes(key))
 }
 
 // Put stores an item in database dbi.
@@ -357,15 +357,15 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 	return b, nil
 }
 
-// PutValueReserve behaves like PutReserve but it accepts Value data.
-func (txn *Txn) PutValueReserve(dbi DBI, key Value, n int, flags uint) ([]byte, error) {
-	return txn.PutReserve(dbi, valueToBytes(key), n, flags)
+// PutData behaves like Put but accepts Data types.  Passing a nil Data to
+// PutData is semantically equivalent to passing a nil slice to Put.
+func (txn *Txn) PutData(dbi DBI, key Data, val Data, flags uint) error {
+	return txn.Put(dbi, dataToBytes(key), dataToBytes(val), flags)
 }
 
-// PutValue behaves like Put but accepts Value data.  Passing a nil Value to
-// PutValue is semantically equivalent to passing a nil slice to Put.
-func (txn *Txn) PutValue(dbi DBI, key Value, val Value, flags uint) error {
-	return txn.Put(dbi, valueToBytes(key), valueToBytes(val), flags)
+// PutDataReserve behaves like PutReserve but it accepts Data types.
+func (txn *Txn) PutDataReserve(dbi DBI, key Data, n int, flags uint) ([]byte, error) {
+	return txn.PutReserve(dbi, dataToBytes(key), n, flags)
 }
 
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the

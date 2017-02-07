@@ -215,7 +215,7 @@ func TestTxn_Del_dup(t *testing.T) {
 	}
 }
 
-func TestTxn_PutValue(t *testing.T) {
+func TestTxn_PutData(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 	const val = math.MaxUint32 - 1
@@ -226,7 +226,7 @@ func TestTxn_PutValue(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		return txn.PutValue(db, Bytes([]byte("k")), Uint(val), 0)
+		return txn.PutData(db, Bytes([]byte("k")), Uint(val), 0)
 	})
 	if err != nil {
 		t.Error(err)
@@ -253,7 +253,7 @@ func TestTxn_PutValue(t *testing.T) {
 	}
 }
 
-func TestTexn_Put_emptyValue(t *testing.T) {
+func TestTexn_Put_emptyData(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 

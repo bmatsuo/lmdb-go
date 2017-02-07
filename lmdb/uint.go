@@ -15,20 +15,20 @@ import "unsafe"
 // UintMax is less than the largest value of Go's uint type.
 //
 // Applications on 64-bit architectures that would like to store a 64-bit
-// unsigned value should use the UintptrValue type instead of the UintValue
+// unsigned value should use the UintptrData type instead of the UintData
 // type.
 const UintMax = C.UINT_MAX
 
 const uintSize = unsafe.Sizeof(C.uint(0))
 const gouintSize = unsafe.Sizeof(uint(0))
 
-// Uint returns a UintValue containing the value C.uint(x).  If the value
+// Uint returns a UintData containing the value C.uint(x).  If the value
 // passed to Uint is greater than UintMax a runtime panic will occur.
 //
 // Applications on 64-bit architectures that want to store a 64-bit unsigned
 // value should use Uintptr type instead of Uint.
-func Uint(x uint) *UintValue {
-	return newUintValue(x)
+func Uint(x uint) *UintData {
+	return newUintData(x)
 }
 
 // GetUint interprets the bytes of b as a C.uint and returns the uint value.
@@ -111,19 +111,19 @@ func (m *UintMulti) Append(x uint) *UintMulti {
 	return &UintMulti{append(m.page, buf[:]...)}
 }
 
-// UintValue is a Value implementation that contains C.uint-sized data.
-type UintValue [uintSize]byte
+// UintData is a Data implementation that contains C.uint-sized data.
+type UintData [uintSize]byte
 
-var _ Value = (*UintValue)(nil)
+var _ Data = (*UintData)(nil)
 
-func newUintValue(x uint) *UintValue {
-	v := new(UintValue)
+func newUintData(x uint) *UintData {
+	v := new(UintData)
 	v.SetUint(x)
 	return v
 }
 
 // Uint returns contained data as a uint value.
-func (v *UintValue) Uint() uint {
+func (v *UintData) Uint() uint {
 	x := *(*C.uint)(unsafe.Pointer(&(*v)[0]))
 	if uintSize > gouintSize && C.uint(uint(x)) != x {
 		panic("value overflows unsigned int")
@@ -133,7 +133,7 @@ func (v *UintValue) Uint() uint {
 
 // SetUint stores the value of x as a C.uint in v.  The value of x must not be
 // greater than UintMax otherwise a runtime panic will occur.
-func (v *UintValue) SetUint(x uint) {
+func (v *UintData) SetUint(x uint) {
 	if uintSize < gouintSize && x > UintMax {
 		panic("value overflows unsigned int")
 	}
@@ -141,7 +141,7 @@ func (v *UintValue) SetUint(x uint) {
 	*(*C.uint)(unsafe.Pointer(&(*v)[0])) = C.uint(x)
 }
 
-func (v *UintValue) tobytes() []byte {
+func (v *UintData) tobytes() []byte {
 	return (*v)[:]
 }
 

@@ -11,7 +11,7 @@ func TestUint(t *testing.T) {
 	for i := uint(0); i < uint(BitWidth); i++ {
 		x := uint(1 << i)
 		cx := Uint(x)
-		_x, ok := GetUint(valueToBytes(cx))
+		_x, ok := GetUint(dataToBytes(cx))
 		if !ok {
 			t.Errorf("GetUint(Uint(%x)) == false", x)
 		}
@@ -26,9 +26,9 @@ func TestUint(t *testing.T) {
 
 	for i := uint(0); i < uint(CBitWidth); i++ {
 		x := cuint(1 << i)
-		var cx UintValue
+		var cx UintData
 		*(*cuint)(unsafe.Pointer(&cx[0])) = x
-		_x, ok := GetUint(valueToBytes(&cx))
+		_x, ok := GetUint(dataToBytes(&cx))
 		if !ok {
 			t.Errorf("GetUint(C.uint(%x)) == false", x)
 		}

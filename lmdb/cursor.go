@@ -183,11 +183,11 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	return key, val, nil
 }
 
-// GetValue behaves like Get but it accepts Value data.
+// GetData behaves like Get but it accepts Data types.
 //
 // See mdb_cursor_get.
-func (c *Cursor) GetValue(setkey, setval Value, op uint) (key, val []byte, err error) {
-	return c.Get(valueToBytes(setkey), valueToBytes(setval), op)
+func (c *Cursor) GetData(setkey, setval Data, op uint) (key, val []byte, err error) {
+	return c.Get(dataToBytes(setkey), dataToBytes(setval), op)
 }
 
 // getVal0 retrieves items from the database without using given key or value
@@ -307,19 +307,19 @@ func (c *Cursor) PutFixedPage(key []byte, pg FixedPage, flags uint) error {
 	return c.PutMulti(key, pg.Page(), pg.Stride(), flags)
 }
 
-// PutValue behaves like Put but it accepts Value data.
-func (c *Cursor) PutValue(key Value, val Value, flags uint) error {
-	return c.Put(valueToBytes(key), valueToBytes(val), flags)
+// PutData behaves like Put but it accepts Data types.
+func (c *Cursor) PutData(key Data, val Data, flags uint) error {
+	return c.Put(dataToBytes(key), dataToBytes(val), flags)
 }
 
-// PutValueReserve behaves like PutReserve but it accepts Value data.
-func (c *Cursor) PutValueReserve(key Value, n int, flags uint) ([]byte, error) {
-	return c.PutReserve(valueToBytes(key), n, flags)
+// PutDataReserve behaves like PutReserve but it accepts Data types.
+func (c *Cursor) PutDataReserve(key Data, n int, flags uint) ([]byte, error) {
+	return c.PutReserve(dataToBytes(key), n, flags)
 }
 
-// PutValueFixedPage behaves like PutFixedPage but it accepts Value data.
-func (c *Cursor) PutValueFixedPage(key Value, pg FixedPage, flags uint) error {
-	return c.PutFixedPage(valueToBytes(key), pg, flags)
+// PutDataFixedPage behaves like PutFixedPage but it accepts Data types.
+func (c *Cursor) PutDataFixedPage(key Data, pg FixedPage, flags uint) error {
+	return c.PutFixedPage(dataToBytes(key), pg, flags)
 }
 
 // Del deletes the item referred to by the cursor from the database.
