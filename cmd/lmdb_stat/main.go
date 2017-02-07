@@ -232,7 +232,7 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 		for s.Scan() {
 			key := s.Key()
 			data := s.Val()
-			txid, ok := lmdb.UintptrValue(key)
+			txid, ok := lmdb.GetUintptr(key)
 			if !ok {
 				panic(fmt.Sprintf("unexpected transaction key: %q", key))
 			}
