@@ -17,12 +17,12 @@ func TestUintptr(t *testing.T) {
 	for i := uint(0); i < uint(BitWidth); i++ {
 		x := uintptr(1 << i)
 		cx := Uintptr(x)
-		_x, ok := GetUintptr(dataToBytes(cx))
+		_x, ok := getUintptr(dataToBytes(cx))
 		if !ok {
-			t.Errorf("GetUintptr(Uintptr(%x)) == false", x)
+			t.Errorf("getUintptr(Uintptr(%x)) == false", x)
 		}
 		if _x != x {
-			t.Errorf("GetUintptr(Uintptr(%x)) != %x (%x)", x, x, _x)
+			t.Errorf("getUintptr(Uintptr(%x)) != %x (%x)", x, x, _x)
 		}
 		_x = cx.Uintptr()
 		if _x != x {
@@ -34,12 +34,12 @@ func TestUintptr(t *testing.T) {
 		x := csizet(1 << i)
 		var cx UintptrData
 		*(*csizet)(unsafe.Pointer(&cx[0])) = x
-		_x, ok := GetUintptr(dataToBytes(&cx))
+		_x, ok := getUintptr(dataToBytes(&cx))
 		if !ok {
-			t.Errorf("GetUintptr(C.size_t(%x)) == false", x)
+			t.Errorf("getUintptr(C.size_t(%x)) == false", x)
 		}
 		if csizet(_x) != x {
-			t.Errorf("C.size_t(GetUintptr(C.size_t(%x))) != C.size_t(%x) (C.size_t(%x))", x, x, _x)
+			t.Errorf("C.size_t(getUintptr(C.size_t(%x))) != C.size_t(%x) (C.size_t(%x))", x, x, _x)
 		}
 	}
 }

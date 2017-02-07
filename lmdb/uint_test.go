@@ -11,12 +11,12 @@ func TestUint(t *testing.T) {
 	for i := uint(0); i < uint(BitWidth); i++ {
 		x := uint(1 << i)
 		cx := Uint(x)
-		_x, ok := GetUint(dataToBytes(cx))
+		_x, ok := getUint(dataToBytes(cx))
 		if !ok {
-			t.Errorf("GetUint(Uint(%x)) == false", x)
+			t.Errorf("getUint(Uint(%x)) == false", x)
 		}
 		if _x != x {
-			t.Errorf("GetUint(Uint(%x)) != %x (%x)", x, x, _x)
+			t.Errorf("getUint(Uint(%x)) != %x (%x)", x, x, _x)
 		}
 		_x = cx.Uint()
 		if _x != x {
@@ -28,12 +28,12 @@ func TestUint(t *testing.T) {
 		x := cuint(1 << i)
 		var cx UintData
 		*(*cuint)(unsafe.Pointer(&cx[0])) = x
-		_x, ok := GetUint(dataToBytes(&cx))
+		_x, ok := getUint(dataToBytes(&cx))
 		if !ok {
-			t.Errorf("GetUint(C.uint(%x)) == false", x)
+			t.Errorf("getUint(C.uint(%x)) == false", x)
 		}
 		if cuint(_x) != x {
-			t.Errorf("C.uint(GetUint(C.uint(%x))) != C.uint(%x) (C.uint(%x))", x, x, _x)
+			t.Errorf("C.uint(getUint(C.uint(%x))) != C.uint(%x) (C.uint(%x))", x, x, _x)
 		}
 	}
 }

@@ -217,28 +217,12 @@ func TestCursor_PutData_unfixedUnsignedDup(t *testing.T) {
 		}
 		defer cur.Close()
 
-		k, v, err := cur.Get(nil, nil, First)
+		k, v, err := DataXX(cur.Get(nil, nil, First))
 		for err == nil {
-			_k, ok := GetUintptr(k)
-			if !ok {
-				x, ok := GetUint(k)
-				if !ok {
-					t.Errorf("key is not an integer")
-				}
-				_k = uintptr(x)
-			}
-			_v, ok := GetUintptr(v)
-			if !ok {
-				x, ok := GetUint(v)
-				if !ok {
-					t.Errorf("value is not an integer")
-				}
-				_v = uintptr(x)
-			}
-			t.Logf("READ %016x=%016x", _k, _v)
-			keys = append(keys, _k)
-			vals = append(vals, _v)
-			k, v, err = cur.Get(nil, nil, Next)
+			t.Logf("READ %016x=%016x", k, v)
+			keys = append(keys, k)
+			vals = append(vals, v)
+			k, v, err = DataXX(cur.Get(nil, nil, Next))
 		}
 		if IsNotFound(err) {
 			return nil
@@ -271,16 +255,16 @@ func TestCursor_PutData_unfixedUnsignedDup(t *testing.T) {
 			// can't be an inversion.
 			vcurr = 0
 		}
+		kcurr = k
 
 		if vcurr > v {
 			t.Errorf("value inversion at index %d: %d %d", i, vcurr, v)
 		}
-
-		kcurr = k
+		vcurr = v
 	}
 }
 
-func TestCursor_PutData(t *testing.T) {
+func TestCursor_PutData_UintUint(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
@@ -333,20 +317,12 @@ func TestCursor_PutData(t *testing.T) {
 		}
 		defer cur.Close()
 
-		k, v, err := cur.Get(nil, nil, First)
+		k, v, err := DataUU(cur.Get(nil, nil, First))
 		for err == nil {
-			_k, ok := GetUint(k)
-			if !ok {
-				t.Errorf("key is not a uint")
-			}
-			_v, ok := GetUint(v)
-			if !ok {
-				t.Errorf("value is not a uint")
-			}
-			t.Logf("READ %08x=%08x", _k, _v)
-			keys = append(keys, _k)
-			vals = append(vals, _v)
-			k, v, err = cur.Get(nil, nil, Next)
+			t.Logf("READ %08x=%08x", k, v)
+			keys = append(keys, k)
+			vals = append(vals, v)
+			k, v, err = DataUU(cur.Get(nil, nil, Next))
 		}
 		if IsNotFound(err) {
 			return nil
@@ -369,8 +345,6 @@ func TestCursor_PutData(t *testing.T) {
 	kcurr := uint(0)
 	vcurr := uint(0)
 	for i, k := range keys {
-		v := vals[i]
-
 		if kcurr > k {
 			t.Errorf("key inversion at index %d: %d %d", i, kcurr, k)
 		}
@@ -379,12 +353,13 @@ func TestCursor_PutData(t *testing.T) {
 			// can't be an inversion.
 			vcurr = 0
 		}
+		kcurr = k
 
+		v := vals[i]
 		if vcurr > v {
 			t.Errorf("value inversion at index %d: %d %d", i, vcurr, v)
 		}
-
-		kcurr = k
+		vcurr = v
 	}
 }
 
@@ -438,20 +413,12 @@ func TestCursor_PutData_UintptrUintptr(t *testing.T) {
 		}
 		defer cur.Close()
 
-		k, v, err := cur.Get(nil, nil, First)
+		k, v, err := DataZZ(cur.Get(nil, nil, First))
 		for err == nil {
-			_k, ok := GetUintptr(k)
-			if !ok {
-				t.Errorf("key is not a uintptr")
-			}
-			_v, ok := GetUintptr(v)
-			if !ok {
-				t.Errorf("value is not a uintptr")
-			}
-			t.Logf("READ %016x=%016x", _k, _v)
-			keys = append(keys, _k)
-			vals = append(vals, _v)
-			k, v, err = cur.Get(nil, nil, Next)
+			t.Logf("READ %016x=%016x", k, v)
+			keys = append(keys, k)
+			vals = append(vals, v)
+			k, v, err = DataZZ(cur.Get(nil, nil, Next))
 		}
 		if IsNotFound(err) {
 			return nil
@@ -474,8 +441,6 @@ func TestCursor_PutData_UintptrUintptr(t *testing.T) {
 	kcurr := uintptr(0)
 	vcurr := uintptr(0)
 	for i, k := range keys {
-		v := vals[i]
-
 		if kcurr > k {
 			t.Errorf("key inversion at index %d: %d %d", i, kcurr, k)
 		}
@@ -484,12 +449,13 @@ func TestCursor_PutData_UintptrUintptr(t *testing.T) {
 			// can't be an inversion.
 			vcurr = 0
 		}
+		kcurr = k
 
+		v := vals[i]
 		if vcurr > v {
 			t.Errorf("value inversion at index %d: %d %d", i, vcurr, v)
 		}
-
-		kcurr = k
+		vcurr = v
 	}
 }
 

@@ -31,13 +31,15 @@ func Uint(x uint) *UintData {
 	return newUintData(x)
 }
 
-// GetUint interprets the bytes of b as a C.uint and returns the uint value.
-func GetUint(b []byte) (x uint, ok bool) {
-	if uintptr(len(b)) != uintSize {
-		return 0, false
-	}
+// getUint interprets the bytes of b as a C.uint and returns the uint value.
+// getUint returns false if b is not the size of a C.uint or cannot be decoded
+// to a uint.
+//
+// It is the callers responsibility that b is large enough to hold a C.uint.
+func getUint(b []byte) (x uint, ok bool) {
+	_ = b[uintSize-1]
 	x = uint(*(*C.uint)(unsafe.Pointer(&b[0])))
-	if uintSize != gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&b[0])) {
+	if uintSize > gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&b[0])) {
 		// overflow
 		return 0, false
 	}
@@ -59,7 +61,7 @@ var _ FixedPage = (*UintMulti)(nil)
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
 func WrapUintMulti(page []byte) *UintMulti {
 	if len(page)%int(uintSize) != 0 {
-		panic("argument is not a page of uint values")
+		panic("argument is not a page of C.uint values")
 	}
 
 	return &UintMulti{page}
@@ -90,7 +92,7 @@ func (m *UintMulti) Uint(i int) uint {
 	data := m.page[i*int(uintSize) : (i+1)*int(uintSize)]
 	x := uint(*(*C.uint)(unsafe.Pointer(&data[0])))
 	if uintSize > gouintSize && C.uint(x) != *(*C.uint)(unsafe.Pointer(&data[0])) {
-		panic("value oveflows uint")
+		panic(errOverflow)
 	}
 	return x
 }
@@ -103,7 +105,7 @@ func (m *UintMulti) Uint(i int) uint {
 // value should use UintptrMulti type instead of UintMulti.
 func (m *UintMulti) Append(x uint) *UintMulti {
 	if uintSize < gouintSize && x > UintMax {
-		panic("value overflows unsigned int")
+		panic(errOverflow)
 	}
 
 	var buf [uintSize]byte
@@ -126,7 +128,7 @@ func newUintData(x uint) *UintData {
 func (v *UintData) Uint() uint {
 	x := *(*C.uint)(unsafe.Pointer(&(*v)[0]))
 	if uintSize > gouintSize && C.uint(uint(x)) != x {
-		panic("value overflows unsigned int")
+		panic(errOverflow)
 	}
 	return uint(x)
 }
@@ -135,7 +137,7 @@ func (v *UintData) Uint() uint {
 // greater than UintMax otherwise a runtime panic will occur.
 func (v *UintData) SetUint(x uint) {
 	if uintSize < gouintSize && x > UintMax {
-		panic("value overflows unsigned int")
+		panic(errOverflow)
 	}
 
 	*(*C.uint)(unsafe.Pointer(&(*v)[0])) = C.uint(x)

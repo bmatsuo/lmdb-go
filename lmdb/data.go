@@ -1,5 +1,10 @@
 package lmdb
 
+import "fmt"
+
+var errNoFit = fmt.Errorf("data does not fit type")
+var errOverflow = fmt.Errorf("integer value overflows type")
+
 // FixedPage represents a contiguous sequence of fixed sized data items.
 // FixedPage implementations are often mutable and allow construction of data
 // for use with the Cursor.PutMulti method.
@@ -49,6 +54,194 @@ func dataToBytes(v Data) []byte {
 		return nil
 	}
 	return v.tobytes()
+}
+
+// DataBU extracts a C.uint value from valdata if error is nil and returns it
+// as a uint with keydata.
+//
+// See DataU.
+func DataBU(keydata, valdata []byte, err error) ([]byte, uint, error) {
+	_ = keydata
+	v, err := DataU(valdata, err)
+	return keydata, v, err
+}
+
+// DataBX extracts an integer value from valdata if error is nil and returns it
+// as a uintptr.
+//
+// See DataX.
+func DataBX(keydata, valdata []byte, err error) ([]byte, uintptr, error) {
+	_ = keydata
+	v, err := DataX(valdata, err)
+	return keydata, v, err
+}
+
+// DataBZ extracts a C.size_t value from valdata if error is nil and returns
+// it as a uintptr with keydata.
+func DataBZ(keydata, valdata []byte, err error) ([]byte, uintptr, error) {
+	_ = keydata
+	v, err := DataZ(valdata, err)
+	return keydata, v, err
+}
+
+// DataU extracts a C.uint value from data if error is nil and returns it as a
+// uint.
+func DataU(data []byte, err error) (uint, error) {
+	if err != nil {
+		return 0, err
+	}
+	if len(data) != int(uintSize) {
+		return 0, errNoFit
+	}
+	x, ok := getUint(data)
+	if !ok {
+		return 0, errOverflow
+	}
+	return x, nil
+}
+
+// DataUB extracts a C.uint value from keydata if error is nil and returns it
+// as a uint with valdata.
+func DataUB(keydata, valdata []byte, err error) (uint, []byte, error) {
+	k, err := DataU(keydata, err)
+	_ = valdata
+	return k, valdata, err
+}
+
+// DataUU extracts C.uint values from keydata and valdata if error is nil
+// and returns them as uints.
+func DataUU(keydata, valdata []byte, err error) (uint, uint, error) {
+	k, err := DataU(keydata, err)
+	v, err := DataU(valdata, err)
+	return k, v, err
+}
+
+// DataUX extracts a C.uint value from keydata and an integer value from
+// valdata if error is nil and returns them as a uint and uintptr repsectively.
+//
+// See DataX.
+func DataUX(keydata, valdata []byte, err error) (uint, uintptr, error) {
+	k, err := DataU(keydata, err)
+	v, err := DataX(valdata, err)
+	return k, v, err
+}
+
+// DataUZ extracts a C.uint value keydata and a C.size_t value from valdata if
+// error is nil and returns them as a uint and uintptr respectively.
+//
+// See DataZ.
+func DataUZ(keydata, valdata []byte, err error) (uint, uintptr, error) {
+	k, err := DataU(keydata, err)
+	v, err := DataZ(valdata, err)
+	return k, v, err
+}
+
+// DataX extracts a integer value from data if error is nil and returns it as a
+// uintptr.  If data is the size of a C.uint it is treated as such and
+// converted to a uintptr.
+func DataX(data []byte, err error) (uintptr, error) {
+	if err != nil {
+		return 0, err
+	}
+	if len(data) == int(uintSize) {
+		x, ok := getUint(data)
+		if !ok {
+			return 0, errOverflow
+		}
+		return uintptr(x), nil
+	}
+	if len(data) == int(sizetSize) {
+		x, ok := getUintptr(data)
+		if !ok {
+			return 0, errOverflow
+		}
+		return x, nil
+	}
+	return 0, errNoFit
+}
+
+// DataXB extracts an integer value from keydata if error is nil and returns it
+// as a uintptr with valdata.
+func DataXB(keydata, valdata []byte, err error) (uintptr, []byte, error) {
+	k, err := DataX(keydata, err)
+	_ = valdata
+	return k, valdata, err
+}
+
+// DataXU extracts an integer value from keydata and a C.uint value from
+// valdata if error is nil and returns them as a uintptr and uint respectively.
+//
+// See DataU.
+func DataXU(keydata, valdata []byte, err error) (uintptr, uint, error) {
+	k, err := DataX(keydata, err)
+	v, err := DataU(valdata, err)
+	return k, v, err
+}
+
+// DataXX extracts integer values keydata and valdata if error is nil and
+// returns them as uintptrs.
+func DataXX(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
+	k, err := DataX(keydata, err)
+	v, err := DataX(valdata, err)
+	return k, v, err
+}
+
+// DataXZ extracts an integer value from keydata and a C.size_t value from
+// valdata if error is nil and returns them as uintptrs.
+//
+// See DataZ.
+func DataXZ(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
+	k, err := DataX(keydata, err)
+	v, err := DataZ(valdata, err)
+	return k, v, err
+}
+
+// DataZ extracts a C.size_t value from data if error is nil and returns it as
+// a uintptr.
+func DataZ(data []byte, err error) (uintptr, error) {
+	if err != nil {
+		return 0, err
+	}
+	if len(data) != int(sizetSize) {
+		return 0, errNoFit
+	}
+	x, ok := getUintptr(data)
+	if !ok {
+		return 0, errOverflow
+	}
+	return x, nil
+}
+
+// DataZB extracts a C.size_t value from keydata if error is nil and returns it
+// as a uintptr with valdata.
+func DataZB(keydata, valdata []byte, err error) (uintptr, []byte, error) {
+	k, err := DataZ(keydata, err)
+	_ = valdata
+	return k, valdata, err
+}
+
+// DataZU extracts a C.size_t value from keydata and a C.uint value from
+// valdata if error is nil and returns them as a uintptr and uint respectively.
+func DataZU(keydata, valdata []byte, err error) (uintptr, uint, error) {
+	k, err := DataZ(keydata, err)
+	v, err := DataU(valdata, err)
+	return k, v, err
+}
+
+// DataZX extracts a C.size_t value from keydata and an integer value from
+// valdata if error is nil and returns them as uintptrs.
+func DataZX(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
+	k, err := DataZ(keydata, err)
+	v, err := DataX(valdata, err)
+	return k, v, err
+}
+
+// DataZZ extracts C.size_t values keydata and valdata if error is nil and
+// returns them as uintptrs.
+func DataZZ(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
+	k, err := DataZ(keydata, err)
+	v, err := DataZ(valdata, err)
+	return k, v, err
 }
 
 // Bytes returns a Data containg b.  The returned value shares is memory with

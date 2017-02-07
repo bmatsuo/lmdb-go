@@ -234,15 +234,11 @@ func TestTxn_PutData(t *testing.T) {
 	}
 
 	err = env.View(func(txn *Txn) (err error) {
-		v, err := txn.Get(db, []byte("k"))
+		v, err := DataU(txn.Get(db, []byte("k")))
 		if err != nil {
 			return err
 		}
-		x, ok := GetUint(v)
-		if !ok {
-			return fmt.Errorf("value: not a uint")
-		}
-		if x != val {
+		if v != val {
 			return fmt.Errorf("value: %q", v)
 		}
 		return nil
