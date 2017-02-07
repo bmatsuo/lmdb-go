@@ -5,6 +5,12 @@ import (
 	"unsafe"
 )
 
+func TestSizetSize(t *testing.T) {
+	if sizetSize != unsafe.Sizeof(uintptr(0)) {
+		t.Errorf("incorrect assumption about the size of C.size_t")
+	}
+}
+
 func TestUintptr(t *testing.T) {
 	const BitWidth = unsafe.Sizeof(uintptr(0))
 	const CBitWidth = unsafe.Sizeof(csizet(0))

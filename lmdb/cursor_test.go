@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
+	"unsafe"
 )
 
 func TestCursor_Txn(t *testing.T) {
@@ -157,6 +158,338 @@ func TestCursor_bytesBuffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 		return
+	}
+}
+
+func TestCursor_PutValue_unfixedUnsignedDup(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenDBI("test", Create|IntegerKey|DupSort|IntegerDup)
+		return err
+	})
+	if err != nil {
+		t.Errorf("opendbi: %v", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for i := uintptr(1); i < uintptr(unsafe.Sizeof(uintptr(0)))*8; i += 2 {
+			key := Uint(1)
+			v1 := uintptr(1 << i)
+			t.Logf("WRITE %016x=%016x", key, v1)
+			err = cur.PutValue(key, Uintptr(v1), 0)
+			if err != nil {
+				return err
+			}
+
+			if v1 < UintMax {
+				v2 := uint(v1) + 1
+				t.Logf("WRITE %016x=%08x", key, v2)
+				err = cur.PutValue(key, Uint(v2), 0)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Errorf("data import: %v", err)
+		return
+	}
+
+	var keys []uintptr
+	var vals []uintptr
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		k, v, err := cur.Get(nil, nil, First)
+		for err == nil {
+			_k, ok := GetUintptr(k)
+			if !ok {
+				x, ok := GetUint(k)
+				if !ok {
+					t.Errorf("key is not an integer")
+				}
+				_k = uintptr(x)
+			}
+			_v, ok := GetUintptr(v)
+			if !ok {
+				x, ok := GetUint(v)
+				if !ok {
+					t.Errorf("value is not an integer")
+				}
+				_v = uintptr(x)
+			}
+			t.Logf("READ %016x=%016x", _k, _v)
+			keys = append(keys, _k)
+			vals = append(vals, _v)
+			k, v, err = cur.Get(nil, nil, Next)
+		}
+		if IsNotFound(err) {
+			return nil
+		}
+		return err
+	})
+	if err != nil {
+		t.Errorf("data export: %v", err)
+		return
+	}
+
+	if len(keys) == 0 {
+		t.Errorf("no keys found")
+	}
+
+	if len(vals) == 0 {
+		t.Errorf("no values found")
+	}
+
+	kcurr := uintptr(0)
+	vcurr := uintptr(0)
+	for i, k := range keys {
+		v := vals[i]
+
+		if kcurr > k {
+			t.Errorf("key inversion at index %d: %d %d", i, kcurr, k)
+		}
+		if kcurr != k {
+			// This is the first key-value pair seen for this key, so there
+			// can't be an inversion.
+			vcurr = 0
+		}
+
+		if vcurr > v {
+			t.Errorf("value inversion at index %d: %d %d", i, vcurr, v)
+		}
+
+		kcurr = k
+	}
+}
+
+func TestCursor_PutValue_UintUint(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenDBI("test", Create|IntegerKey|DupSort|IntegerDup|DupFixed)
+		return err
+	})
+	if err != nil {
+		t.Errorf("opendbi: %v", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for i := uint(1); i < uint(unsafe.Sizeof(uint(0)))*8; i += 2 {
+			k := uint(1 << i)
+			if k > UintMax {
+				break
+			}
+			v1 := uint(1)
+			v2 := uint(1 << i)
+			for _, v := range []uint{v1, v2} {
+				t.Logf("WRITE %08x=%08x", k, v)
+				err = cur.PutValue(Uint(k), Uint(v), 0)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Errorf("data import: %v", err)
+		return
+	}
+
+	var keys []uint
+	var vals []uint
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		k, v, err := cur.Get(nil, nil, First)
+		for err == nil {
+			_k, ok := GetUint(k)
+			if !ok {
+				t.Errorf("key is not a uint")
+			}
+			_v, ok := GetUint(v)
+			if !ok {
+				t.Errorf("value is not a uint")
+			}
+			t.Logf("READ %08x=%08x", _k, _v)
+			keys = append(keys, _k)
+			vals = append(vals, _v)
+			k, v, err = cur.Get(nil, nil, Next)
+		}
+		if IsNotFound(err) {
+			return nil
+		}
+		return err
+	})
+	if err != nil {
+		t.Errorf("data export: %v", err)
+		return
+	}
+
+	if len(keys) == 0 {
+		t.Errorf("no keys found")
+	}
+
+	if len(vals) == 0 {
+		t.Errorf("no values found")
+	}
+
+	kcurr := uint(0)
+	vcurr := uint(0)
+	for i, k := range keys {
+		v := vals[i]
+
+		if kcurr > k {
+			t.Errorf("key inversion at index %d: %d %d", i, kcurr, k)
+		}
+		if kcurr != k {
+			// This is the first key-value pair seen for this key, so there
+			// can't be an inversion.
+			vcurr = 0
+		}
+
+		if vcurr > v {
+			t.Errorf("value inversion at index %d: %d %d", i, vcurr, v)
+		}
+
+		kcurr = k
+	}
+}
+
+func TestCursor_PutValue_UintptrUintptr(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenDBI("test", Create|IntegerKey|DupSort|IntegerDup|DupFixed)
+		return err
+	})
+	if err != nil {
+		t.Errorf("opendbi: %v", err)
+		return
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for i := uintptr(1); i < unsafe.Sizeof(uintptr(0))*8; i += 2 {
+			k := uintptr(1 << i)
+			v1 := uintptr(1)
+			v2 := uintptr(1 << i)
+			for _, v := range []uintptr{v1, v2} {
+				t.Logf("WRITE %016x=%016x", k, v)
+				err = cur.PutValue(Uintptr(k), Uintptr(v), 0)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Errorf("data import: %v", err)
+		return
+	}
+
+	var keys []uintptr
+	var vals []uintptr
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		k, v, err := cur.Get(nil, nil, First)
+		for err == nil {
+			_k, ok := GetUintptr(k)
+			if !ok {
+				t.Errorf("key is not a uintptr")
+			}
+			_v, ok := GetUintptr(v)
+			if !ok {
+				t.Errorf("value is not a uintptr")
+			}
+			t.Logf("READ %016x=%016x", _k, _v)
+			keys = append(keys, _k)
+			vals = append(vals, _v)
+			k, v, err = cur.Get(nil, nil, Next)
+		}
+		if IsNotFound(err) {
+			return nil
+		}
+		return err
+	})
+	if err != nil {
+		t.Errorf("data export: %v", err)
+		return
+	}
+
+	if len(keys) == 0 {
+		t.Errorf("no keys found")
+	}
+
+	if len(vals) == 0 {
+		t.Errorf("no values found")
+	}
+
+	kcurr := uintptr(0)
+	vcurr := uintptr(0)
+	for i, k := range keys {
+		v := vals[i]
+
+		if kcurr > k {
+			t.Errorf("key inversion at index %d: %d %d", i, kcurr, k)
+		}
+		if kcurr != k {
+			// This is the first key-value pair seen for this key, so there
+			// can't be an inversion.
+			vcurr = 0
+		}
+
+		if vcurr > v {
+			t.Errorf("value inversion at index %d: %d %d", i, vcurr, v)
+		}
+
+		kcurr = k
 	}
 }
 
