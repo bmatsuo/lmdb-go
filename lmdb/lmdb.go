@@ -80,6 +80,30 @@ the runtime's thread locking implementation.  In such situations updates
 desired by the goroutine in question must be proxied by a goroutine with a
 known state (i.e.  "locked" or "unlocked").  See the included examples for more
 details about dealing with such situations.
+
+Integer Values
+
+The IntegerKey and IntegerDup flags on databases allow LMDB to store C.uint and
+C.size_t data directly, sorted using standard integer comparison.  This is a
+performance optimization that avoids otherwise necessary serialization overhead
+storing unsigned integer data to ensure that keys, and values for duplicate
+keys in the case of DupSort, retain the correct ordering when using byte-wise
+comparison.
+
+Before committing your application to the use of integer values there are
+downsides to consider, particularly concerning application portability.  The
+acceptable values for the C.uint and C.size_t types are platform dependent.  As
+such, when using these flags it is easy to write application code which
+contains built-in assumptions about the target architecture.  Where an
+application which serializes unsigned integer data itself will deal with
+explicitly sized types like uint32 and uint64 and more naturally write their
+application in a way which is portable across architectures.
+
+Applications that have been written to serialize unsigned integer data as
+big-endian byte slices should consider benchmarking there applications before
+committing to the use of integer values for their application.  It is likely
+that applications will not notice a significant performance change unless
+operating on database with a large number of entries.
 */
 package lmdb
 
