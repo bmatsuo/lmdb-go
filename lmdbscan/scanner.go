@@ -53,6 +53,16 @@ func (s *Scanner) Del(flags uint) error {
 	return s.cur.Del(flags)
 }
 
+// Item returns the result of the last scanner movement.  The following two
+// lines functionally equivalent.
+//
+//		k, v, err = s.Item()
+//		k, v, err = s.Key(), s.Val(), s.Err()
+//
+func (s *Scanner) Item() ([]byte, []byte, error) {
+	return s.key, s.val, s.Err()
+}
+
 // Key returns the key read during the last call to Scan.
 func (s *Scanner) Key() []byte {
 	return s.key

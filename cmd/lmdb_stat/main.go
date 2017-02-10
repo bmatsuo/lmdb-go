@@ -230,8 +230,7 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 		s := lmdbscan.New(txn, 0)
 		defer s.Close()
 		for s.Scan() {
-			data := s.Val()
-			txid, err := lmdb.DataZ(s.Key(), nil)
+			txid, data, err := lmdb.DataZB(s.Item())
 			if err != nil {
 				panic(fmt.Sprintf("unexpected transaction key: %q", s.Key()))
 			}

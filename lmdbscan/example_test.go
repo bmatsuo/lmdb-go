@@ -8,6 +8,7 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdbscan"
 )
 
+var scanner *lmdbscan.Scanner
 var env *lmdb.Env
 var dbi lmdb.DBI
 
@@ -131,5 +132,21 @@ func ExampleScanner_SetNext_getMultiple() {
 	})
 	if err != nil {
 		panic(err)
+	}
+}
+
+// This example shows how Scanner.Item may be useful when dealing with
+// databases which store integer values.  This example reads uintptr database
+// values from the Scanner and sums them.  See the lmdb.IntegerKey and
+// lmdb.IntegerDup database flags for more information about storing integer
+// values.
+func ExampleScanner_Item() {
+	var total uintptr
+	for scanner.Scan() {
+		_, v, err := lmdb.DataBZ(scanner.Item())
+		if err != nil {
+			panic(err)
+		}
+		total += v
 	}
 }
