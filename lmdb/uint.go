@@ -46,20 +46,21 @@ func getUint(b []byte) (x uint, ok bool) {
 	return x, true
 }
 
-// UintMulti is a FixedPage implementation that stores C.uint-sized data
-// values.
+// UintMulti is a FixedMultiple implementation that stores C.uint-sized data
+// values that are read from Cursor.GetMultiple or to Cursor.PutMultiple.
 type UintMulti struct {
 	page []byte
 }
 
-var _ FixedPage = (*UintMulti)(nil)
+var _ FixedMultiple = (*UintMulti)(nil)
 
-// WrapUintMulti converts a page of contiguous uint value into a UintMulti.
-// WrapUintMulti panics if len(page) is not a multiple of
-// unsife.Sizeof(C.uint(0)).
+// UintMultiple converts a page of contiguous C.uint value into a UintMulti.
+// Use this function after calling Cursor.Get with op GetMultiple on a database
+// with DupSort|DupFixed|IntegerDup that stores C.uint values.  UintMultiple
+// panics if len(page) is not a multiple of unsife.Sizeof(C.uint(0)).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func WrapUintMulti(page []byte) *UintMulti {
+func UintMultiple(page []byte) *UintMulti {
 	if len(page)%int(uintSize) != 0 {
 		panic("argument is not a page of C.uint values")
 	}
@@ -67,22 +68,22 @@ func WrapUintMulti(page []byte) *UintMulti {
 	return &UintMulti{page}
 }
 
-// Len implements FixedPage.
+// Len implements FixedMultiple.
 func (m *UintMulti) Len() int {
 	return len(m.page) / int(uintSize)
 }
 
-// Stride implements FixedPage.
+// Stride implements FixedMultiple.
 func (m *UintMulti) Stride() int {
 	return int(uintSize)
 }
 
-// Size implements FixedPage.
+// Size implements FixedMultiple.
 func (m *UintMulti) Size() int {
 	return len(m.page)
 }
 
-// Page implements FixedPage.
+// Page implements FixedMultiple.
 func (m *UintMulti) Page() []byte {
 	return m.page
 }

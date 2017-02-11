@@ -5,13 +5,13 @@ import "fmt"
 var errNoFit = fmt.Errorf("data does not fit type")
 var errOverflow = fmt.Errorf("integer value overflows type")
 
-// FixedPage represents a contiguous sequence of fixed sized data items.
-// FixedPage implementations are often mutable and allow construction of data
+// FixedMultiple represents a contiguous sequence of fixed sized data items.
+// FixedMultiple implementations are often mutable and allow construction of data
 // for use with the Cursor.PutMulti method.
 //
-// FixedPage types are only particularly useful when working with databases
+// FixedMultiple types are only particularly useful when working with databases
 // opened with the DupSort|DupFixed combination of flags.
-type FixedPage interface {
+type FixedMultiple interface {
 	// Page returns the raw page data.  Page will not be modified by lmdb and
 	// may share memory with internal structures.  It is required of
 	// implementations that

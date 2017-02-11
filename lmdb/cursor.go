@@ -301,9 +301,9 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 	return operrno("mdb_cursor_put", ret)
 }
 
-// PutFixedPage wraps PutMulti to write FixedPage data into a database with the
+// PutMultiple writes a FixedMultiple data into a database with the
 // DupSort|DupFixed flag combination set.
-func (c *Cursor) PutFixedPage(key []byte, pg FixedPage, flags uint) error {
+func (c *Cursor) PutMultiple(key []byte, pg FixedMultiple, flags uint) error {
 	return c.PutMulti(key, pg.Page(), pg.Stride(), flags)
 }
 
@@ -317,9 +317,9 @@ func (c *Cursor) PutDataReserve(key Data, n int, flags uint) ([]byte, error) {
 	return c.PutReserve(dataToBytes(key), n, flags)
 }
 
-// PutDataFixedPage behaves like PutFixedPage but it accepts Data types.
-func (c *Cursor) PutDataFixedPage(key Data, pg FixedPage, flags uint) error {
-	return c.PutFixedPage(dataToBytes(key), pg, flags)
+// PutDataMultiple behaves like PutMultiple but it accepts Data types.
+func (c *Cursor) PutDataMultiple(key Data, pg FixedMultiple, flags uint) error {
+	return c.PutMultiple(dataToBytes(key), pg, flags)
 }
 
 // Del deletes the item referred to by the cursor from the database.

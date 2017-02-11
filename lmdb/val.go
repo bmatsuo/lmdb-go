@@ -29,7 +29,7 @@ const (
 	valMaxSize  = 1<<valSizeBits - 1
 )
 
-// Multi is a generic FixedPage implementation that can store contiguous
+// Multi is a generic FixedMultiple implementation that can store contiguous
 // fixed-width for a configurable width (stride).
 //
 // Multi values are only useful in databases opened with DupSort|DupFixed.
