@@ -107,16 +107,9 @@ func (m *UintMulti) CUint(i int) CUintData {
 	return x
 }
 
-// Append returns the UintMulti result of appending x to m as C.uint data.  It
-// is the callers responsibility to check for potential overflow using function
-// CUintCanFit.
-//
-// Applications on 64-bit architectures that want to store a 64-bit unsigned
-// value should use UintptrMulti type instead of UintMulti.
-func (m *UintMulti) Append(x uint) *UintMulti {
-	var buf [cUintSize]byte
-	*(*C.uint)(unsafe.Pointer(&buf[0])) = C.uint(x)
-	return &UintMulti{append(m.page, buf[:]...)}
+// Append returns the UintMulti result of appending x to m.
+func (m *UintMulti) Append(x CUintData) *UintMulti {
+	return &UintMulti{append(m.page, x[:]...)}
 }
 
 // CUintData contains an unsigned integer with size of a C.uint.
@@ -144,12 +137,6 @@ func (v CUintData) cuint() C.uint {
 // responsibility to check for overflow using function UintCanFit.
 func (v CUintData) Uint() uint {
 	return uint(v.cuint())
-}
-
-// SetUint stores the value of x as a C.uint in v.  It is the callers
-// responsibility to check for overflow using function CUintCanFit.
-func (v *CUintData) SetUint(x uint) {
-	*(*C.uint)(unsafe.Pointer(v)) = C.uint(x)
 }
 
 // cuint is a helper type for tests because tests cannot import C

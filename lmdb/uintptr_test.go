@@ -52,10 +52,10 @@ func TestUintptrMulti(t *testing.T) {
 	}
 	m := &UintptrMulti{}
 	for i := range xs {
-		m = m.Append(xs[i])
+		m = m.Append(CSizet(xs[i]))
 	}
 	for i := range xs {
-		x := m.Uintptr(i)
+		x := m.CSizet(i).Uintptr()
 		if x != xs[i] {
 			t.Errorf("%x != %x (index %d)", x, xs[i], i)
 		}

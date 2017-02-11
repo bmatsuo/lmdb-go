@@ -73,24 +73,16 @@ func (m *UintptrMulti) Page() []byte {
 	return m.page
 }
 
-// Uintptr returns the uintptr value at index i.
-func (m *UintptrMulti) Uintptr(i int) uintptr {
-	data := m.page[i*int(sizetSize) : (i+1)*int(sizetSize)]
-	x := uintptr(*(*C.size_t)(unsafe.Pointer(&data[0])))
-	if sizetSize > uintptrSize && C.size_t(x) != *(*C.size_t)(unsafe.Pointer(&data[0])) {
-		panic(errOverflow)
-	}
+// CSizet returns the CSizetData at index i.
+func (m *UintptrMulti) CSizet(i int) CSizetData {
+	var x CSizetData
+	copy(x[:], m.page[i*int(sizetSize):(i+1)*int(sizetSize)])
 	return x
 }
 
 // Append returns the UintptrMulti result of appending x to m as C.size_t data.
-func (m *UintptrMulti) Append(x uintptr) *UintptrMulti {
-	var buf [sizetSize]byte
-	*(*C.size_t)(unsafe.Pointer(&buf[0])) = C.size_t(x)
-	if sizetSize < uintptrSize && uintptr(*(*C.size_t)(unsafe.Pointer(&buf[0]))) != x {
-		panic(errOverflow)
-	}
-	return &UintptrMulti{append(m.page, buf[:]...)}
+func (m *UintptrMulti) Append(x CSizetData) *UintptrMulti {
+	return &UintptrMulti{append(m.page, x[:]...)}
 }
 
 // CSizetData contains an unsigned integer the size of a C.size_t.
@@ -112,11 +104,6 @@ func (v CSizetData) csizet() C.size_t {
 // Uintptr returns contained data as a uint value.
 func (v CSizetData) Uintptr() uintptr {
 	return uintptr(v.csizet())
-}
-
-// SetUintptr stores x as a C.size_t in v.
-func (v *CSizetData) SetUintptr(x uintptr) {
-	*(*C.size_t)(unsafe.Pointer(v)) = C.size_t(x)
 }
 
 // csizet is a helper type for tests because tests cannot import C

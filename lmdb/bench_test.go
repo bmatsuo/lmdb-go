@@ -213,12 +213,12 @@ func BenchmarkTxn_GetData_U_raw(b *testing.B) {
 		RawRead:  true,
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			key.SetUint(uint(k))
-			val.SetUint(uint(v))
+			key = CUint(uint(k))
+			val = CUint(uint(v))
 			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
-			key.SetUint(uint(k))
+			key = CUint(uint(k))
 			return txn.Get(dbi, key[:])
 		},
 	})
@@ -231,12 +231,12 @@ func BenchmarkTxn_GetData_Z_raw(b *testing.B) {
 		RawRead:  true,
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			key.SetUintptr(uintptr(k))
-			val.SetUintptr(uintptr(v))
+			key = CSizet(uintptr(k))
+			val = CSizet(uintptr(v))
 			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
-			key.SetUintptr(uintptr(k))
+			key = CSizet(uintptr(k))
 			return txn.Get(dbi, key[:])
 		},
 	})
@@ -265,12 +265,12 @@ func BenchmarkTxn_GetData_U_(b *testing.B) {
 	benchTxnGetUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			key.SetUint(uint(k))
-			val.SetUint(uint(v))
+			key = CUint(uint(k))
+			val = CUint(uint(v))
 			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
-			key.SetUint(uint(k))
+			key = CUint(uint(k))
 			return txn.Get(dbi, key[:])
 		},
 	})
@@ -282,12 +282,12 @@ func BenchmarkTxn_GetData_Z_(b *testing.B) {
 	benchTxnGetUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			key.SetUintptr(uintptr(k))
-			val.SetUintptr(uintptr(v))
+			key = CSizet(uintptr(k))
+			val = CSizet(uintptr(v))
 			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
-			key.SetUintptr(uintptr(k))
+			key = CSizet(uintptr(k))
 			return txn.Get(dbi, key[:])
 		},
 	})
@@ -347,8 +347,8 @@ func BenchmarkTxn_PutData_U_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			key.SetUint(uint(k))
-			val.SetUint(uint(v))
+			key = CUint(uint(k))
+			val = CUint(uint(v))
 			return txn.Put(dbi, key[:], val[:], 0)
 		},
 	})
@@ -360,8 +360,8 @@ func BenchmarkTxn_PutData_Z_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			key.SetUintptr(uintptr(k))
-			val.SetUintptr(uintptr(v))
+			key = CSizet(uintptr(k))
+			val = CSizet(uintptr(v))
 			return txn.Put(dbi, key[:], val[:], 0)
 		},
 	})

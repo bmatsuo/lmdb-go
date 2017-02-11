@@ -44,7 +44,7 @@ func TestUintMulti(t *testing.T) {
 	}
 	m := &UintMulti{}
 	for i := range xs {
-		m = m.Append(xs[i])
+		m = m.Append(CUint(xs[i]))
 	}
 	for i := range xs {
 		x := m.CUint(i).Uint()
