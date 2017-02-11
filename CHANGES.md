@@ -1,6 +1,8 @@
 #Release Change Log
 
-##v1.8.0
+##v1.9.0-dev
+
+##v1.8.0 (2017-02-10)
 
 - lmdbscan: The package was moved out of the exp/ subtree and can now be
   considered stable and suitable for general use.
