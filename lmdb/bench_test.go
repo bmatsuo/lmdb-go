@@ -81,7 +81,7 @@ func (opt *BenchOpt) randSeed() int64 {
 
 func (opt *BenchOpt) maxkey() uint64 {
 	if opt.MaxKey == 0 {
-		return 10000
+		return 200000
 	}
 	return opt.MaxKey
 }
@@ -242,7 +242,24 @@ func BenchmarkTxn_GetData_Z_raw(b *testing.B) {
 	})
 }
 
-func BenchmarkTxn_GetData_B_raw(b *testing.B) {
+func BenchmarkTxn_GetData_B4_raw(b *testing.B) {
+	key := make([]byte, 4)
+	val := make([]byte, 4)
+	benchTxnGetUint64(b, &BenchOpt{
+		RawRead: true,
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			binary.BigEndian.PutUint32(key, uint32(k))
+			binary.BigEndian.PutUint32(val, uint32(v))
+			return txn.Put(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			binary.BigEndian.PutUint32(key, uint32(k))
+			return txn.Get(dbi, key)
+		},
+	})
+}
+
+func BenchmarkTxn_GetData_B8_raw(b *testing.B) {
 	key := make([]byte, 8)
 	val := make([]byte, 8)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -293,7 +310,23 @@ func BenchmarkTxn_GetData_Z_(b *testing.B) {
 	})
 }
 
-func BenchmarkTxn_GetData_B_(b *testing.B) {
+func BenchmarkTxn_GetData_B4_(b *testing.B) {
+	key := make([]byte, 4)
+	val := make([]byte, 4)
+	benchTxnGetUint64(b, &BenchOpt{
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			binary.BigEndian.PutUint32(key, uint32(k))
+			binary.BigEndian.PutUint32(val, uint32(v))
+			return txn.Put(dbi, key, val, 0)
+		},
+		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
+			binary.BigEndian.PutUint32(key, uint32(k))
+			return txn.Get(dbi, key)
+		},
+	})
+}
+
+func BenchmarkTxn_GetData_B8_(b *testing.B) {
 	key := make([]byte, 8)
 	val := make([]byte, 8)
 	benchTxnGetUint64(b, &BenchOpt{
@@ -329,7 +362,19 @@ func BenchmarkTxn_PutData_z_(b *testing.B) {
 	})
 }
 
-func BenchmarkTxn_PutData_b_(b *testing.B) {
+func BenchmarkTxn_PutData_b4_(b *testing.B) {
+	benchTxnPutUint64(b, &BenchOpt{
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			key := make([]byte, 4)
+			val := make([]byte, 4)
+			binary.BigEndian.PutUint32(key, uint32(k))
+			binary.BigEndian.PutUint32(val, uint32(v))
+			return txn.Put(dbi, key, val, 0)
+		},
+	})
+}
+
+func BenchmarkTxn_PutData_b8_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key := make([]byte, 8)
@@ -367,7 +412,19 @@ func BenchmarkTxn_PutData_Z_(b *testing.B) {
 	})
 }
 
-func BenchmarkTxn_PutData_B_(b *testing.B) {
+func BenchmarkTxn_PutData_B4_(b *testing.B) {
+	key := make([]byte, 4)
+	val := make([]byte, 4)
+	benchTxnPutUint64(b, &BenchOpt{
+		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
+			binary.BigEndian.PutUint32(key, uint32(k))
+			binary.BigEndian.PutUint32(val, uint32(v))
+			return txn.Put(dbi, key, val, 0)
+		},
+	})
+}
+
+func BenchmarkTxn_PutData_B8_(b *testing.B) {
 	key := make([]byte, 8)
 	val := make([]byte, 8)
 	benchTxnPutUint64(b, &BenchOpt{
