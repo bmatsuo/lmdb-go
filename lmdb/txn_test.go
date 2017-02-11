@@ -214,42 +214,6 @@ func TestTxn_Del_dup(t *testing.T) {
 	}
 }
 
-/*
-func TestTxn_PutData(t *testing.T) {
-	env := setup(t)
-	defer clean(env, t)
-	const val = math.MaxUint32 - 1
-
-	var db DBI
-	err := env.Update(func(txn *Txn) (err error) {
-		db, err = txn.OpenRoot(0)
-		if err != nil {
-			return err
-		}
-		return txn.PutData(db, Bytes([]byte("k")), Uint(val), 0)
-	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	err = env.View(func(txn *Txn) (err error) {
-		v, err := DataU(txn.Get(db, []byte("k")))
-		if err != nil {
-			return err
-		}
-		if v != val {
-			return fmt.Errorf("value: %q", v)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
-}
-*/
-
 func TestTexn_Put_emptyData(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)

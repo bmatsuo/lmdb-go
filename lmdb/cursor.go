@@ -183,13 +183,6 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	return key, val, nil
 }
 
-// GetData behaves like Get but it accepts Data types.
-//
-// See mdb_cursor_get.
-func (c *Cursor) GetData(setkey, setval Data, op uint) (key, val []byte, err error) {
-	return c.Get(dataToBytes(setkey), dataToBytes(setval), op)
-}
-
 // getVal0 retrieves items from the database without using given key or value
 // data for reference (Next, First, Last, etc).
 //
@@ -303,23 +296,8 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 
 // PutMultiple writes a FixedMultiple data into a database with the
 // DupSort|DupFixed flag combination set.
-func (c *Cursor) PutMultiple(key []byte, pg FixedMultiple, flags uint) error {
-	return c.PutMulti(key, pg.Page(), pg.Stride(), flags)
-}
-
-// PutData behaves like Put but it accepts Data types.
-func (c *Cursor) PutData(key Data, val Data, flags uint) error {
-	return c.Put(dataToBytes(key), dataToBytes(val), flags)
-}
-
-// PutDataReserve behaves like PutReserve but it accepts Data types.
-func (c *Cursor) PutDataReserve(key Data, n int, flags uint) ([]byte, error) {
-	return c.PutReserve(dataToBytes(key), n, flags)
-}
-
-// PutDataMultiple behaves like PutMultiple but it accepts Data types.
-func (c *Cursor) PutDataMultiple(key Data, pg FixedMultiple, flags uint) error {
-	return c.PutMultiple(dataToBytes(key), pg, flags)
+func (c *Cursor) PutMultiple(key []byte, multiple FixedMultiple, flags uint) error {
+	return c.PutMulti(key, multiple.Page(), multiple.Stride(), flags)
 }
 
 // Del deletes the item referred to by the cursor from the database.

@@ -77,10 +77,10 @@ func (m *Multi) Append(b []byte) *Multi {
 		panic("bad data size")
 	}
 
-	_m := &Multi{}
-	*_m = *m
-	_m.page = append(_m.page, b...)
-	return _m
+	return &Multi{
+		stride: m.stride,
+		page:   append(m.page, b...),
+	}
 }
 
 // Len returns the number of values in the Multi.

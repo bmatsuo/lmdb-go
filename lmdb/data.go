@@ -36,34 +36,6 @@ type FixedMultiple interface {
 	Size() int
 }
 
-// Data is a container for data that can be written to an LMDB environment.
-//
-// Data types are only required when working with databases opened with the
-// IntegerKey or IntegerDup flags.  Using Data types in other situations will
-// only hurt the performance of your application.
-//
-// Data is a controlled interface that cannot be implemented by external
-// types.  The only implementations of Data are BytesData, UintData, and
-// UintptrData.
-type Data interface {
-	// tobytes is currently used to create a value which can be written to the
-	// database.  But in the future this may not always be the case. In
-	// particular, the github issue golang/go#6907 should allow the
-	// implementation of a StringData type and it may require special handling
-	// all the way to the cgo call site.  If that were the case a StringData
-	// type would still provide a tobytes implementation but it would
-	// potentially need to be bypassed using type assertions depending on the
-	// end implementation of #6907.
-	tobytes() []byte
-}
-
-func dataToBytes(v Data) []byte {
-	if v == nil {
-		return nil
-	}
-	return v.tobytes()
-}
-
 // DataBU extracts a C.uint value from valdata if error is nil and returns it
 // as a uint with keydata.
 //
@@ -250,19 +222,4 @@ func DataZZ(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
 	k, err := DataZ(keydata, err)
 	v, err := DataZ(valdata, err)
 	return k, v, err
-}
-
-// Bytes returns a Data containg b.  The returned value shares is memory with
-// b and b must not be modified while it is use.
-func Bytes(b []byte) BytesData {
-	return BytesData(b)
-}
-
-// BytesData is a Data that contains arbitrary data.
-type BytesData []byte
-
-var _ Data = BytesData(nil)
-
-func (v BytesData) tobytes() []byte {
-	return []byte(v)
 }

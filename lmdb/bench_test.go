@@ -413,40 +413,6 @@ func BenchmarkTxn_Put(b *testing.B) {
 	}
 }
 
-// repeatedly put (overwrite) keys.
-func BenchmarkTxn_PutData(b *testing.B) {
-	initRandSource(b)
-	env := setup(b)
-	defer clean(env, b)
-
-	dbi := openBenchDBI(b, env)
-
-	rc := newRandSourceCursor()
-	ps, err := populateBenchmarkDB(env, dbi, &rc)
-	if err != nil {
-		b.Errorf("populate db: %v", err)
-		return
-	}
-
-	err = env.Update(func(txn *Txn) (err error) {
-		b.ResetTimer()
-		defer b.StopTimer()
-		for i := 0; i < b.N; i++ {
-			k := ps[rand.Intn(len(ps)/2)*2]
-			v := makeBenchDBVal(&rc)
-			err := txn.PutData(dbi, Bytes(k), Bytes(v), 0)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		b.Error(err)
-		return
-	}
-}
-
 // repeatedly put (overwrite) keys using the PutReserve method.
 func BenchmarkTxn_PutReserve(b *testing.B) {
 	initRandSource(b)
