@@ -150,6 +150,7 @@ func Example_worker() {
 	})
 }
 
+/*
 // This example shows basic operations on databases use integer keys, integer
 // values, or both.  This is a fairly advanced example and assumes you are
 // familiar with more common operations with Txn and Cursor types.
@@ -341,6 +342,7 @@ func Example_integers() {
 		panic(err)
 	}
 }
+*/
 
 // This example demonstrates how an application typically uses Env.SetMapSize.
 // The call to Env.SetMapSize() is made before calling env.Open().  Any calls

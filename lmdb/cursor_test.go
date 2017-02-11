@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
-	"unsafe"
 )
 
 func TestCursor_Txn(t *testing.T) {
@@ -161,6 +160,7 @@ func TestCursor_bytesBuffer(t *testing.T) {
 	}
 }
 
+/*
 func TestCursor_PutData_unfixedUnsignedDup(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
@@ -458,6 +458,7 @@ func TestCursor_PutData_UintptrUintptr(t *testing.T) {
 		vcurr = v
 	}
 }
+*/
 
 func TestCursor_PutReserve(t *testing.T) {
 	env := setup(t)

@@ -98,7 +98,7 @@ func DataU(data []byte, err error) (uint, error) {
 	if err != nil {
 		return 0, err
 	}
-	if len(data) != int(uintSize) {
+	if len(data) != int(cUintSize) {
 		return 0, errNoFit
 	}
 	x, ok := getUint(data)
@@ -151,7 +151,7 @@ func DataX(data []byte, err error) (uintptr, error) {
 	if err != nil {
 		return 0, err
 	}
-	if len(data) == int(uintSize) {
+	if len(data) == int(cUintSize) {
 		x, ok := getUint(data)
 		if !ok {
 			return 0, errOverflow

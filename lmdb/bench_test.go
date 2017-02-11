@@ -207,19 +207,19 @@ func loadUint64(env *Env, r *rand.Rand, opt *BenchOpt) (DBI, error) {
 }
 
 func BenchmarkTxn_GetData_U_raw(b *testing.B) {
-	key := Uint(0)
-	val := Uint(0)
+	key := CUint(0)
+	val := CUint(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		RawRead:  true,
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUint(uint(k))
 			val.SetUint(uint(v))
-			return txn.PutData(dbi, key, val, 0)
+			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUint(uint(k))
-			return txn.GetData(dbi, key)
+			return txn.Get(dbi, key[:])
 		},
 	})
 }
@@ -260,18 +260,18 @@ func BenchmarkTxn_GetData_B_raw(b *testing.B) {
 }
 
 func BenchmarkTxn_GetData_U_(b *testing.B) {
-	key := Uint(0)
-	val := Uint(0)
+	key := CUint(0)
+	val := CUint(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUint(uint(k))
 			val.SetUint(uint(v))
-			return txn.PutData(dbi, key, val, 0)
+			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUint(uint(k))
-			return txn.GetData(dbi, key)
+			return txn.Get(dbi, key[:])
 		},
 	})
 }
@@ -313,7 +313,8 @@ func BenchmarkTxn_PutData_u_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			return txn.PutData(dbi, Uint(uint(k)), Uint(uint(v)), 0)
+			_k, _v := CUint(uint(k)), CUint(uint(v))
+			return txn.Put(dbi, _k[:], _v[:], 0)
 		},
 	})
 }
@@ -340,14 +341,14 @@ func BenchmarkTxn_PutData_b_(b *testing.B) {
 }
 
 func BenchmarkTxn_PutData_U_(b *testing.B) {
-	key := Uint(0)
-	val := Uint(0)
+	key := CUint(0)
+	val := CUint(0)
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUint(uint(k))
 			val.SetUint(uint(v))
-			return txn.PutData(dbi, key, val, 0)
+			return txn.Put(dbi, key[:], val[:], 0)
 		},
 	})
 }

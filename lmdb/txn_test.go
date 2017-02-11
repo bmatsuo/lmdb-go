@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"os"
 	"runtime"
 	"syscall"
@@ -215,6 +214,7 @@ func TestTxn_Del_dup(t *testing.T) {
 	}
 }
 
+/*
 func TestTxn_PutData(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
@@ -248,6 +248,7 @@ func TestTxn_PutData(t *testing.T) {
 		return
 	}
 }
+*/
 
 func TestTexn_Put_emptyData(t *testing.T) {
 	env := setup(t)

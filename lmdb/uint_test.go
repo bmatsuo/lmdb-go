@@ -6,19 +6,16 @@ import (
 )
 
 func TestUint(t *testing.T) {
-	const BitWidth = gouintSize
-	const CBitWidth = uintSize
+	const BitWidth = goUintSize
+	const CBitWidth = cUintSize
 	for i := uint(0); i < uint(BitWidth); i++ {
 		x := uint(1 << i)
-		cx := Uint(x)
-		_x, ok := getUint(dataToBytes(cx))
+		cx := CUint(x)
+		ok := UintCanFit(cx)
 		if !ok {
 			t.Errorf("getUint(Uint(%x)) == false", x)
 		}
-		if _x != x {
-			t.Errorf("getUint(Uint(%x)) != %x (%x)", x, x, _x)
-		}
-		_x = cx.Uint()
+		_x := cx.Uint()
 		if _x != x {
 			t.Errorf("Uint(%x).Uint() != %x (%x)", x, x, _x)
 		}
@@ -26,14 +23,15 @@ func TestUint(t *testing.T) {
 
 	for i := uint(0); i < uint(CBitWidth); i++ {
 		x := cuint(1 << i)
-		var cx UintData
-		*(*cuint)(unsafe.Pointer(&cx[0])) = x
-		_x, ok := getUint(dataToBytes(&cx))
+		var cx CUintData
+		*(*cuint)(unsafe.Pointer(&cx)) = x
+		ok := UintCanFit(cx)
 		if !ok {
-			t.Errorf("getUint(C.uint(%x)) == false", x)
+			t.Errorf("getUint(CUint(%x)) == false", x)
 		}
+		_x := cx.Uint()
 		if cuint(_x) != x {
-			t.Errorf("C.uint(getUint(C.uint(%x))) != C.uint(%x) (C.uint(%x))", x, x, _x)
+			t.Errorf("C.uint(CUint(%x).Uint()) != C.uint(%x) (C.uint(%x))", x, x, _x)
 		}
 	}
 }
@@ -49,7 +47,7 @@ func TestUintMulti(t *testing.T) {
 		m = m.Append(xs[i])
 	}
 	for i := range xs {
-		x := m.Uint(i)
+		x := m.CUint(i).Uint()
 		if x != xs[i] {
 			t.Errorf("%x != %x (index %d)", x, xs[i], i)
 		}
