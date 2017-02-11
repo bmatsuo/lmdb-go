@@ -85,16 +85,6 @@ func (s *Scanner) Set(k, v []byte, opset uint) bool {
 	return s.err == nil
 }
 
-// SetData behaves like Set but it accepts lmdb.Data types.
-func (s *Scanner) SetData(k, v lmdb.Data, opset uint) bool {
-	if !s.checkOpen() {
-		return false
-	}
-	s.set = true
-	s.key, s.val, s.err = s.cur.GetData(k, v, opset)
-	return s.err == nil
-}
-
 // SetNext moves the cursor like s.Set(k, v, opset) for the next call to
 // s.Scan().  Subsequent calls to s.Scan() move the cursor as c.Get(nil, nil,
 // opnext)
@@ -103,16 +93,6 @@ func (s *Scanner) SetNext(k, v []byte, opset, opnext uint) bool {
 		return false
 	}
 	ok := s.Set(k, v, opset)
-	s.op = opnext
-	return ok
-}
-
-// SetNextData behaves like SetNext but it accepts lmdb.Data types.
-func (s *Scanner) SetNextData(k, v lmdb.Data, opset, opnext uint) bool {
-	if !s.checkOpen() {
-		return false
-	}
-	ok := s.SetData(k, v, opset)
 	s.op = opnext
 	return ok
 }
