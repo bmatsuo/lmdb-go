@@ -46,6 +46,14 @@ type FixedMultiple interface {
 // types.  The only implementations of Data are BytesData, UintData, and
 // UintptrData.
 type Data interface {
+	// tobytes is currently used to create a value which can be written to the
+	// database.  But in the future this may not always be the case. In
+	// particular, the github issue golang/go#6907 should allow the
+	// implementation of a StringData type and it may require special handling
+	// all the way to the cgo call site.  If that were the case a StringData
+	// type would still provide a tobytes implementation but it would
+	// potentially need to be bypassed using type assertions depending on the
+	// end implementation of #6907.
 	tobytes() []byte
 }
 
