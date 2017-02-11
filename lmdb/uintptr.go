@@ -17,11 +17,6 @@ import "unsafe"
 const sizetSize = unsafe.Sizeof(C.size_t(0))
 const uintptrSize = unsafe.Sizeof(uintptr(0))
 
-// Uintptr returns a UintptrData containing the value C.size_t(x).
-func Uintptr(x uintptr) *UintptrData {
-	return newSizetData(x)
-}
-
 // getUintptr interprets the bytes of b as a C.size_t and returns the uintptr
 // value.  getUintptr returns false if b is not the size of a C.size_t or
 // cannot be decoded into a uintptr.
@@ -98,36 +93,30 @@ func (m *UintptrMulti) Append(x uintptr) *UintptrMulti {
 	return &UintptrMulti{append(m.page, buf[:]...)}
 }
 
-// UintptrData is a Data that contains a C.size_t-sized data.
-type UintptrData [sizetSize]byte
+// CSizetData contains an unsigned integer the size of a C.size_t.
+type CSizetData [sizetSize]byte
 
-var _ Data = (*UintptrData)(nil)
+// CSizet returns a UintptrData containing the value C.size_t(x).
+func CSizet(x uintptr) CSizetData {
+	return cSizetData(C.size_t(x))
+}
 
-func newSizetData(x uintptr) *UintptrData {
-	v := new(UintptrData)
-	v.SetUintptr(x)
-	return v
+func cSizetData(x C.size_t) CSizetData {
+	return *(*CSizetData)(unsafe.Pointer(&x))
+}
+
+func (v CSizetData) csizet() C.size_t {
+	return *(*C.size_t)(unsafe.Pointer(&v))
 }
 
 // Uintptr returns contained data as a uint value.
-func (v *UintptrData) Uintptr() uintptr {
-	x := *(*C.size_t)(unsafe.Pointer(&(*v)[0]))
-	if sizetSize > uintptrSize && C.size_t(uintptr(x)) != x {
-		panic(errOverflow)
-	}
-	return uintptr(x)
+func (v CSizetData) Uintptr() uintptr {
+	return uintptr(v.csizet())
 }
 
 // SetUintptr stores x as a C.size_t in v.
-func (v *UintptrData) SetUintptr(x uintptr) {
-	*(*C.size_t)(unsafe.Pointer(&(*v)[0])) = C.size_t(x)
-	if sizetSize < uintptrSize && uintptr(*(*C.size_t)(unsafe.Pointer(&(*v)[0]))) != x {
-		panic(errOverflow)
-	}
-}
-
-func (v *UintptrData) tobytes() []byte {
-	return (*v)[:]
+func (v *CSizetData) SetUintptr(x uintptr) {
+	*(*C.size_t)(unsafe.Pointer(v)) = C.size_t(x)
 }
 
 // csizet is a helper type for tests because tests cannot import C

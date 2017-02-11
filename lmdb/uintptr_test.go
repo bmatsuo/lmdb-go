@@ -16,8 +16,8 @@ func TestUintptr(t *testing.T) {
 	const CBitWidth = unsafe.Sizeof(csizet(0))
 	for i := uint(0); i < uint(BitWidth); i++ {
 		x := uintptr(1 << i)
-		cx := Uintptr(x)
-		_x, ok := getUintptr(dataToBytes(cx))
+		cx := CSizet(x)
+		_x, ok := getUintptr(cx[:])
 		if !ok {
 			t.Errorf("getUintptr(Uintptr(%x)) == false", x)
 		}
@@ -32,9 +32,9 @@ func TestUintptr(t *testing.T) {
 
 	for i := uint(0); i < uint(CBitWidth); i++ {
 		x := csizet(1 << i)
-		var cx UintptrData
-		*(*csizet)(unsafe.Pointer(&cx[0])) = x
-		_x, ok := getUintptr(dataToBytes(&cx))
+		var cx CSizetData
+		*(*csizet)(unsafe.Pointer(&cx)) = x
+		_x, ok := getUintptr(cx[:])
 		if !ok {
 			t.Errorf("getUintptr(C.size_t(%x)) == false", x)
 		}

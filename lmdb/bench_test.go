@@ -225,19 +225,19 @@ func BenchmarkTxn_GetData_U_raw(b *testing.B) {
 }
 
 func BenchmarkTxn_GetData_Z_raw(b *testing.B) {
-	key := Uintptr(0)
-	val := Uintptr(0)
+	key := CSizet(0)
+	val := CSizet(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		RawRead:  true,
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUintptr(uintptr(k))
 			val.SetUintptr(uintptr(v))
-			return txn.PutData(dbi, key, val, 0)
+			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUintptr(uintptr(k))
-			return txn.GetData(dbi, key)
+			return txn.Get(dbi, key[:])
 		},
 	})
 }
@@ -277,18 +277,18 @@ func BenchmarkTxn_GetData_U_(b *testing.B) {
 }
 
 func BenchmarkTxn_GetData_Z_(b *testing.B) {
-	key := Uintptr(0)
-	val := Uintptr(0)
+	key := CSizet(0)
+	val := CSizet(0)
 	benchTxnGetUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUintptr(uintptr(k))
 			val.SetUintptr(uintptr(v))
-			return txn.PutData(dbi, key, val, 0)
+			return txn.Put(dbi, key[:], val[:], 0)
 		},
 		Get: func(txn *Txn, dbi DBI, k uint64) ([]byte, error) {
 			key.SetUintptr(uintptr(k))
-			return txn.GetData(dbi, key)
+			return txn.Get(dbi, key[:])
 		},
 	})
 }
@@ -323,7 +323,8 @@ func BenchmarkTxn_PutData_z_(b *testing.B) {
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
-			return txn.PutData(dbi, Uintptr(uintptr(k)), Uintptr(uintptr(v)), 0)
+			_k, _v := CSizet(uintptr(k)), CSizet(uintptr(v))
+			return txn.Put(dbi, _k[:], _v[:], 0)
 		},
 	})
 }
@@ -354,14 +355,14 @@ func BenchmarkTxn_PutData_U_(b *testing.B) {
 }
 
 func BenchmarkTxn_PutData_Z_(b *testing.B) {
-	key := Uintptr(0)
-	val := Uintptr(0)
+	key := CSizet(0)
+	val := CSizet(0)
 	benchTxnPutUint64(b, &BenchOpt{
 		DBIFlags: IntegerKey,
 		Put: func(txn *Txn, dbi DBI, k uint64, v uint64) error {
 			key.SetUintptr(uintptr(k))
 			val.SetUintptr(uintptr(v))
-			return txn.PutData(dbi, key, val, 0)
+			return txn.Put(dbi, key[:], val[:], 0)
 		},
 	})
 }

@@ -119,8 +119,7 @@ func (m *UintMulti) Append(x uint) *UintMulti {
 	return &UintMulti{append(m.page, buf[:]...)}
 }
 
-// CUintData is a chunk of bytes that contains an unsigned integer with size of
-// a C.uint.
+// CUintData contains an unsigned integer with size of a C.uint.
 type CUintData [cUintSize]byte
 
 // CUint returns a CUintData containing the value C.uint(x).  It is the
