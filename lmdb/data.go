@@ -67,17 +67,21 @@ func DataBZ(keydata, valdata []byte, err error) ([]byte, uintptr, error) {
 // DataU extracts a C.uint value from data if error is nil and returns it as a
 // uint.
 func DataU(data []byte, err error) (uint, error) {
+	var x CUintData
+
 	if err != nil {
 		return 0, err
 	}
 	if len(data) != int(cUintSize) {
 		return 0, errNoFit
 	}
-	x, ok := getUint(data)
-	if !ok {
+	copy(x[:], data)
+
+	if !UIntCanFit(x) {
 		return 0, errOverflow
 	}
-	return x, nil
+
+	return x.Uint(), nil
 }
 
 // DataUB extracts a C.uint value from keydata if error is nil and returns it
@@ -120,24 +124,17 @@ func DataUZ(keydata, valdata []byte, err error) (uint, uintptr, error) {
 // uintptr.  If data is the size of a C.uint it is treated as such and
 // converted to a uintptr.
 func DataX(data []byte, err error) (uintptr, error) {
+	z, err := DataZ(data, err)
+	if err != nil && err != errNoFit {
+		return 0, err
+	}
+
+	u, err := DataZ(data, err)
 	if err != nil {
 		return 0, err
 	}
-	if len(data) == int(cUintSize) {
-		x, ok := getUint(data)
-		if !ok {
-			return 0, errOverflow
-		}
-		return uintptr(x), nil
-	}
-	if len(data) == int(sizetSize) {
-		x, ok := getUintptr(data)
-		if !ok {
-			return 0, errOverflow
-		}
-		return x, nil
-	}
-	return 0, errNoFit
+
+	return uintptr(u), nil
 }
 
 // DataXB extracts an integer value from keydata if error is nil and returns it
@@ -179,17 +176,17 @@ func DataXZ(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
 // DataZ extracts a C.size_t value from data if error is nil and returns it as
 // a uintptr.
 func DataZ(data []byte, err error) (uintptr, error) {
+	var x CSizetData
+
 	if err != nil {
 		return 0, err
 	}
 	if len(data) != int(sizetSize) {
 		return 0, errNoFit
 	}
-	x, ok := getUintptr(data)
-	if !ok {
-		return 0, errOverflow
-	}
-	return x, nil
+	copy(x[:], data)
+
+	return x.Uintptr(), nil
 }
 
 // DataZB extracts a C.size_t value from keydata if error is nil and returns it
