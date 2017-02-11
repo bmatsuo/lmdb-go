@@ -104,6 +104,57 @@ big-endian byte slices should consider benchmarking there applications before
 committing to the use of integer values for their application.  It is likely
 that applications will not notice a significant performance change unless
 operating on database with a large number of entries.
+
+When retrieving integer data from a database the package lmdb does not know
+what type of data you are retrieving.  Because of this everything is returned
+as a raw []byte.  In order to extract integer values package lmdb provides the
+developer with safe conversion functions which are listed below for reference.
+
+	DataU
+	DataX
+	DataZ
+	DataBU
+	DataBX
+	DataBZ
+	DataUB
+	DataUU
+	DataUX
+	DataUZ
+	DataXB
+	DataXU
+	DataXX
+	DataXZ
+	DataZB
+	DataZU
+	DataZX
+	DataZZ
+
+The suffix on the conversion function denotes the types of value(s) extracted
+from []byte data and the length of the suffix denotes the number of []byte
+arguments accepted converted.  The character 'U' in a suffix means the
+conversion function extracts a C.uint value as a uint.  The character 'Z' in a
+suffix means the function extracts a C.size_t value as a uintptr.  The
+character 'X' in a suffix means that the function will extract either C.uint or
+C.size_t based on the size of the input []byte.
+
+Conversion functions with a single-letter suffix (e.g.  DataU), take a single
+[]byte value with an error and can safely extract integers from the result of
+Txn.Get.  So, DataU will take ([]byte, error) arguments and return (uint,
+error) results.
+
+Conversion functions with a two-letter suffix (e.g.  DataZU) take two []byte
+values with an error and can safely extract integers the result of Cursor.Get.
+So, DataZU will take ([]byte, []byte, error) arguments and return (uintptr,
+uint, error) results.  These three-argument conversion functions also have
+special variants using the character 'B' in their suffix which signifies that
+the corresponding []byte argument will be returned as it is given.  So an
+application that with a database using only the flag IntegerKey might call
+Cursor.Get and pass its results to DataZB (or DataUB).
+
+	id, data, err := lmdb.DataZB(cursor.Get(nil, nil, lmdb.First))
+
+The id variable above will have type uintptr while data will be the bytes
+returned by cursor.Get, unmodified.
 */
 package lmdb
 
