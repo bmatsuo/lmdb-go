@@ -22,20 +22,20 @@ const CUintMax = C.UINT_MAX
 const cUintSize = unsafe.Sizeof(C.uint(0))
 const goUintSize = unsafe.Sizeof(uint(0))
 
-// CUintCanFit returns true if value x can be stored in type C.uint.  It is the
+// CanFitInCUint returns true if value x can be stored in type C.uint.  It is the
 // application programmer's responsibility to call this function when
 // applicable.
-func CUintCanFit(x uint) bool {
+func CanFitInCUint(x uint) bool {
 	if cUintSize < goUintSize && x != uint(C.uint(x)) {
 		return false
 	}
 	return true
 }
 
-// UintCanFit returns true if value x can stored in type uint, which is
+// CanFitInUint returns true if value x can stored in type uint, which is
 // typically always possible.  It is the application programmer's
 // responsibility to call this function when applicable.
-func UintCanFit(x CUintData) bool {
+func CanFitInUint(x CUintData) bool {
 	_x := x.cuint()
 	if cUintSize > goUintSize && _x != C.uint(uint(_x)) {
 		return false
@@ -58,58 +58,58 @@ func getUint(b []byte) (x uint, ok bool) {
 	return x, true
 }
 
-// UintMulti is a FixedMultiple implementation that stores C.uint-sized data
+// MultiCUint is a FixedMultiple implementation that stores C.uint-sized data
 // values that are read from Cursor.GetMultiple or to Cursor.PutMultiple.
-type UintMulti struct {
+type MultiCUint struct {
 	page []byte
 }
 
-var _ FixedMultiple = (*UintMulti)(nil)
+var _ FixedMultiple = (*MultiCUint)(nil)
 
-// UintMultiple converts a page of contiguous C.uint value into a UintMulti.
+// MultipleCUint converts a page of contiguous C.uint value into a MultiCUint.
 // Use this function after calling Cursor.Get with op GetMultiple on a database
-// with DupSort|DupFixed|IntegerDup that stores C.uint values.  UintMultiple
+// with DupSort|DupFixed|IntegerDup that stores C.uint values.  MultipleCUint
 // panics if len(page) is not a multiple of unsife.Sizeof(C.uint(0)).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func UintMultiple(page []byte) *UintMulti {
+func MultipleCUint(page []byte) *MultiCUint {
 	if len(page)%int(cUintSize) != 0 {
 		panic("argument is not a page of C.uint values")
 	}
 
-	return &UintMulti{page}
+	return &MultiCUint{page}
 }
 
 // Len implements FixedMultiple.
-func (m *UintMulti) Len() int {
+func (m *MultiCUint) Len() int {
 	return len(m.page) / int(cUintSize)
 }
 
 // Stride implements FixedMultiple.
-func (m *UintMulti) Stride() int {
+func (m *MultiCUint) Stride() int {
 	return int(cUintSize)
 }
 
 // Size implements FixedMultiple.
-func (m *UintMulti) Size() int {
+func (m *MultiCUint) Size() int {
 	return len(m.page)
 }
 
 // Page implements FixedMultiple.
-func (m *UintMulti) Page() []byte {
+func (m *MultiCUint) Page() []byte {
 	return m.page
 }
 
 // CUint returns the uint value at index i.
-func (m *UintMulti) CUint(i int) CUintData {
+func (m *MultiCUint) CUint(i int) CUintData {
 	var x CUintData
 	copy(x[:], m.page[i*int(cUintSize):(i+1)*int(cUintSize)])
 	return x
 }
 
-// Append returns the UintMulti result of appending x to m.
-func (m *UintMulti) Append(x CUintData) *UintMulti {
-	return &UintMulti{append(m.page, x[:]...)}
+// Append returns the MultiCUint result of appending x to m.
+func (m *MultiCUint) Append(x CUintData) *MultiCUint {
+	return &MultiCUint{append(m.page, x[:]...)}
 }
 
 // CUintData contains an unsigned integer with size of a C.uint.
@@ -117,7 +117,7 @@ type CUintData [cUintSize]byte
 
 // CUint returns a CUintData containing the value C.uint(x).  It is the
 // caller's responsibility to check for any potential overflow using the
-// function CUintOverflows.
+// function CanFitInCUint.
 //
 // Applications on 64-bit architectures that want to store a 64-bit unsigned
 // value should use Uintptr type instead of Uint.
@@ -134,7 +134,7 @@ func (v CUintData) cuint() C.uint {
 }
 
 // Uint returns contained data as a uint value.  It is the callers
-// responsibility to check for overflow using function UintCanFit.
+// responsibility to check for overflow using function CanFitInUint.
 func (v CUintData) Uint() uint {
 	return uint(v.cuint())
 }

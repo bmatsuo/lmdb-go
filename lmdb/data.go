@@ -77,7 +77,7 @@ func DataU(data []byte, err error) (uint, error) {
 	}
 	copy(x[:], data)
 
-	if !UIntCanFit(x) {
+	if !CanFitInUint(x) {
 		return 0, errOverflow
 	}
 
@@ -125,7 +125,10 @@ func DataUZ(keydata, valdata []byte, err error) (uint, uintptr, error) {
 // converted to a uintptr.
 func DataX(data []byte, err error) (uintptr, error) {
 	z, err := DataZ(data, err)
-	if err != nil && err != errNoFit {
+	if err == nil {
+		return z, nil
+	}
+	if err != errNoFit {
 		return 0, err
 	}
 

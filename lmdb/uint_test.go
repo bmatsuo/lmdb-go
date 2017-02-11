@@ -11,7 +11,7 @@ func TestUint(t *testing.T) {
 	for i := uint(0); i < uint(BitWidth); i++ {
 		x := uint(1 << i)
 		cx := CUint(x)
-		ok := UintCanFit(cx)
+		ok := CanFitInUint(cx)
 		if !ok {
 			t.Errorf("getUint(Uint(%x)) == false", x)
 		}
@@ -25,7 +25,7 @@ func TestUint(t *testing.T) {
 		x := cuint(1 << i)
 		var cx CUintData
 		*(*cuint)(unsafe.Pointer(&cx)) = x
-		ok := UintCanFit(cx)
+		ok := CanFitInUint(cx)
 		if !ok {
 			t.Errorf("getUint(CUint(%x)) == false", x)
 		}
@@ -42,7 +42,7 @@ func TestUintMulti(t *testing.T) {
 	for i := uint(0); i < uint(BitWidth); i++ {
 		xs = append(xs, 1<<i)
 	}
-	m := &UintMulti{}
+	m := &MultiCUint{}
 	for i := range xs {
 		m = m.Append(CUint(xs[i]))
 	}

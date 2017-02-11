@@ -30,59 +30,59 @@ func getUintptr(b []byte) (x uintptr, ok bool) {
 	return x, true
 }
 
-// UintptrMulti is a FixedMultiple implementation that stores C.size_t-sized data
+// MultiCSizet is a FixedMultiple implementation that stores C.size_t-sized data
 // values.
-type UintptrMulti struct {
+type MultiCSizet struct {
 	page []byte
 }
 
-var _ FixedMultiple = (*UintptrMulti)(nil)
+var _ FixedMultiple = (*MultiCSizet)(nil)
 
-// UintptrMultiple converts a page of contiguous C.size_t value into a
-// UintptrMulti.  Use this function after calling Cursor.Get with op
-// GetMultiple on a database with DupSort|DupFixed|IntegerDup that stores
-// C.size_t values.  UintptrMultiple panics if len(page) is not a multiple of
+// MultipleCSizet converts a page of contiguous C.size_t value into a
+// MultiCSizet.  Use this function after calling Cursor.Get with op GetMultiple
+// on a database with DupSort|DupFixed|IntegerDup that stores C.size_t values.
+// MultipleCSizet panics if len(page) is not a multiple of
 // unsife.Sizeof(C.size_t(0)).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func UintptrMultiple(page []byte) *UintptrMulti {
+func MultipleCSizet(page []byte) *MultiCSizet {
 	if len(page)%int(sizetSize) != 0 {
 		panic("argument is not a page of C.size_t values")
 	}
 
-	return &UintptrMulti{page}
+	return &MultiCSizet{page}
 }
 
 // Len implements FixedMultiple.
-func (m *UintptrMulti) Len() int {
+func (m *MultiCSizet) Len() int {
 	return len(m.page) / int(sizetSize)
 }
 
 // Stride implements FixedMultiple.
-func (m *UintptrMulti) Stride() int {
+func (m *MultiCSizet) Stride() int {
 	return int(sizetSize)
 }
 
 // Size implements FixedMultiple.
-func (m *UintptrMulti) Size() int {
+func (m *MultiCSizet) Size() int {
 	return len(m.page)
 }
 
 // Page implements FixedMultiple.
-func (m *UintptrMulti) Page() []byte {
+func (m *MultiCSizet) Page() []byte {
 	return m.page
 }
 
 // CSizet returns the CSizetData at index i.
-func (m *UintptrMulti) CSizet(i int) CSizetData {
+func (m *MultiCSizet) CSizet(i int) CSizetData {
 	var x CSizetData
 	copy(x[:], m.page[i*int(sizetSize):(i+1)*int(sizetSize)])
 	return x
 }
 
-// Append returns the UintptrMulti result of appending x to m as C.size_t data.
-func (m *UintptrMulti) Append(x CSizetData) *UintptrMulti {
-	return &UintptrMulti{append(m.page, x[:]...)}
+// Append returns the MultiCSizet result of appending x to m as C.size_t data.
+func (m *MultiCSizet) Append(x CSizetData) *MultiCSizet {
+	return &MultiCSizet{append(m.page, x[:]...)}
 }
 
 // CSizetData contains an unsigned integer the size of a C.size_t.
