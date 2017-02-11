@@ -1,10 +1,36 @@
 #Release Change Log
 
-##v1.8.0-dev
+##v1.9.0-dev
+
+##v1.8.0 (2017-02-10)
 
 - lmdbscan: The package was moved out of the exp/ subtree and can now be
   considered stable and suitable for general use.
 - lmdb: Update LMDB C library to version 0.9.19 (#92).
+
+```
+	Fix mdb_env_cwalk cursor init (ITS#8424)
+	Fix robust mutexes on Solaris 10/11 (ITS#8339)
+	Tweak Win32 error message buffer
+	Fix MDB_GET_BOTH on non-dup record (ITS#8393)
+	Optimize mdb_drop
+	Fix xcursors after mdb_cursor_del (ITS#8406)
+	Fix MDB_NEXT_DUP after mdb_cursor_del (ITS#8412)
+	Fix mdb_cursor_put resetting C_EOF (ITS#8489)
+	Fix mdb_env_copyfd2 to return EPIPE on SIGPIPE (ITS#8504)
+	Fix mdb_env_copy with empty DB (ITS#8209)
+	Fix behaviors with fork (ITS#8505)
+	Fix mdb_dbi_open with mainDB cursors (ITS#8542)
+	Fix robust mutexes on kFreeBSD (ITS#8554)
+	Fix utf8_to_utf16 error checks (ITS#7992)
+	Fix F_NOCACHE on MacOS, error is non-fatal (ITS#7682)
+	Build
+		Make shared lib suffix overridable (ITS#8481)
+	Documentation
+		Cleanup doxygen nits
+		Note reserved vs actual mem/disk usage
+```
+
 - lmdb: Fix resource leak in cursor tests (bcf4e9f).
 - lmdb: Fix panic in Cursor.Get when using the Set op (#96).
 - docs: Improve documentation about when runtime.LockOSThread is required
