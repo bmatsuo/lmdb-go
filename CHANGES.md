@@ -2,7 +2,8 @@
 
 ##v1.9.0-dev
 
-- Fix unsafe behavior in benchmarks (#101)
+- Fix unsafe threading behavior in benchmarks (#101)
+- Update transactions no longer allocate `MDB_val` objects (#102)
 
 ##v1.8.0 (2017-02-10)
 
