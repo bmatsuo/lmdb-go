@@ -275,6 +275,10 @@ func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 // PutMulti panics if len(page) is not a multiple of stride.  The cursor's
 // database must be DupFixed and DupSort.
 //
+// PutMulti is a deprecated function.  It does not return the number of items
+// written in the case of partial completion.  PutMultiple should be used in
+// place of PutMulti.
+//
 // See mdb_cursor_put.
 func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
 	if len(key) == 0 {
@@ -290,14 +294,40 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
 		(*C.char)(unsafe.Pointer(&page[0])), C.size_t(vn), C.size_t(stride),
 		C.uint(flags|C.MDB_MULTIPLE),
+		nil,
 	)
 	return operrno("mdb_cursor_put", ret)
 }
 
-// PutMultiple writes a FixedMultiple data into a database with the
-// DupSort|DupFixed flag combination set.
-func (c *Cursor) PutMultiple(key []byte, multiple FixedMultiple, flags uint) error {
-	return c.PutMulti(key, multiple.Page(), multiple.Stride(), flags)
+// PutMultiple writes FixedMultiple data associated with key into a database
+// (the database must have the DupSort|DupFixed combination of flags).  The
+// Multiple flag will be included to the underlying call to mdb_cursor_put
+// automatically and does not need to be provided to PutMultiple.  The number
+// of elements successfully written is returned along with any error
+// encountered.
+//
+// PutMultiple does not perform validation of the multiple object.  That is,
+// PutMultiple assumes that the values returned by multiple's methods are
+// congruent with one another, as the interface mandates.
+//
+// See mdb_cursor_put.
+func (c *Cursor) PutMultiple(key []byte, multiple FixedMultiple, flags uint) (int, error) {
+	key, kn := valBytes(key)
+	data, dn := valBytes(multiple.Page())
+
+	var _n C.size_t
+	ret := C.lmdbgo_mdb_cursor_putmulti(
+		c._c,
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(kn),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(dn), C.size_t(multiple.Stride()),
+		C.uint(flags|C.MDB_MULTIPLE),
+		&_n,
+	)
+
+	// There is no real concern for overflow on the output (unless for some
+	// buggy output from LMDB).  The input interface must be able to represent
+	// its length as an integer.  So the conversion should not fail.
+	return int(_n), operrno("mdb_cursor_put", ret)
 }
 
 // Del deletes the item referred to by the cursor from the database.
