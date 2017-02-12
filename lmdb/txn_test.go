@@ -53,6 +53,10 @@ func TestTxn_ID(t *testing.T) {
 func TestTxn_errLogf(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	txn, err := env.BeginTxn(nil, 0)
 	if err != nil {
 		t.Error(err)
@@ -65,6 +69,9 @@ func TestTxn_errLogf(t *testing.T) {
 func TestTxn_finalizer(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
 	called := make(chan struct{})
 	func() {
@@ -704,6 +711,9 @@ func TestTxn_Renew(t *testing.T) {
 	defer os.RemoveAll(path)
 	defer env.Close()
 
+	// It is not necessary to call runtime.LockOSThread in this test because
+	// the only unmanaged Txn is Readonly.
+
 	var dbroot DBI
 	err = env.Update(func(txn *Txn) (err error) {
 		dbroot, err = txn.OpenRoot(0)
@@ -1122,6 +1132,9 @@ func BenchmarkTxn_unmanaged_abort(b *testing.B) {
 	defer os.RemoveAll(path)
 	defer env.Close()
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		txn, err := env.BeginTxn(nil, 0)
@@ -1143,6 +1156,9 @@ func BenchmarkTxn_unmanaged_commit(b *testing.B) {
 	}
 	defer os.RemoveAll(path)
 	defer env.Close()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -1166,6 +1182,9 @@ func BenchmarkTxn_unmanaged_ro(b *testing.B) {
 	defer os.RemoveAll(path)
 	defer env.Close()
 
+	// It is not necessary to call runtime.LockOSThread here because the txn is
+	// Readonly
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		txn, err := env.BeginTxn(nil, Readonly)
@@ -1187,6 +1206,9 @@ func BenchmarkTxn_renew(b *testing.B) {
 	}
 	defer os.RemoveAll(path)
 	defer env.Close()
+
+	// It is not necessary to call runtime.LockOSThread here because the txn is
+	// Readonly
 
 	txn, err := env.BeginTxn(nil, Readonly)
 	if err != nil {
