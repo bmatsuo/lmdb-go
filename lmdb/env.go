@@ -62,6 +62,9 @@ type DBI C.MDB_dbi
 // See MDB_env.
 type Env struct {
 	_env *C.MDB_env
+
+	ckey *C.MDB_val
+	cval *C.MDB_val
 }
 
 // NewEnv allocates and initializes a new Env.
@@ -73,6 +76,9 @@ func NewEnv() (*Env, error) {
 	if ret != success {
 		return nil, operrno("mdb_env_create", ret)
 	}
+	env.ckey = (*C.MDB_val)(C.malloc(C.size_t(unsafe.Sizeof(C.MDB_val{}))))
+	env.cval = (*C.MDB_val)(C.malloc(C.size_t(unsafe.Sizeof(C.MDB_val{}))))
+
 	runtime.SetFinalizer(env, (*Env).Close)
 	return env, nil
 }
@@ -157,6 +163,10 @@ func (env *Env) close() bool {
 	}
 	C.mdb_env_close(env._env)
 	env._env = nil
+	C.free(unsafe.Pointer(env.ckey))
+	C.free(unsafe.Pointer(env.cval))
+	env.ckey = nil
+	env.cval = nil
 	return true
 }
 
