@@ -8,7 +8,10 @@ package lmdb
 */
 import "C"
 
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
 // NOTE:
 // It seems realy pedantic to check if size_t and uintptr are the same size.
@@ -41,16 +44,19 @@ var _ FixedMultiple = (*MultiCSizet)(nil)
 // MultipleCSizet converts a page of contiguous C.size_t value into a
 // MultiCSizet.  Use this function after calling Cursor.Get with op GetMultiple
 // on a database with DupSort|DupFixed|IntegerDup that stores C.size_t values.
-// MultipleCSizet panics if len(page) is not a multiple of
-// unsife.Sizeof(C.size_t(0)).
+// MultipleCSizet returns an error if the input error is nil or if len(page) is
+// not a multiple of unsife.Sizeof(CSizetValue).
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func MultipleCSizet(page []byte) *MultiCSizet {
+func MultipleCSizet(page []byte, err error) (*MultiCSizet, error) {
+	if err != nil {
+		return nil, err
+	}
 	if len(page)%int(sizetSize) != 0 {
-		panic("argument is not a page of C.size_t values")
+		return nil, fmt.Errorf("argument is not a page of C.size_t values")
 	}
 
-	return &MultiCSizet{page}
+	return &MultiCSizet{page}, nil
 }
 
 // Len implements FixedMultiple.

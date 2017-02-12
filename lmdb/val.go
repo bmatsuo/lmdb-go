@@ -8,6 +8,7 @@ package lmdb
 import "C"
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/bmatsuo/lmdb-go/internal/lmdbarch"
@@ -41,9 +42,19 @@ type Multi struct {
 // WrapMulti converts a page of contiguous stride-sized values into a Multi.
 // WrapMulti panics if len(page) is not a multiple of stride.
 //
-//		_, val, _ := cursor.Get(nil, nil, lmdb.FirstDup)
-//		_, page, _ := cursor.Get(nil, nil, lmdb.GetMultiple)
-//		multi := lmdb.WrapMulti(page, len(val))
+// WrapMulti is deprecated.  Use the Stride.Multiple method instead.
+//
+//		_, elem, err := cursor.Get(nil, nil, lmdb.FirstDup)
+//		if err != nil {
+//			return err
+//		}
+//		_, page, err := cursor.Get(nil, nil, lmdb.GetMultiple)
+//		elems, err := lmdb.
+//			Stride(len(elem)).
+//			Multiple(page, err)
+//		if err != nil {
+//			return err
+//		}
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
 func WrapMulti(page []byte, stride int) *Multi {
@@ -51,6 +62,29 @@ func WrapMulti(page []byte, stride int) *Multi {
 		panic("incongruent arguments")
 	}
 	return &Multi{page: page, stride: stride}
+}
+
+// Stride is the fixed element width for a Multi object
+type Stride int
+
+// Multiple wraps page as a Multi.  Multiple returns an error if the input err
+// is non-nil, the stride is not a positive value, or if len(page) is not a
+// multiple of the stride.
+func (s Stride) Multiple(page []byte, err error) (*Multi, error) {
+	if err != nil {
+		return nil, err
+	}
+	if s < 1 {
+		return nil, fmt.Errorf("invalid stride")
+	}
+	if len(page)%int(s) != 0 {
+		return nil, fmt.Errorf("argument and page stride are not congruent")
+	}
+	m := &Multi{
+		page:   page,
+		stride: int(s),
+	}
+	return m, nil
 }
 
 // Vals returns a slice containing the values in m.  The returned slice has

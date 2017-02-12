@@ -8,7 +8,10 @@ package lmdb
 */
 import "C"
 
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
 // CUintMax is the largest value for a C.uint type and the largest value that
 // can be stored in a Uint object.  On 64-bit architectures it is likely that
@@ -66,18 +69,22 @@ type MultiCUint struct {
 
 var _ FixedMultiple = (*MultiCUint)(nil)
 
-// MultipleCUint converts a page of contiguous C.uint value into a MultiCUint.
-// Use this function after calling Cursor.Get with op GetMultiple on a database
-// with DupSort|DupFixed|IntegerDup that stores C.uint values.  MultipleCUint
-// panics if len(page) is not a multiple of unsife.Sizeof(C.uint(0)).
+// MultipleCUint converts a page of contiguous CUintValue data into a
+// MultiCUint.  Use this function after calling Cursor.Get with op GetMultiple
+// on a database with DupSort|DupFixed|IntegerDup that stores C.uint values.
+// MultipleCUint returns an error if the input err was non-nil or if len(page)
+// is not a multiple of unsafe.Sizeof(CUintValue)
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
-func MultipleCUint(page []byte) *MultiCUint {
+func MultipleCUint(page []byte, err error) (*MultiCUint, error) {
+	if err != nil {
+		return nil, err
+	}
 	if len(page)%int(cUintSize) != 0 {
-		panic("argument is not a page of C.uint values")
+		return nil, fmt.Errorf("argument is not a page of CUintValue")
 	}
 
-	return &MultiCUint{page}
+	return &MultiCUint{page}, nil
 }
 
 // Len implements FixedMultiple.
