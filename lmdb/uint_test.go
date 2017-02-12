@@ -23,7 +23,7 @@ func TestUint(t *testing.T) {
 
 	for i := uint(0); i < uint(CBitWidth); i++ {
 		x := cuint(1 << i)
-		var cx CUintData
+		var cx CUintValue
 		*(*cuint)(unsafe.Pointer(&cx)) = x
 		ok := CanFitInUint(cx)
 		if !ok {

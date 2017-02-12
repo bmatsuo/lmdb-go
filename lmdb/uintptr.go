@@ -73,36 +73,36 @@ func (m *MultiCSizet) Page() []byte {
 	return m.page
 }
 
-// CSizet returns the CSizetData at index i.
-func (m *MultiCSizet) CSizet(i int) CSizetData {
-	var x CSizetData
+// CSizet returns the CSizetValue at index i.
+func (m *MultiCSizet) CSizet(i int) CSizetValue {
+	var x CSizetValue
 	copy(x[:], m.page[i*int(sizetSize):(i+1)*int(sizetSize)])
 	return x
 }
 
 // Append returns the MultiCSizet result of appending x to m as C.size_t data.
-func (m *MultiCSizet) Append(x CSizetData) *MultiCSizet {
+func (m *MultiCSizet) Append(x CSizetValue) *MultiCSizet {
 	return &MultiCSizet{append(m.page, x[:]...)}
 }
 
-// CSizetData contains an unsigned integer the size of a C.size_t.
-type CSizetData [sizetSize]byte
+// CSizetValue contains an unsigned integer the size of a C.size_t.
+type CSizetValue [sizetSize]byte
 
 // CSizet returns a UintptrData containing the value C.size_t(x).
-func CSizet(x uintptr) CSizetData {
+func CSizet(x uintptr) CSizetValue {
 	return cSizetData(C.size_t(x))
 }
 
-func cSizetData(x C.size_t) CSizetData {
-	return *(*CSizetData)(unsafe.Pointer(&x))
+func cSizetData(x C.size_t) CSizetValue {
+	return *(*CSizetValue)(unsafe.Pointer(&x))
 }
 
-func (v CSizetData) csizet() C.size_t {
+func (v CSizetValue) csizet() C.size_t {
 	return *(*C.size_t)(unsafe.Pointer(&v))
 }
 
 // Uintptr returns contained data as a uint value.
-func (v CSizetData) Uintptr() uintptr {
+func (v CSizetValue) Uintptr() uintptr {
 	return uintptr(v.csizet())
 }
 

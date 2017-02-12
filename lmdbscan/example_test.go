@@ -143,7 +143,7 @@ func ExampleScanner_SetNext_getMultiple() {
 func ExampleScanner_Item() {
 	var total uintptr
 	for scanner.Scan() {
-		_, v, err := lmdb.DataBZ(scanner.Item())
+		_, v, err := lmdb.ValueBZ(scanner.Item())
 		if err != nil {
 			panic(err)
 		}

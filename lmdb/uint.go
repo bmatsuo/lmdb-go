@@ -15,7 +15,7 @@ import "unsafe"
 // CUintMax is less than the largest value of Go's uint type.
 //
 // Applications on 64-bit architectures that would like to store a 64-bit
-// unsigned value should use the UintptrData type instead of the CUintData
+// unsigned value should use the UintptrData type instead of the CUintValue
 // type.
 const CUintMax = C.UINT_MAX
 
@@ -35,7 +35,7 @@ func CanFitInCUint(x uint) bool {
 // CanFitInUint returns true if value x can stored in type uint, which is
 // typically always possible.  It is the application programmer's
 // responsibility to call this function when applicable.
-func CanFitInUint(x CUintData) bool {
+func CanFitInUint(x CUintValue) bool {
 	_x := x.cuint()
 	if cUintSize > goUintSize && _x != C.uint(uint(_x)) {
 		return false
@@ -101,41 +101,41 @@ func (m *MultiCUint) Page() []byte {
 }
 
 // CUint returns the uint value at index i.
-func (m *MultiCUint) CUint(i int) CUintData {
-	var x CUintData
+func (m *MultiCUint) CUint(i int) CUintValue {
+	var x CUintValue
 	copy(x[:], m.page[i*int(cUintSize):(i+1)*int(cUintSize)])
 	return x
 }
 
 // Append returns the MultiCUint result of appending x to m.
-func (m *MultiCUint) Append(x CUintData) *MultiCUint {
+func (m *MultiCUint) Append(x CUintValue) *MultiCUint {
 	return &MultiCUint{append(m.page, x[:]...)}
 }
 
-// CUintData contains an unsigned integer with size of a C.uint.
-type CUintData [cUintSize]byte
+// CUintValue contains an unsigned integer with size of a C.uint.
+type CUintValue [cUintSize]byte
 
-// CUint returns a CUintData containing the value C.uint(x).  It is the
+// CUint returns a CUintValue containing the value C.uint(x).  It is the
 // caller's responsibility to check for any potential overflow using the
 // function CanFitInCUint.
 //
 // Applications on 64-bit architectures that want to store a 64-bit unsigned
 // value should use Uintptr type instead of Uint.
-func CUint(x uint) CUintData {
+func CUint(x uint) CUintValue {
 	return cUintData(C.uint(x))
 }
 
-func cUintData(x C.uint) CUintData {
-	return *(*CUintData)(unsafe.Pointer(&x))
+func cUintData(x C.uint) CUintValue {
+	return *(*CUintValue)(unsafe.Pointer(&x))
 }
 
-func (v CUintData) cuint() C.uint {
+func (v CUintValue) cuint() C.uint {
 	return *(*C.uint)(unsafe.Pointer(&v))
 }
 
 // Uint returns contained data as a uint value.  It is the callers
 // responsibility to check for overflow using function CanFitInUint.
-func (v CUintData) Uint() uint {
+func (v CUintValue) Uint() uint {
 	return uint(v.cuint())
 }
 

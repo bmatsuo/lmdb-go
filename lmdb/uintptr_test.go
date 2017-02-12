@@ -32,7 +32,7 @@ func TestUintptr(t *testing.T) {
 
 	for i := uint(0); i < uint(CBitWidth); i++ {
 		x := csizet(1 << i)
-		var cx CSizetData
+		var cx CSizetValue
 		*(*csizet)(unsafe.Pointer(&cx)) = x
 		_x, ok := getUintptr(cx[:])
 		if !ok {
