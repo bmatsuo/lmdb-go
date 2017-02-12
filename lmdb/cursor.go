@@ -280,15 +280,16 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 	if len(key) == 0 {
 		return c.putNilKey(flags)
 	}
-	if len(page) == 0 {
-		page = []byte{0}
+
+	page, pagesize := valBytes(page)
+	if stride == 0 || pagesize%stride {
+		panic("incongruent arguments")
 	}
 
-	vn := WrapMulti(page, stride).Len()
 	ret := C.lmdbgo_mdb_cursor_putmulti(
 		c._c,
 		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
-		(*C.char)(unsafe.Pointer(&page[0])), C.size_t(vn), C.size_t(stride),
+		(*C.char)(unsafe.Pointer(&page[0])), C.size_t(pagesize), C.size_t(stride),
 		C.uint(flags|C.MDB_MULTIPLE),
 	)
 	return operrno("mdb_cursor_put", ret)

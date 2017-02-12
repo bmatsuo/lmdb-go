@@ -508,6 +508,7 @@ func TestCursor_PutMulti(t *testing.T) {
 		t.Error(err)
 	}
 
+	// expect is a sorted version of items
 	expect := [][]byte{
 		[]byte("v0"),
 		[]byte("v1"),
@@ -539,7 +540,64 @@ func TestCursor_PutMulti(t *testing.T) {
 		t.Error(err)
 	}
 	if !reflect.DeepEqual(dbitems, expect) {
-		t.Errorf("unexpected items: %q (!= %q)", dbitems, items)
+		t.Errorf("unexpected items: %q (!= %q)", dbitems, expect)
+	}
+}
+
+func TestCursor_PutMulti_empty(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	key := []byte("k")
+	stride := 2
+
+	var dbi DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		dbi, err = txn.OpenRoot(Create | DupSort | DupFixed)
+		if err != nil {
+			return err
+		}
+
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		return cur.PutMulti(key, nil, stride, 0)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	expect := [][]byte{}
+	dbitems := [][]byte{}
+	err = env.View(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for {
+			k, v, err := cur.Get(nil, nil, Next)
+			if IsNotFound(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if string(k) != "k" {
+				return fmt.Errorf("key: %q", k)
+			}
+			dbitems = append(dbitems, v)
+		}
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(dbitems, expect) {
+		t.Errorf("unexpected items: %q (!= %q)", dbitems, expect)
 	}
 }
 
