@@ -62,10 +62,22 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 
 	var ptxn *C.MDB_txn
 	if parent == nil {
-		ptxn = nil
-		txn.key = new(C.MDB_val)
-		txn.val = new(C.MDB_val)
+		if flags&Readonly == 0 {
+			// In a write Txn we can use the shared, C-allocated key and value
+			// allocated by env, and freed when it is closed.
+			txn.key = env.ckey
+			txn.val = env.cval
+		} else {
+			// It is not easy to share C.MDB_val values in this scenario unless
+			// there is a synchronized pool involved, which will increase
+			// overhead.  Further, allocating these values with C will add
+			// overhead both here and when the values are freed.
+			txn.key = new(C.MDB_val)
+			txn.val = new(C.MDB_val)
+		}
 	} else {
+		// Because parent Txn objects cannot be used while a sub-Txn is active
+		// it is OK for them to share their C.MDB_val objects.
 		ptxn = parent._txn
 		txn.key = parent.key
 		txn.val = parent.val
