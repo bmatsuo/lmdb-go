@@ -36,32 +36,32 @@ type FixedMultiple interface {
 	Size() int
 }
 
-// ValueBU extracts a C.uint value from valdata if error is nil and returns it
-// as a uint with keydata.
+// ValueBU extracts a C.uint value from data if error is nil and returns it
+// as a uint with key.
 //
 // See ValueU.
-func ValueBU(keydata, valdata []byte, err error) ([]byte, uint, error) {
-	_ = keydata
-	v, err := ValueU(valdata, err)
-	return keydata, v, err
+func ValueBU(key, data []byte, err error) ([]byte, uint, error) {
+	_ = key
+	v, err := ValueU(data, err)
+	return key, v, err
 }
 
-// ValueBX extracts an integer value from valdata if error is nil and returns it
+// ValueBX extracts an integer value from data if error is nil and returns it
 // as a uintptr.
 //
 // See ValueX.
-func ValueBX(keydata, valdata []byte, err error) ([]byte, uintptr, error) {
-	_ = keydata
-	v, err := ValueX(valdata, err)
-	return keydata, v, err
+func ValueBX(key, data []byte, err error) ([]byte, uintptr, error) {
+	_ = key
+	v, err := ValueX(data, err)
+	return key, v, err
 }
 
-// ValueBZ extracts a C.size_t value from valdata if error is nil and returns
-// it as a uintptr with keydata.
-func ValueBZ(keydata, valdata []byte, err error) ([]byte, uintptr, error) {
-	_ = keydata
-	v, err := ValueZ(valdata, err)
-	return keydata, v, err
+// ValueBZ extracts a C.size_t value from data if error is nil and returns
+// it as a uintptr with key.
+func ValueBZ(key, data []byte, err error) ([]byte, uintptr, error) {
+	_ = key
+	v, err := ValueZ(data, err)
+	return key, v, err
 }
 
 // ValueU extracts a C.uint value from data if error is nil and returns it as a
@@ -84,39 +84,39 @@ func ValueU(data []byte, err error) (uint, error) {
 	return x.Uint(), nil
 }
 
-// ValueUB extracts a C.uint value from keydata if error is nil and returns it
-// as a uint with valdata.
-func ValueUB(keydata, valdata []byte, err error) (uint, []byte, error) {
-	k, err := ValueU(keydata, err)
-	_ = valdata
-	return k, valdata, err
+// ValueUB extracts a C.uint value from key if error is nil and returns it
+// as a uint with data.
+func ValueUB(key, data []byte, err error) (uint, []byte, error) {
+	k, err := ValueU(key, err)
+	_ = data
+	return k, data, err
 }
 
-// ValueUU extracts C.uint values from keydata and valdata if error is nil
+// ValueUU extracts C.uint values from key and data if error is nil
 // and returns them as uints.
-func ValueUU(keydata, valdata []byte, err error) (uint, uint, error) {
-	k, err := ValueU(keydata, err)
-	v, err := ValueU(valdata, err)
+func ValueUU(key, data []byte, err error) (uint, uint, error) {
+	k, err := ValueU(key, err)
+	v, err := ValueU(data, err)
 	return k, v, err
 }
 
-// ValueUX extracts a C.uint value from keydata and an integer value from
-// valdata if error is nil and returns them as a uint and uintptr repsectively.
+// ValueUX extracts a C.uint value from key and an integer value from
+// data if error is nil and returns them as a uint and uintptr repsectively.
 //
 // See ValueX.
-func ValueUX(keydata, valdata []byte, err error) (uint, uintptr, error) {
-	k, err := ValueU(keydata, err)
-	v, err := ValueX(valdata, err)
+func ValueUX(key, data []byte, err error) (uint, uintptr, error) {
+	k, err := ValueU(key, err)
+	v, err := ValueX(data, err)
 	return k, v, err
 }
 
-// ValueUZ extracts a C.uint value keydata and a C.size_t value from valdata if
+// ValueUZ extracts a C.uint value key and a C.size_t value from data if
 // error is nil and returns them as a uint and uintptr respectively.
 //
 // See ValueZ.
-func ValueUZ(keydata, valdata []byte, err error) (uint, uintptr, error) {
-	k, err := ValueU(keydata, err)
-	v, err := ValueZ(valdata, err)
+func ValueUZ(key, data []byte, err error) (uint, uintptr, error) {
+	k, err := ValueU(key, err)
+	v, err := ValueZ(data, err)
 	return k, v, err
 }
 
@@ -140,39 +140,39 @@ func ValueX(data []byte, err error) (uintptr, error) {
 	return uintptr(u), nil
 }
 
-// ValueXB extracts an integer value from keydata if error is nil and returns it
-// as a uintptr with valdata.
-func ValueXB(keydata, valdata []byte, err error) (uintptr, []byte, error) {
-	k, err := ValueX(keydata, err)
-	_ = valdata
-	return k, valdata, err
+// ValueXB extracts an integer value from key if error is nil and returns it
+// as a uintptr with data.
+func ValueXB(key, data []byte, err error) (uintptr, []byte, error) {
+	k, err := ValueX(key, err)
+	_ = data
+	return k, data, err
 }
 
-// ValueXU extracts an integer value from keydata and a C.uint value from
-// valdata if error is nil and returns them as a uintptr and uint respectively.
+// ValueXU extracts an integer value from key and a C.uint value from
+// data if error is nil and returns them as a uintptr and uint respectively.
 //
 // See ValueU.
-func ValueXU(keydata, valdata []byte, err error) (uintptr, uint, error) {
-	k, err := ValueX(keydata, err)
-	v, err := ValueU(valdata, err)
+func ValueXU(key, data []byte, err error) (uintptr, uint, error) {
+	k, err := ValueX(key, err)
+	v, err := ValueU(data, err)
 	return k, v, err
 }
 
-// ValueXX extracts integer values keydata and valdata if error is nil and
+// ValueXX extracts integer values key and data if error is nil and
 // returns them as uintptrs.
-func ValueXX(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
-	k, err := ValueX(keydata, err)
-	v, err := ValueX(valdata, err)
+func ValueXX(key, data []byte, err error) (uintptr, uintptr, error) {
+	k, err := ValueX(key, err)
+	v, err := ValueX(data, err)
 	return k, v, err
 }
 
-// ValueXZ extracts an integer value from keydata and a C.size_t value from
-// valdata if error is nil and returns them as uintptrs.
+// ValueXZ extracts an integer value from key and a C.size_t value from
+// data if error is nil and returns them as uintptrs.
 //
 // See ValueZ.
-func ValueXZ(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
-	k, err := ValueX(keydata, err)
-	v, err := ValueZ(valdata, err)
+func ValueXZ(key, data []byte, err error) (uintptr, uintptr, error) {
+	k, err := ValueX(key, err)
+	v, err := ValueZ(data, err)
 	return k, v, err
 }
 
@@ -192,34 +192,34 @@ func ValueZ(data []byte, err error) (uintptr, error) {
 	return x.Uintptr(), nil
 }
 
-// ValueZB extracts a C.size_t value from keydata if error is nil and returns it
-// as a uintptr with valdata.
-func ValueZB(keydata, valdata []byte, err error) (uintptr, []byte, error) {
-	k, err := ValueZ(keydata, err)
-	_ = valdata
-	return k, valdata, err
+// ValueZB extracts a C.size_t value from key if error is nil and returns it
+// as a uintptr with data.
+func ValueZB(key, data []byte, err error) (uintptr, []byte, error) {
+	k, err := ValueZ(key, err)
+	_ = data
+	return k, data, err
 }
 
-// ValueZU extracts a C.size_t value from keydata and a C.uint value from
-// valdata if error is nil and returns them as a uintptr and uint respectively.
-func ValueZU(keydata, valdata []byte, err error) (uintptr, uint, error) {
-	k, err := ValueZ(keydata, err)
-	v, err := ValueU(valdata, err)
+// ValueZU extracts a C.size_t value from key and a C.uint value from
+// data if error is nil and returns them as a uintptr and uint respectively.
+func ValueZU(key, data []byte, err error) (uintptr, uint, error) {
+	k, err := ValueZ(key, err)
+	v, err := ValueU(data, err)
 	return k, v, err
 }
 
-// ValueZX extracts a C.size_t value from keydata and an integer value from
-// valdata if error is nil and returns them as uintptrs.
-func ValueZX(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
-	k, err := ValueZ(keydata, err)
-	v, err := ValueX(valdata, err)
+// ValueZX extracts a C.size_t value from key and an integer value from
+// data if error is nil and returns them as uintptrs.
+func ValueZX(key, data []byte, err error) (uintptr, uintptr, error) {
+	k, err := ValueZ(key, err)
+	v, err := ValueX(data, err)
 	return k, v, err
 }
 
-// ValueZZ extracts C.size_t values keydata and valdata if error is nil and
+// ValueZZ extracts C.size_t values key and data if error is nil and
 // returns them as uintptrs.
-func ValueZZ(keydata, valdata []byte, err error) (uintptr, uintptr, error) {
-	k, err := ValueZ(keydata, err)
-	v, err := ValueZ(valdata, err)
+func ValueZZ(key, data []byte, err error) (uintptr, uintptr, error) {
+	k, err := ValueZ(key, err)
+	v, err := ValueZ(data, err)
 	return k, v, err
 }

@@ -140,17 +140,18 @@ func (c *Cursor) DBI() DBI {
 // RawRead set to false the Set op returns key values with memory distinct from
 // setkey, as is always the case when using RawRead.
 //
-// Get ignores setval if setkey is empty.
+// Get ignores data if key is empty.
 //
 // See mdb_cursor_get.
-func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
+func (c *Cursor) Get(key, data []byte, op uint) ([]byte, []byte, error) {
+	var err error
 	switch {
-	case len(setkey) == 0:
+	case len(key) == 0:
 		err = c.getVal0(op)
-	case len(setval) == 0:
-		err = c.getVal1(setkey, op)
+	case len(data) == 0:
+		err = c.getVal1(key, op)
 	default:
-		err = c.getVal2(setkey, setval, op)
+		err = c.getVal2(key, data, op)
 	}
 	if err != nil {
 		*c.txn.key = C.MDB_val{}
@@ -163,24 +164,22 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	// routines will be bad for the Go runtime when operating on Go memory
 	// (panic or potentially garbage memory reference).
 	if op == Set {
-		if c.txn.RawRead {
-			key = setkey
-		} else {
-			p := make([]byte, len(setkey))
-			copy(p, setkey)
+		if !c.txn.RawRead {
+			p := make([]byte, len(key))
+			copy(p, key)
 			key = p
 		}
 	} else {
 		key = c.txn.bytes(c.txn.key)
 	}
-	val = c.txn.bytes(c.txn.val)
+	data = c.txn.bytes(c.txn.val)
 
 	// Clear transaction storage record storage area for future use and to
 	// prevent dangling references.
 	*c.txn.key = C.MDB_val{}
 	*c.txn.val = C.MDB_val{}
 
-	return key, val, nil
+	return key, data, nil
 }
 
 // getVal0 retrieves items from the database without using given key or value
@@ -196,10 +195,10 @@ func (c *Cursor) getVal0(op uint) error {
 // (Set, SetRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal1(setkey []byte, op uint) error {
+func (c *Cursor) getVal1(key []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get1(
 		c._c,
-		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
@@ -210,11 +209,11 @@ func (c *Cursor) getVal1(setkey []byte, op uint) error {
 // reference (GetBoth, GetBothRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal2(setkey, setval []byte, op uint) error {
+func (c *Cursor) getVal2(key, data []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get2(
 		c._c,
-		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
-		(*C.char)(unsafe.Pointer(&setval[0])), C.size_t(len(setval)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(len(data)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
@@ -226,21 +225,18 @@ func (c *Cursor) putNilKey(flags uint) error {
 	return operrno("mdb_cursor_put", ret)
 }
 
-// Put stores an item in the database.
+// Put stores data associated with key in the database associated with c.
 //
 // See mdb_cursor_put.
-func (c *Cursor) Put(key, val []byte, flags uint) error {
+func (c *Cursor) Put(key, data []byte, flags uint) error {
 	if len(key) == 0 {
 		return c.putNilKey(flags)
 	}
-	vn := len(val)
-	if vn == 0 {
-		val = []byte{0}
-	}
+	data, dn := valBytes(data)
 	ret := C.lmdbgo_mdb_cursor_put2(
 		c._c,
 		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
-		(*C.char)(unsafe.Pointer(&val[0])), C.size_t(len(val)),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(dn),
 		C.uint(flags),
 	)
 	return operrno("mdb_cursor_put", ret)
