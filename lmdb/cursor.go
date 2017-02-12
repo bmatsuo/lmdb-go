@@ -306,7 +306,7 @@ func (c *Cursor) Del(flags uint) error {
 //
 // See mdb_cursor_count.
 func (c *Cursor) Count() (uint64, error) {
-	var _size C.size_t
+	var _size C.mdb_size_t
 	ret := C.mdb_cursor_count(c._c, &_size)
 	if ret != success {
 		return 0, operrno("mdb_cursor_count", ret)
