@@ -1,4 +1,4 @@
-#lmdb-go [![releases/v1.7.0](https://img.shields.io/badge/release-v1.7.0-375eab.svg)](releases) [![C/v0.9.18](https://img.shields.io/badge/C-v0.9.18-555555.svg)](https://github.com/LMDB/lmdb/blob/mdb.RE/0.9/libraries/liblmdb/CHANGES) [![Build Status](https://travis-ci.org/bmatsuo/lmdb-go.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb-go)
+#lmdb-go [![releases/v1.8.0](https://img.shields.io/badge/release-v1.8.0-375eab.svg)](releases) [![C/v0.9.19](https://img.shields.io/badge/C-v0.9.19-555555.svg)](https://github.com/LMDB/lmdb/blob/mdb.RE/0.9/libraries/liblmdb/CHANGES) [![Build Status](https://travis-ci.org/bmatsuo/lmdb-go.svg?branch=master)](https://travis-ci.org/bmatsuo/lmdb-go)
 
 Go bindings to the OpenLDAP Lightning Memory-Mapped Database (LMDB).
 
@@ -55,15 +55,29 @@ provided implementations can be considered stable.
 ###Idiomatic API
 
 API inspired by [BoltDB](https://github.com/boltdb/bolt) with automatic
-commit/rollback of transactions.  The goal of lmdb-go is to provide idiomatic,
-safe database interactions without compromising the flexibility of the C API.
+commit/rollback of transactions.  The goal of lmdb-go is to provide idiomatic
+database interactions without compromising the flexibility of the C API.
+
+**NOTE:** While the lmdb package tries hard to make LMDB as easy to use as
+possible there are compromises, gotchas, and caveats that application
+developers must be aware of when relying on LMDB to store their data.  All
+users are encouraged to fully read the
+[documentation](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb) so they are
+aware of these caveats.
+
+Where the lmdb package and its implementation decisions do not meet the needs
+of application developers in terms of safety or operational use the lmdbsync
+package has been designed to wrap lmdb and safely fill in additional
+functionality.  Consult the
+[documentation](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) for
+more information about the lmdbsync package.
 
 ###API coverage
 
 The lmdb-go project aims for complete coverage of the LMDB C API (within
 reason).  Some notable features and optimizations that are supported:
 
-- Idiomatic subtransactions ("sub-updates") that do not disrupt thread locking.
+- Idiomatic subtransactions ("sub-updates") that allow the batching of updates.
 
 - Batch IO on databases utilizing the `MDB_DUPSORT` and `MDB_DUPFIXED` flags.
 
@@ -118,6 +132,11 @@ questions of why to use one database or the other.
 
 - As a pure Go package bolt can be easily cross-compiled using the `go`
   toolchain and `GOOS`/`GOARCH` variables.
+
+- Its simpler design and implementation in pure Go mean it is free of many
+  caveats and gotchas which are present using the lmdb package.  For more
+  information about caveats with the lmdb package, consult its
+  [documentation](https://godoc.org/github.com/bmatsuo/lmdb-go/lmdb).
 
 ###Advantages of LMDB
 

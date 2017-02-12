@@ -1,5 +1,6 @@
 # c repository for updating after each release
 /lmdb/lmdb
+/lmdb/openldap
 
 /bin/
 
