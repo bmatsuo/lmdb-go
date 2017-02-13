@@ -4,6 +4,18 @@
 
 - Fix unsafe threading behavior in benchmarks (#101)
 - Update transactions no longer allocate `MDB_val` objects (#102)
+- Txn.Renew no longer clears the Txn finalizer -- prevents resource leaks (#104)
+- Txn.Pooled field added so that the Txn finalizer may work better with
+  sync.Pool (#104/#105)
+- Fixed a race in the Txn finalizer that could lead to a segfault (#105)
+- Txn.RunOp method added so that it is possible for other packages to create
+  other flavors of managed transactions from scratch (#105)
+- Experimental package lmdbpool was added to make integration of lmdb and
+  sync.Pool easier (#104/#105)
+
+```
+go get github.com/bmatsuo/lmdb-go/exp/lmdbpool
+```
 
 ##v1.8.0 (2017-02-10)
 
