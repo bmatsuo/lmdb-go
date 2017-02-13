@@ -20,9 +20,9 @@ the environment at initialization time.
 	err := env.SetMaxReaders(maxReaders)
 
 In a naive pooling implementation an application compiled with the -race flag
-may require a large number of open readers.  The TxnPool type attempts to keep
-the value required for Env.SetMaxReaders as low as possible in the presence of
--race but there is a limited amount that can be done for a concurrent workload
-with a rapid enough rate of transactions.
+may require an extremely large number of open readers.  The TxnPool type
+attempts to keep the value required for Env.SetMaxReaders as low as possible in
+the presence of -race but there is a limited amount that can be done for a
+concurrent workload with a rapid enough rate of transactions.
 */
 package lmdbpool
