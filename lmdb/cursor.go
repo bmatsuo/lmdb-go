@@ -142,16 +142,27 @@ func (c *Cursor) DBI() DBI {
 //
 // Get ignores setval if setkey is empty.
 //
+// Returns ErrNotFound if setkey is not present.
+//
 // See mdb_cursor_get.
 func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
+	var ret C.int
 	switch {
 	case len(setkey) == 0:
-		err = c.getVal0(op)
+		ret = c.getVal0(op)
 	case len(setval) == 0:
-		err = c.getVal1(setkey, op)
+		ret = c.getVal1(setkey, op)
 	default:
-		err = c.getVal2(setkey, setval, op)
+		ret = c.getVal2(setkey, setval, op)
 	}
+
+	if ret == C.MDB_NOTFOUND {
+		*c.txn.key = C.MDB_val{}
+		*c.txn.val = C.MDB_val{}
+		return nil, nil, ErrNotFound
+	}
+
+	err = operrno("mdb_cursor_get", ret)
 	if err != nil {
 		*c.txn.key = C.MDB_val{}
 		*c.txn.val = C.MDB_val{}
@@ -187,38 +198,35 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 // data for reference (Next, First, Last, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal0(op uint) error {
-	ret := C.mdb_cursor_get(c._c, c.txn.key, c.txn.val, C.MDB_cursor_op(op))
-	return operrno("mdb_cursor_get", ret)
+func (c *Cursor) getVal0(op uint) C.int {
+	return C.mdb_cursor_get(c._c, c.txn.key, c.txn.val, C.MDB_cursor_op(op))
 }
 
 // getVal1 retrieves items from the database using key data for reference
 // (Set, SetRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal1(setkey []byte, op uint) error {
-	ret := C.lmdbgo_mdb_cursor_get1(
+func (c *Cursor) getVal1(setkey []byte, op uint) C.int {
+	return C.lmdbgo_mdb_cursor_get1(
 		c._c,
 		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
-	return operrno("mdb_cursor_get", ret)
 }
 
 // getVal2 retrieves items from the database using key and value data for
 // reference (GetBoth, GetBothRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal2(setkey, setval []byte, op uint) error {
-	ret := C.lmdbgo_mdb_cursor_get2(
+func (c *Cursor) getVal2(setkey, setval []byte, op uint) C.int {
+	return C.lmdbgo_mdb_cursor_get2(
 		c._c,
 		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
 		(*C.char)(unsafe.Pointer(&setval[0])), C.size_t(len(setval)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
-	return operrno("mdb_cursor_get", ret)
 }
 
 func (c *Cursor) putNilKey(flags uint) error {

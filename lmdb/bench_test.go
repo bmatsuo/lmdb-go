@@ -271,6 +271,33 @@ func BenchmarkTxn_Get_raw_ro(b *testing.B) {
 	}
 }
 
+// Get a missing key, with RawRead turned on.
+func BenchmarkTxn_Get_missing_raw(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	dbi := openBenchDBI(b, env)
+
+	err := env.View(func(txn *Txn) (err error) {
+		txn.RawRead = true
+		key := []byte("does not exist")
+
+		b.ResetTimer()
+		defer b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			_, err := txn.Get(dbi, key)
+			if !IsNotFound(err) {
+				b.Fatalf("found non-existent key: %v", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+}
+
 // repeatedly scan all the values in a database.
 func BenchmarkScan_ro(b *testing.B) {
 	initRandSource(b)

@@ -69,6 +69,9 @@ const (
 //		lmdb.IsErrnoFn(err, os.IsPermission)
 type Errno C.int
 
+// ErrNotFound is returned by Txn.Get and Cursor.Get
+var ErrNotFound = &OpError{"lmdb", NotFound}
+
 // minimum and maximum values produced for the Errno type. syscall.Errnos of
 // other values may still be produced.
 const minErrno, maxErrno C.int = C.MDB_KEYEXIST, C.MDB_LAST_ERRCODE
@@ -86,7 +89,7 @@ func _operrno(op string, ret int) error {
 // not exist or if the Cursor reached the end of the database without locating
 // a value (EOF).
 func IsNotFound(err error) bool {
-	return IsErrno(err, NotFound)
+	return err == ErrNotFound
 }
 
 // IsNotExist returns true the path passed to the Env.Open method does not
@@ -122,6 +125,9 @@ func IsErrnoSys(err error, errno syscall.Errno) bool {
 func IsErrnoFn(err error, fn func(error) bool) bool {
 	if err == nil {
 		return false
+	}
+	if err == ErrNotFound {
+		return fn(NotFound)
 	}
 	if err, ok := err.(*OpError); ok {
 		return fn(err.Errno)

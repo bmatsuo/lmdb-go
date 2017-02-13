@@ -341,6 +341,8 @@ func (txn *Txn) bytes(val *C.MDB_val) []byte {
 // returned by Get references a readonly section of memory that must not be
 // accessed after txn has terminated.
 //
+// Returns ErrNotFound if the key is not present in dbi.
+//
 // See mdb_get.
 func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 	kdata, kn := valBytes(key)
@@ -349,6 +351,12 @@ func (txn *Txn) Get(dbi DBI, key []byte) ([]byte, error) {
 		(*C.char)(unsafe.Pointer(&kdata[0])), C.size_t(kn),
 		txn.val,
 	)
+
+	if ret == C.MDB_NOTFOUND {
+		*txn.val = C.MDB_val{}
+		return nil, ErrNotFound
+	}
+
 	err := operrno("mdb_get", ret)
 	if err != nil {
 		*txn.val = C.MDB_val{}
@@ -414,6 +422,8 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 // Del deletes an item from database dbi.  Del ignores val unless dbi has the
 // DupSort flag.
 //
+// Returns ErrNotFound if the key is not present in dbi.
+//
 // See mdb_del.
 func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 	kdata, kn := valBytes(key)
@@ -423,6 +433,11 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 		(*C.char)(unsafe.Pointer(&kdata[0])), C.size_t(kn),
 		(*C.char)(unsafe.Pointer(&vdata[0])), C.size_t(vn),
 	)
+
+	if ret == C.MDB_NOTFOUND {
+		return ErrNotFound
+	}
+
 	return operrno("mdb_del", ret)
 }
 
