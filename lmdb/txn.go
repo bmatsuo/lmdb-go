@@ -105,6 +105,39 @@ func (txn *Txn) ID() uintptr {
 	return uintptr(C.mdb_txn_id(txn._txn))
 }
 
+// RunOp executs fn with txn as an argument.  During the execution of fn no
+// goroutine may call the Commit, Abort, Reset, and Renew methods on txn.
+// RunOp returns the result of fn without any further action.  RunOp will not
+// about txn if fn returns an error.
+func (txn *Txn) RunOp(fn TxnOp, commit bool) error {
+	if txn.managed {
+		if commit {
+			defer txn.abort()
+		}
+	} else {
+		txn.managed = true
+		defer func() {
+			// Restoring txn.managed must be done in a deferred call otherwise
+			// the caller may not be able to abort the transaction if a runtime
+			// panic occurs (attempting to do so would cause another panic).
+			txn.managed = false
+
+			// It is significantly faster to abort in the same deferred call
+			// that resets txn.managed, despite being less clean conceptually.
+			if commit {
+				txn.abort()
+				return
+			}
+		}()
+	}
+
+	err := fn(txn)
+	if commit && err == nil {
+		return txn.commit()
+	}
+	return err
+}
+
 // Commit persists all transaction operations to the database and clears the
 // finalizer on txn.  A Txn cannot be used again after Commit is called.
 //

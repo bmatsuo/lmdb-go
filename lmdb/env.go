@@ -508,13 +508,7 @@ func (env *Env) run(lock bool, flags uint, fn TxnOp) error {
 	if err != nil {
 		return err
 	}
-	txn.managed = true
-	defer txn.abort()
-	err = fn(txn)
-	if err != nil {
-		return err
-	}
-	return txn.commit()
+	return txn.RunOp(fn, true)
 }
 
 // CloseDBI closes the database handle, db.  Normally calling CloseDBI
