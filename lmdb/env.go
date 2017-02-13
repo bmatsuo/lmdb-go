@@ -12,6 +12,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -62,6 +63,10 @@ type DBI C.MDB_dbi
 // See MDB_env.
 type Env struct {
 	_env *C.MDB_env
+
+	// closeLock is used to allow the Txn finalizer to check if the Env has
+	// been closed, so that it may know if it must abort.
+	closeLock sync.RWMutex
 
 	ckey *C.MDB_val
 	cval *C.MDB_val
@@ -161,8 +166,12 @@ func (env *Env) close() bool {
 	if env._env == nil {
 		return false
 	}
+
+	env.closeLock.Lock()
 	C.mdb_env_close(env._env)
 	env._env = nil
+	env.closeLock.Unlock()
+
 	C.free(unsafe.Pointer(env.ckey))
 	C.free(unsafe.Pointer(env.cval))
 	env.ckey = nil
@@ -499,13 +508,7 @@ func (env *Env) run(lock bool, flags uint, fn TxnOp) error {
 	if err != nil {
 		return err
 	}
-	txn.managed = true
-	defer txn.abort()
-	err = fn(txn)
-	if err != nil {
-		return err
-	}
-	return txn.commit()
+	return txn.RunOp(fn, true)
 }
 
 // CloseDBI closes the database handle, db.  Normally calling CloseDBI
