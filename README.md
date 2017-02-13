@@ -32,6 +32,25 @@ A utility package for scanning database ranges. The API is inspired by
 [bufio.Scanner](https://godoc.org/bufio#Scanner) and the python cursor
 [implementation](https://lmdb.readthedocs.org/en/release/#cursor-class).
 
+####exp/lmdbpool [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbpool?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbpool) [![experimental](https://img.shields.io/badge/stability-experimental-red.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbpool)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbpool)
+
+
+```go
+import "github.com/bmatsuo/lmdb-go/exp/lmdbpool"
+```
+
+A utility package which facilitates reuse of lmdb.Txn objects using a
+sync.Pool.  Naively storing lmdb.Txn objects in sync.Pool can be troublesome.
+And the lmdbpool.TxnPool type has been defined as a complete pooling solution
+and as reference for applications attempting to write their own pooling
+implementation.
+
+The lmdbpool package is relatively new.  But it has a lot of potential utility.
+And once the lmdbpool API has been ironed out, and the implementation hardened
+through use by real applications it can be integrated directly into the lmdb
+package for more transparent integration.  Please test this package and provide
+feedback to speed this process up.
+
 ####exp/lmdbsync [![GoDoc](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync?status.svg)](https://godoc.org/github.com/bmatsuo/lmdb-go/exp/lmdbsync) [![experimental](https://img.shields.io/badge/stability-experimental-red.svg)](#user-content-versioning-and-stability) [![GoCover](http://gocover.io/_badge/github.com/bmatsuo/lmdb-go/exp/lmdbsync)](http://gocover.io/github.com/bmatsuo/lmdb-go/exp/lmdbsync)
 
 

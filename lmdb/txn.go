@@ -40,7 +40,14 @@ type Txn struct {
 	// and its cursors will point directly into the memory-mapped structure.
 	// Such slices will be readonly and must only be referenced wthin the
 	// transaction's lifetime.
-	RawRead  bool
+	RawRead bool
+
+	// Pooled may be set to true while a Txn is stored in a sync.Pool, after
+	// Txn.Reset reset has been called and before Txn.Renew.  This will keep
+	// the Txn finalizer from unnecessarily warning the application about
+	// finalizations.
+	Pooled bool
+
 	managed  bool
 	readonly bool
 	env      *Env
@@ -96,14 +103,48 @@ func (txn *Txn) ID() uintptr {
 	return uintptr(C.mdb_txn_id(txn._txn))
 }
 
+// RunOp executs fn with txn as an argument.  During the execution of fn no
+// goroutine may call the Commit, Abort, Reset, and Renew methods on txn.
+// RunOp returns the result of fn without any further action.  RunOp will not
+// about txn if fn returns an error.
+func (txn *Txn) RunOp(fn TxnOp, commit bool) error {
+	if txn.managed {
+		if commit {
+			defer txn.abort()
+		}
+	} else {
+		txn.managed = true
+		defer func() {
+			// Restoring txn.managed must be done in a deferred call otherwise
+			// the caller may not be able to abort the transaction if a runtime
+			// panic occurs (attempting to do so would cause another panic).
+			txn.managed = false
+
+			// It is significantly faster to abort in the same deferred call
+			// that resets txn.managed, despite being less clean conceptually.
+			if commit {
+				txn.abort()
+				return
+			}
+		}()
+	}
+
+	err := fn(txn)
+	if commit && err == nil {
+		return txn.commit()
+	}
+	return err
+}
+
 // Commit persists all transaction operations to the database and clears the
 // finalizer on txn.  A Txn cannot be used again after Commit is called.
 //
 // See mdb_txn_commit.
 func (txn *Txn) Commit() error {
 	if txn.managed {
-		panic("managed transaction cannot be comitted directly")
+		panic("managed transaction cannot be committed directly")
 	}
+
 	runtime.SetFinalizer(txn, nil)
 	return txn.commit()
 }
@@ -122,6 +163,7 @@ func (txn *Txn) Abort() {
 	if txn.managed {
 		panic("managed transaction cannot be aborted directly")
 	}
+
 	runtime.SetFinalizer(txn, nil)
 	txn.abort()
 }
@@ -130,8 +172,17 @@ func (txn *Txn) abort() {
 	if txn._txn == nil {
 		return
 	}
-	C.mdb_txn_abort(txn._txn)
-	// The transaction handle is always freed.
+
+	// Get a read-lock on the environment so we can abort txn if needed.
+	// txn.env **should** terminate all readers otherwise when it closes.
+	txn.env.closeLock.RLock()
+	if txn.env._env != nil {
+		C.mdb_txn_abort(txn._txn)
+	}
+	txn.env.closeLock.RUnlock()
+
+	// Clear the C object to prevent any potential future use of the freed
+	// pointer.
 	txn._txn = nil
 }
 
@@ -145,8 +196,8 @@ func (txn *Txn) Reset() {
 	if txn.managed {
 		panic("managed transaction cannot be reset directly")
 	}
+
 	txn.reset()
-	runtime.SetFinalizer(txn, nil)
 }
 
 func (txn *Txn) reset() {
@@ -161,12 +212,8 @@ func (txn *Txn) Renew() error {
 	if txn.managed {
 		panic("managed transaction cannot be renewed directly")
 	}
-	err := txn.renew()
-	if err != nil {
-		return err
-	}
-	runtime.SetFinalizer(txn, func(v interface{}) { v.(*Txn).finalize() })
-	return nil
+
+	return txn.renew()
 }
 
 func (txn *Txn) renew() error {
@@ -395,8 +442,11 @@ func (txn *Txn) errf(format string, v ...interface{}) {
 
 func (txn *Txn) finalize() {
 	if txn._txn != nil {
-		txn.errf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
-		txn.Abort()
+		if !txn.Pooled {
+			txn.errf("lmdb: aborting unreachable transaction %#x", uintptr(unsafe.Pointer(txn)))
+		}
+
+		txn.abort()
 	}
 }
 
