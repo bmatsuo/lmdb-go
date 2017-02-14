@@ -2,6 +2,7 @@ package lmdb
 
 import (
 	crand "crypto/rand"
+	"encoding/binary"
 	"math/rand"
 	"sync/atomic"
 	"testing"
@@ -270,71 +271,203 @@ func BenchmarkTxn_Get_raw_ro(b *testing.B) {
 	}
 }
 
-// repeatedly scan all the values in a database.
-func BenchmarkScan_ro(b *testing.B) {
-	initRandSource(b)
+const benchmarkScanDBSize = 1 << 20
+
+func BenchmarkScan_rw_copy_alloc(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
-	rc := newRandSourceCursor()
-	_, err := populateBenchmarkDB(env, dbi, &rc)
-	if err != nil {
-		b.Errorf("populate db: %v", err)
+	if !populateDBI(b, env, dbi, testRecordSetSized(benchmarkScanDBSize)) {
 		return
 	}
+	b.ResetTimer()
 
-	err = env.View(func(txn *Txn) (err error) {
-		b.ResetTimer()
-		defer b.StopTimer()
-		for i := 0; i < b.N; i++ {
-			err := benchmarkScanDBI(txn, dbi)
+	for i := 0; i < b.N; i++ {
+		err := env.Update(func(txn *Txn) (err error) {
+			cur, err := txn.OpenCursor(dbi)
 			if err != nil {
 				return err
 			}
-		}
+			defer cur.Close()
 
-		return nil
-	})
-	if err != nil {
-		b.Error(err)
+			err = benchmarkScanDBI(cur, dbi)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			b.Error(err)
+			return
+		}
+	}
+}
+
+func BenchmarkScan_rw_raw_alloc(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	dbi := openBenchDBI(b, env)
+
+	if !populateDBI(b, env, dbi, testRecordSetSized(benchmarkScanDBSize)) {
 		return
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := env.Update(func(txn *Txn) (err error) {
+			txn.RawRead = true
+
+			cur, err := txn.OpenCursor(dbi)
+			if err != nil {
+				return err
+			}
+			defer cur.Close()
+
+			err = benchmarkScanDBI(cur, dbi)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			b.Error(err)
+			return
+		}
+	}
+}
+
+// repeatedly scan all the values in a database.
+func BenchmarkScan_ro_copy_alloc(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	dbi := openBenchDBI(b, env)
+
+	if !populateDBI(b, env, dbi, testRecordSetSized(benchmarkScanDBSize)) {
+		return
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err := env.View(func(txn *Txn) (err error) {
+			cur, err := txn.OpenCursor(dbi)
+			if err != nil {
+				return err
+			}
+			defer cur.Close()
+
+			err = benchmarkScanDBI(cur, dbi)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			b.Error(err)
+			return
+		}
 	}
 }
 
 // like BenchmarkCursoreScanReadonly but txn.RawRead is set to true.
-func BenchmarkScan_raw_ro(b *testing.B) {
-	initRandSource(b)
+func BenchmarkScan_ro_raw_alloc(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
 	dbi := openBenchDBI(b, env)
 
-	rc := newRandSourceCursor()
-	_, err := populateBenchmarkDB(env, dbi, &rc)
-	if err != nil {
-		b.Errorf("populate db: %v", err)
+	if !populateDBI(b, env, dbi, testRecordSetSized(benchmarkScanDBSize)) {
 		return
 	}
+	b.ResetTimer()
 
-	err = env.View(func(txn *Txn) (err error) {
-		txn.RawRead = true
+	for i := 0; i < b.N; i++ {
+		err := env.View(func(txn *Txn) (err error) {
+			txn.RawRead = true
 
-		b.ResetTimer()
-		defer b.StopTimer()
-		for i := 0; i < b.N; i++ {
-			err := benchmarkScanDBI(txn, dbi)
+			cur, err := txn.OpenCursor(dbi)
 			if err != nil {
 				return err
 			}
+			defer cur.Close()
+
+			err = benchmarkScanDBI(cur, dbi)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			b.Error(err)
+			return
+		}
+	}
+}
+
+// like BenchmarkCursoreScanReadonly but txn.RawRead is set to true.
+func BenchmarkScan_ro_raw_renew(b *testing.B) {
+	env := setup(b)
+	defer clean(env, b)
+
+	dbi := openBenchDBI(b, env)
+
+	if !populateDBI(b, env, dbi, testRecordSetSized(benchmarkScanDBSize)) {
+		return
+	}
+
+	txn, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	defer txn.Abort()
+
+	cur, err := txn.OpenCursor(dbi)
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	defer cur.Close()
+
+	// We can get by only setting RawRead one time because Reset/Renew will not
+	// alter its value.
+	txn.RawRead = true
+
+	txn.Reset()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = txn.Renew()
+		if err != nil {
+			b.Error(err)
+			return
 		}
 
-		return nil
-	})
-	if err != nil {
-		b.Errorf("benchmark: %v", err)
-		return
+		err = cur.Renew(txn)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+
+		err = benchmarkScanDBI(cur, dbi)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+
+		txn.Reset()
 	}
 }
 
@@ -368,13 +501,7 @@ func populateBenchmarkDB(env *Env, dbi DBI, rc *randSourceCursor) ([][]byte, err
 	return ps, nil
 }
 
-func benchmarkScanDBI(txn *Txn, dbi DBI) error {
-	cur, err := txn.OpenCursor(dbi)
-	if err != nil {
-		return err
-	}
-	defer cur.Close()
-
+func benchmarkScanDBI(cur *Cursor, dbi DBI) error {
 	var count int64
 	for {
 		_, _, err := cur.Get(nil, nil, Next)
@@ -466,3 +593,108 @@ func (c *randSourceCursor) NBytes(n int) []byte {
 	}
 	return randSource[i : i+n]
 }
+
+func populateDBIString(t testing.TB, env *Env, dbi DBI, records []testRecordString) (ok bool) {
+	return populateDBI(t, env, dbi, testRecordSetString(records))
+}
+
+func populateDBIBytes(t testing.TB, env *Env, dbi DBI, records []testRecordBytes) (ok bool) {
+	return populateDBI(t, env, dbi, testRecordSetBytes(records))
+}
+
+func populateDBI(t testing.TB, env *Env, dbi DBI, records testRecordSet) (ok bool) {
+	err := env.SetMapSize(benchDBMapSize)
+	if err != nil {
+		t.Error(err)
+		return false
+	}
+
+	// TODO:
+	// Batch transactions that become too large.  I'm not sure where that is
+	// anymore.
+	n := records.Len()
+	i := 0
+
+	err = env.Update(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(dbi)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		for ; i < n; i++ {
+			err = writeTestRecord(cur, records.TestRecord(i))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Errorf("populateDBI: %v", err)
+		return false
+	}
+
+	return true
+}
+
+func writeTestRecord(cur *Cursor, r testRecord) error {
+	return cur.Put(r.Key(), r.Data(), 0)
+}
+
+func testRecordSetSized(numBytes int64) testRecordSet {
+	const recordSize = 16
+	numRecord := numBytes / recordSize
+	return &testRecordGen{
+		n: int(numRecord),
+		fn: func(i int) testRecord {
+			var k, d [8]byte
+			k64 := uint64(i)
+			d64 := (^k64) + 1
+			binary.BigEndian.PutUint64(k[:], k64)
+			binary.BigEndian.PutUint64(d[:], d64)
+			return testRecordBytes{k[:], d[:]}
+		},
+	}
+}
+
+type testRecordSet interface {
+	Len() int
+	TestRecord(i int) testRecord
+}
+
+type testRecordSetString []testRecordString
+
+func (s testRecordSetString) Len() int                    { return len(s) }
+func (s testRecordSetString) TestRecord(i int) testRecord { return s[i] }
+
+type testRecordSetBytes []testRecordBytes
+
+func (s testRecordSetBytes) Len() int                    { return len(s) }
+func (s testRecordSetBytes) TestRecord(i int) testRecord { return s[i] }
+
+type testRecordGen struct {
+	n  int
+	fn testRecordFn
+}
+
+func (g *testRecordGen) Len() int                    { return g.n }
+func (g *testRecordGen) TestRecord(i int) testRecord { return g.fn(i) }
+
+type testRecordFn func(i int) testRecord
+
+type testRecord interface {
+	Key() []byte
+	Data() []byte
+}
+
+type testRecordBytes [2][]byte
+
+func (r testRecordBytes) Key() []byte  { return r[0] }
+func (r testRecordBytes) Data() []byte { return r[1] }
+
+type testRecordString [2][]byte
+
+func (r testRecordString) Key() []byte  { return []byte(r[0]) }
+func (r testRecordString) Data() []byte { return []byte(r[1]) }
