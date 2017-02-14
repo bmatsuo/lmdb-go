@@ -110,12 +110,6 @@ func (txn *Txn) ID() uintptr {
 // RunOp returns the result of fn without any further action.  RunOp will not
 // about txn if fn returns an error.
 func (txn *Txn) RunOp(fn TxnOp, commit bool) error {
-	// Restoring txn.managed must be done in a deferred call otherwise
-	// the caller may not be able to abort the transaction if a runtime
-	// panic occurs (attempting to do so would cause another panic).
-	//
-	// It is significantly faster to abort in the same deferred call
-	// that resets txn.managed, despite being less clean conceptually.
 	if commit {
 		return txn.runOpCommit(fn)
 	}
@@ -126,20 +120,26 @@ func (txn *Txn) runOpCommit(fn TxnOp) error {
 	if txn.managed {
 		panic("managed transaction cannot be committed directly")
 	}
+	defer txn.abort()
+
+	// There is no need to restore txn.managed after fn has executed because
+	// the Txn will terminate one way or another using methods which don't
+	// check txn.managed.
 	txn.managed = true
-	defer func() {
-		txn.managed = false
-		txn.abort()
-	}()
+
 	err := fn(txn)
-	if err == nil {
-		return txn.commit()
+	if err != nil {
+		return err
 	}
-	return err
+
+	return txn.commit()
 }
 
 func (txn *Txn) runOp(fn TxnOp) error {
 	if !txn.managed {
+		// Restoring txn.managed must be done in a deferred call otherwise the
+		// caller may not be able to abort the transaction if a runtime panic
+		// occurs (attempting to do so would cause another panic).
 		txn.managed = true
 		defer func() {
 			txn.managed = false
