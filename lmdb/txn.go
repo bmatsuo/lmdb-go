@@ -103,37 +103,55 @@ func (txn *Txn) ID() uintptr {
 	return uintptr(C.mdb_txn_id(txn._txn))
 }
 
-// RunOp executs fn with txn as an argument.  During the execution of fn no
+// RunOp executes fn with txn as an argument.  During the execution of fn no
 // goroutine may call the Commit, Abort, Reset, and Renew methods on txn.
 // RunOp returns the result of fn without any further action.  RunOp will not
-// about txn if fn returns an error.
-func (txn *Txn) RunOp(fn TxnOp, commit bool) error {
-	if txn.managed {
-		if commit {
-			defer txn.abort()
-		}
-	} else {
-		txn.managed = true
-		defer func() {
-			// Restoring txn.managed must be done in a deferred call otherwise
-			// the caller may not be able to abort the transaction if a runtime
-			// panic occurs (attempting to do so would cause another panic).
-			txn.managed = false
-
-			// It is significantly faster to abort in the same deferred call
-			// that resets txn.managed, despite being less clean conceptually.
-			if commit {
-				txn.abort()
-				return
-			}
-		}()
+// abort txn if fn returns an error, unless terminate is true.  If terminate is
+// true then RunOp will attempt to commit txn if fn is successful, otherwise
+// RunOp will abort txn before returning any failure encountered.
+//
+// RunOp primarily exists to allow applications and other packages to provide
+// variants of the managed transactions provided by lmdb (i.e. View, Update,
+// etc).  For example, the lmdbpool package uses RunOp to provide an
+// Txn-friendly sync.Pool and a function analogous to Env.View that uses
+// transactions from that pool.
+func (txn *Txn) RunOp(fn TxnOp, terminate bool) error {
+	if terminate {
+		return txn.runOpTerm(fn)
 	}
+	return txn.runOp(fn)
+}
+
+func (txn *Txn) runOpTerm(fn TxnOp) error {
+	if txn.managed {
+		panic("managed transaction cannot be terminated directly")
+	}
+	defer txn.abort()
+
+	// There is no need to restore txn.managed after fn has executed because
+	// the Txn will terminate one way or another using methods which don't
+	// check txn.managed.
+	txn.managed = true
 
 	err := fn(txn)
-	if commit && err == nil {
-		return txn.commit()
+	if err != nil {
+		return err
 	}
-	return err
+
+	return txn.commit()
+}
+
+func (txn *Txn) runOp(fn TxnOp) error {
+	if !txn.managed {
+		// Restoring txn.managed must be done in a deferred call otherwise the
+		// caller may not be able to abort the transaction if a runtime panic
+		// occurs (attempting to do so would cause another panic).
+		txn.managed = true
+		defer func() {
+			txn.managed = false
+		}()
+	}
+	return fn(txn)
 }
 
 // Commit persists all transaction operations to the database and clears the
