@@ -105,10 +105,16 @@ func (txn *Txn) ID() uintptr {
 	return uintptr(C.mdb_txn_id(txn._txn))
 }
 
-// RunOp executs fn with txn as an argument.  During the execution of fn no
+// RunOp executes fn with txn as an argument.  During the execution of fn no
 // goroutine may call the Commit, Abort, Reset, and Renew methods on txn.
 // RunOp returns the result of fn without any further action.  RunOp will not
 // about txn if fn returns an error.
+//
+// RunOp primarily exists to allow applications and other packages to provide
+// variants on the managed transactions provided by lmdb in View, Update, etc.
+// For example, the lmdbpool package uses RunOp to provide an Txn-friendly
+// sync.Pool and a function analogous to Env.View that uses transactions from
+// that pool.
 func (txn *Txn) RunOp(fn TxnOp, commit bool) error {
 	if commit {
 		return txn.runOpCommit(fn)
