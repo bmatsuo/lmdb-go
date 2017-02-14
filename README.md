@@ -247,7 +247,7 @@ and all functionality will remain available through some method.
 ##License
 
 Except where otherwise noted files in the lmdb-go project are licensed under
-the MIT open source license.
+the BSD 3-clause open source license.
 
 The LMDB C source is licensed under the OpenLDAP Public License.
 
