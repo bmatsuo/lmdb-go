@@ -17,6 +17,8 @@
 go get github.com/bmatsuo/lmdb-go/exp/lmdbpool
 ```
 
+- Silence aggressive struct initializer warning from clang (#107)
+
 ##v1.8.0 (2017-02-10)
 
 - lmdbscan: The package was moved out of the exp/ subtree and can now be
