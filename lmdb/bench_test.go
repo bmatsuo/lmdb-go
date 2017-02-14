@@ -3,7 +3,6 @@ package lmdb
 import (
 	crand "crypto/rand"
 	"math/rand"
-	"os"
 	"sync/atomic"
 	"testing"
 )
@@ -399,11 +398,6 @@ func openBenchDBI(b *testing.B, env *Env) DBI {
 		b.Errorf("unable to open benchmark database")
 	}
 	return dbi
-}
-
-func teardownBenchDB(b *testing.B, env *Env, path string) {
-	env.Close()
-	os.RemoveAll(path)
 }
 
 func randBytes(n int) []byte {
