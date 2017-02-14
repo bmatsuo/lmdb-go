@@ -273,7 +273,7 @@ func BenchmarkTxn_Get_raw_ro(b *testing.B) {
 
 const benchmarkScanDBSize = 1 << 20
 
-func BenchmarkScan_rw_copy_alloc(b *testing.B) {
+func BenchmarkScan_alloc_rw_copy(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -307,7 +307,7 @@ func BenchmarkScan_rw_copy_alloc(b *testing.B) {
 	}
 }
 
-func BenchmarkScan_rw_raw_alloc(b *testing.B) {
+func BenchmarkScan_alloc_rw_raw(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -344,7 +344,7 @@ func BenchmarkScan_rw_raw_alloc(b *testing.B) {
 }
 
 // repeatedly scan all the values in a database.
-func BenchmarkScan_ro_copy_alloc(b *testing.B) {
+func BenchmarkScan_alloc_ro_copy(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -379,7 +379,7 @@ func BenchmarkScan_ro_copy_alloc(b *testing.B) {
 }
 
 // like BenchmarkCursoreScanReadonly but txn.RawRead is set to true.
-func BenchmarkScan_ro_raw_alloc(b *testing.B) {
+func BenchmarkScan_alloc_ro_raw(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -416,7 +416,7 @@ func BenchmarkScan_ro_raw_alloc(b *testing.B) {
 }
 
 // like BenchmarkCursoreScanReadonly but txn.RawRead is set to true.
-func BenchmarkScan_ro_raw_renew(b *testing.B) {
+func BenchmarkScan_renew_ro_raw(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
