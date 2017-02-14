@@ -111,10 +111,10 @@ func (txn *Txn) ID() uintptr {
 // about txn if fn returns an error.
 //
 // RunOp primarily exists to allow applications and other packages to provide
-// variants on the managed transactions provided by lmdb in View, Update, etc.
-// For example, the lmdbpool package uses RunOp to provide an Txn-friendly
-// sync.Pool and a function analogous to Env.View that uses transactions from
-// that pool.
+// variants of the managed transactions provided by lmdb (i.e. View, Update,
+// etc).  For example, the lmdbpool package uses RunOp to provide an
+// Txn-friendly sync.Pool and a function analogous to Env.View that uses
+// transactions from that pool.
 func (txn *Txn) RunOp(fn TxnOp, commit bool) error {
 	if commit {
 		return txn.runOpCommit(fn)
