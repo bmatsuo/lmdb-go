@@ -95,21 +95,34 @@ func (m *MultiCSizet) Append(x CSizetValue) *MultiCSizet {
 type CSizetValue [sizetSize]byte
 
 // CSizet returns a UintptrData containing the value C.size_t(x).
-func CSizet(x uintptr) CSizetValue {
-	return cSizetData(C.size_t(x))
+func CSizet(z uintptr) CSizetValue {
+	return cSizetData(C.size_t(z))
 }
 
-func cSizetData(x C.size_t) CSizetValue {
-	return *(*CSizetValue)(unsafe.Pointer(&x))
+func cSizetData(z C.size_t) CSizetValue {
+	return *(*CSizetValue)(unsafe.Pointer(&z))
 }
 
-func (v CSizetValue) csizet() C.size_t {
-	return *(*C.size_t)(unsafe.Pointer(&v))
+func (z CSizetValue) csizet() C.size_t {
+	return *(*C.size_t)(unsafe.Pointer(&z))
+}
+
+// Bytes returns the value as a bytes slice.  Bytes may be useful to concisely
+// create a slice where otherwise you could not slice the value.
+//
+//
+//		// In the call to txn.Put a slice containing u can be constructed using
+//		// slice syntax.  But CSizet(z) cannot be turned into a slice directly,
+//		// so Bytes is used.
+//		u := CUint(uint(x))
+//		err := txn.Put(dbi, u, CSizet(z).Bytes())
+func (z CSizetValue) Bytes() []byte {
+	return z[:]
 }
 
 // Uintptr returns contained data as a uint value.
-func (v CSizetValue) Uintptr() uintptr {
-	return uintptr(v.csizet())
+func (z CSizetValue) Uintptr() uintptr {
+	return uintptr(z.csizet())
 }
 
 // csizet is a helper type for tests because tests cannot import C

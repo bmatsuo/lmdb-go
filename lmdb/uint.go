@@ -128,22 +128,35 @@ type CUintValue [cUintSize]byte
 //
 // Applications on 64-bit architectures that want to store a 64-bit unsigned
 // value should use Uintptr type instead of Uint.
-func CUint(x uint) CUintValue {
-	return cUintData(C.uint(x))
+func CUint(u uint) CUintValue {
+	return cUintData(C.uint(u))
 }
 
-func cUintData(x C.uint) CUintValue {
-	return *(*CUintValue)(unsafe.Pointer(&x))
+func cUintData(u C.uint) CUintValue {
+	return *(*CUintValue)(unsafe.Pointer(&u))
 }
 
-func (v CUintValue) cuint() C.uint {
-	return *(*C.uint)(unsafe.Pointer(&v))
+func (u CUintValue) cuint() C.uint {
+	return *(*C.uint)(unsafe.Pointer(&u))
+}
+
+// Bytes returns the value as a bytes slice.  Bytes may be useful to concisely
+// create a slice where otherwise you could not slice the value.
+//
+//
+//		// In the call to txn.Put a slice containing z can be constructed using
+//		// slice syntax.  But CUint(u) cannot be turned into a slice directly,
+//		// so Bytes is used.
+//		z := CSizet(uintptr(x))
+//		err := txn.Put(dbi, CUint(u).Bytes(), z[:])
+func (u CUintValue) Bytes() []byte {
+	return u[:]
 }
 
 // Uint returns contained data as a uint value.  It is the callers
 // responsibility to check for overflow using function CanFitInUint.
-func (v CUintValue) Uint() uint {
-	return uint(v.cuint())
+func (u CUintValue) Uint() uint {
+	return uint(u.cuint())
 }
 
 // cuint is a helper type for tests because tests cannot import C
