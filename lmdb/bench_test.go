@@ -1353,7 +1353,7 @@ func BenchmarkScan_1000_renew_ro_raw(b *testing.B) {
 	}
 }
 
-func BenchmarkScan_all_alloc_rw_copy(b *testing.B) {
+func BenchmarkScan_10000_alloc_rw_copy(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -1372,7 +1372,7 @@ func BenchmarkScan_all_alloc_rw_copy(b *testing.B) {
 			}
 			defer cur.Close()
 
-			err = benchmarkScanDBI(cur, dbi, -1)
+			err = benchmarkScanDBI(cur, dbi, 10000)
 			if err != nil {
 				return err
 			}
@@ -1387,7 +1387,7 @@ func BenchmarkScan_all_alloc_rw_copy(b *testing.B) {
 	}
 }
 
-func BenchmarkScan_all_alloc_rw_raw(b *testing.B) {
+func BenchmarkScan_10000_alloc_rw_raw(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -1408,7 +1408,7 @@ func BenchmarkScan_all_alloc_rw_raw(b *testing.B) {
 			}
 			defer cur.Close()
 
-			err = benchmarkScanDBI(cur, dbi, -1)
+			err = benchmarkScanDBI(cur, dbi, 10000)
 			if err != nil {
 				return err
 			}
@@ -1424,7 +1424,7 @@ func BenchmarkScan_all_alloc_rw_raw(b *testing.B) {
 }
 
 // repeatedly scan all the values in a database.
-func BenchmarkScan_all_alloc_ro_copy(b *testing.B) {
+func BenchmarkScan_10000_alloc_ro_copy(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -1443,7 +1443,7 @@ func BenchmarkScan_all_alloc_ro_copy(b *testing.B) {
 			}
 			defer cur.Close()
 
-			err = benchmarkScanDBI(cur, dbi, -1)
+			err = benchmarkScanDBI(cur, dbi, 10000)
 			if err != nil {
 				return err
 			}
@@ -1459,7 +1459,7 @@ func BenchmarkScan_all_alloc_ro_copy(b *testing.B) {
 }
 
 // like BenchmarkCursoreScanReadonly but txn.RawRead is set to true.
-func BenchmarkScan_all_alloc_ro_raw(b *testing.B) {
+func BenchmarkScan_10000_alloc_ro_raw(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -1480,7 +1480,7 @@ func BenchmarkScan_all_alloc_ro_raw(b *testing.B) {
 			}
 			defer cur.Close()
 
-			err = benchmarkScanDBI(cur, dbi, -1)
+			err = benchmarkScanDBI(cur, dbi, 10000)
 			if err != nil {
 				return err
 			}
@@ -1495,7 +1495,7 @@ func BenchmarkScan_all_alloc_ro_raw(b *testing.B) {
 	}
 }
 
-func BenchmarkScan_all_renew_ro_raw(b *testing.B) {
+func BenchmarkScan_10000_renew_ro_raw(b *testing.B) {
 	env := setup(b)
 	defer clean(env, b)
 
@@ -1540,7 +1540,7 @@ func BenchmarkScan_all_renew_ro_raw(b *testing.B) {
 			return
 		}
 
-		err = benchmarkScanDBI(cur, dbi, -1)
+		err = benchmarkScanDBI(cur, dbi, 10000)
 		if err != nil {
 			b.Error(err)
 			return
