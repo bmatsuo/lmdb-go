@@ -108,23 +108,25 @@ func (txn *Txn) ID() uintptr {
 // RunOp executes fn with txn as an argument.  During the execution of fn no
 // goroutine may call the Commit, Abort, Reset, and Renew methods on txn.
 // RunOp returns the result of fn without any further action.  RunOp will not
-// about txn if fn returns an error.
+// abort txn if fn returns an error, unless terminate is true.  If terminate is
+// true then RunOp will attempt to commit txn if fn is successful, otherwise
+// RunOp will abort txn before returning any failure encountered.
 //
 // RunOp primarily exists to allow applications and other packages to provide
 // variants of the managed transactions provided by lmdb (i.e. View, Update,
 // etc).  For example, the lmdbpool package uses RunOp to provide an
 // Txn-friendly sync.Pool and a function analogous to Env.View that uses
 // transactions from that pool.
-func (txn *Txn) RunOp(fn TxnOp, commit bool) error {
-	if commit {
-		return txn.runOpCommit(fn)
+func (txn *Txn) RunOp(fn TxnOp, terminate bool) error {
+	if terminate {
+		return txn.runOpTerm(fn)
 	}
 	return txn.runOp(fn)
 }
 
-func (txn *Txn) runOpCommit(fn TxnOp) error {
+func (txn *Txn) runOpTerm(fn TxnOp) error {
 	if txn.managed {
-		panic("managed transaction cannot be committed directly")
+		panic("managed transaction cannot be terminated directly")
 	}
 	defer txn.abort()
 
