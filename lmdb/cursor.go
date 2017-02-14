@@ -304,9 +304,16 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 //
 // PutMultiple does not perform validation of the multiple object.  That is,
 // PutMultiple assumes that the values returned by multiple's methods are
-// congruent with one another, as the interface mandates.
+// consistent with one another, as the interface mandates.
 //
 // See mdb_cursor_put.
+//
+// BUG:
+// As of LMDB 0.9.19, passing a FixedMultiple such that mulitple.Size() == 0
+// may cause LMDB to write invalid data into database.  In general attempting
+// to write empty data to LMDB will fail.  But this case has a substandard
+// behavior which absolutely must be avoided.  When uptstream has committed a
+// fix it will be made available and this warning will be removed.
 func (c *Cursor) PutMultiple(key []byte, multiple FixedMultiple, flags uint) (int, error) {
 	key, kn := valBytes(key)
 	data, dn := valBytes(multiple.Page())
