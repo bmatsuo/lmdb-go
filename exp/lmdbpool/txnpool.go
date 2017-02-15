@@ -16,17 +16,20 @@ import (
 type UpdateHandling uint
 
 const (
-	// AbortOutstanding causes a TxnPool to abort any lmdb.Readonly
+	// HandleOutstanding causes a TxnPool to abort any lmdb.Readonly
 	// transactions that are being returned to the pool after an update.
-	AbortOutstanding UpdateHandling = 1 << iota
-	RenewOutstanding
+	HandleOutstanding UpdateHandling = 1 << iota
 
-	// AbortIdle causes a TxnPool to actively attempt aborting idle
+	// HandleIdle causes a TxnPool to actively attempt aborting idle
 	// transactions in the sync.Pool after an update has been committed.  There
 	// is no guarantee when using AbortIdle that all idle readers will be
 	// aborted.
-	AbortIdle
-	RenewOutstanding
+	HandleIdle
+
+	// HandleRenew modifies how other UpdateHandling flags are interpretted and
+	// causes a TxnPool to renew transactions and put them back in the pool
+	// instead of aborting them.
+	HandleRenew
 )
 
 // TxnPool is a pool for reusing transactions through their Reset and Renew
@@ -38,9 +41,10 @@ const (
 // updates and prevent long-lived updates from causing excessive disk
 // utilization.
 type TxnPool struct {
-	env    *lmdb.Env
-	lastid uintptr
-	pool   sync.Pool
+	UpdateHandling UpdateHandling
+	env            *lmdb.Env
+	lastid         uintptr
+	pool           sync.Pool
 }
 
 // NewTxnPool initializes returns a new TxnPool.
@@ -88,13 +92,10 @@ func (p *TxnPool) beginReadonly() (*lmdb.Txn, error) {
 	// LMDB documentation as of 0.9.19).
 	err := txn.Renew()
 	if err != nil {
+		txn.renewError(err)
+
 		// Nothing we can do with txn now other than destroy it.
 		txn.Abort()
-
-		// TODO:
-		// When this is integrated directly in the lmdb package this can use
-		// the same logging functionality that the Txn finalizer uses.
-		log.Printf("lmdbpool: failed to renew transaction: %v", err)
 
 		// For now it's not clear what better handling of a renew error would
 		// entail so we just try to create a new transaction.  It is assumed
@@ -111,6 +112,13 @@ func (p *TxnPool) beginReadonly() (*lmdb.Txn, error) {
 	return txn, nil
 }
 
+func (p *TxnPool) renewError(err error) {
+	// TODO:
+	// When this is integrated directly in the lmdb package this can use
+	// the same logging functionality that the Txn finalizer uses.
+	log.Printf("lmdbpool: failed to renew transaction: %v", err)
+}
+
 func (p *TxnPool) abortReadonly(txn *lmdb.Txn) {
 	if !returnTxnToPool {
 		// If the pool is disabled from race detection then we just abort the
@@ -121,10 +129,17 @@ func (p *TxnPool) abortReadonly(txn *lmdb.Txn) {
 	}
 
 	if txn.ID() < p.getLastID() {
-		// Continuing to use this transaction will potentially prevent LMDB
-		// from freeing pages that have been overwritten.
-		txn.Abort()
-		return
+		ok, err := p.handleReadonly(txn, HandleOutstanding)
+		if err != nil {
+			// We attempted to renew the transaction but failed and the
+			// transaction was automatically aborted.
+			p.renewError(err)
+			return
+		}
+		if !ok {
+			// The transaction was aborted instead of being renewed.
+			return
+		}
 	}
 
 	// Don't waste cycles resetting RawRead here -- the cost be paid when the
@@ -133,6 +148,23 @@ func (p *TxnPool) abortReadonly(txn *lmdb.Txn) {
 	txn.Pooled = true
 	txn.Reset()
 	p.pool.Put(txn)
+}
+
+func (p *TxnPool) handleReadonly(txn *lmdb.Txn, condition UpdateHandling) (renewed bool, err error) {
+	if p.UpdateHandling&condition == 0 {
+		return
+	}
+
+	if p.UpdateHandling&HandleRenew != 0 {
+		err = txn.Renew()
+		if err != nil {
+			// There is not much to do with txn other than abort it.
+			txn.Abort()
+		}
+		return true, err
+	}
+	txn.Abort()
+	return false, nil
 }
 
 // getLastID safely retrieves the value of p.lastid so routines operating on
@@ -147,6 +179,9 @@ func (p *TxnPool) getLastID() uintptr {
 //
 // CommitID should only be called if p is not used to create/commit update
 // transactions.
+//
+// BUG:
+// HandleIdle is not checked.
 func (p *TxnPool) CommitID(id uintptr) {
 	// As long as we think we are holding a newer id than lastid we keep trying
 	// to CAS until we see a newer id or the CAS succeeds.
