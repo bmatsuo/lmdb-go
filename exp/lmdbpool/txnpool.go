@@ -208,6 +208,7 @@ func (p *TxnPool) CommitID(id uintptr) {
 	for lastid < id {
 		if atomic.CompareAndSwapUintptr(&p.lastid, lastid, id) {
 			updated = true
+			break
 		}
 		lastid = atomic.LoadUintptr(&p.lastid)
 	}
