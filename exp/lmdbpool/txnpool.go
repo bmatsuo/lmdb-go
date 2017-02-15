@@ -13,20 +13,32 @@ import (
 // transactions when an environment update occurs.  Applications with a high
 // rate of large updates may need to choose non-default settings to reduce
 // their storage requirements at the cost of read throughput.
+//
+// The zero-value of UpdateHandling causes a TxnPool to ignore all updates and
+// defers to the application and the lmdb.Txn finalizers clear stale readers
+// (pulling an lmdb.Readonly transaction out of the pool is enough to release
+// its stale pages).
 type UpdateHandling uint
 
 const (
-	// AbortOutstanding causes a TxnPool to abort any lmdb.Readonly
+	// HandleOutstanding causes a TxnPool to abort any lmdb.Readonly
 	// transactions that are being returned to the pool after an update.
-	AbortOutstanding UpdateHandling = 1 << iota
-	RenewOutstanding
+	HandleOutstanding UpdateHandling = 1 << iota
 
-	// AbortIdle causes a TxnPool to actively attempt aborting idle
+	// HandleIdle causes a TxnPool to actively attempt aborting idle
 	// transactions in the sync.Pool after an update has been committed.  There
 	// is no guarantee when using AbortIdle that all idle readers will be
 	// aborted.
-	AbortIdle
-	RenewOutstanding
+	HandleIdle
+
+	// HandleRenew modifies how other UpdateHandling flags are interpretted and
+	// causes a TxnPool to renew transactions and put them back in the pool
+	// instead of aborting them.
+	HandleRenew
+
+	// HandleAll is a convenient alias for the combination of HandleOutstanding
+	// and HandleIdle.
+	HandleAll = HandleOutstanding | HandleIdle
 )
 
 // TxnPool is a pool for reusing transactions through their Reset and Renew
@@ -38,8 +50,13 @@ const (
 // updates and prevent long-lived updates from causing excessive disk
 // utilization.
 type TxnPool struct {
-	env    *lmdb.Env
+	// UpdateHandling determines how a TxnPool behaves after updates have been
+	// committed.  It is not safe to modify UpdateHandling if TxnPool is being
+	// used concurrently.
+	UpdateHandling UpdateHandling
+
 	lastid uintptr
+	env    *lmdb.Env
 	pool   sync.Pool
 }
 
@@ -83,29 +100,19 @@ func (p *TxnPool) beginReadonly() (*lmdb.Txn, error) {
 		return p.env.BeginTxn(nil, lmdb.Readonly)
 	}
 
-	// Abort the pooled transaction if it is causing LMDB to hold onto old
-	// pages.
-	id := txn.ID()
-	lastid := atomic.LoadUintptr(&p.lastid)
-	if id < lastid {
-		txn.Abort()
-
-		// Beginning a new transaction without continuing to read from the pool
-		// is lazy.  But it is likely that remaining Txn objects in the pool
-		// are holding stale pages and polling them out would be slow.
-		// Instead, we hope the Txn finalizer will pick them up before any
-		// other caller would.
-		return p.env.BeginTxn(nil, lmdb.Readonly)
-	}
-
+	// If txn was holding stale pages the call to txn.Renew() should release
+	// them when txn aquires a new lock (this is an implication made by the
+	// LMDB documentation as of 0.9.19).
 	err := txn.Renew()
 	if err != nil {
-		txn.Abort()
-		log.Printf("lmdbpool: failed to renew transaction: %v", err)
+		p.renewError(err)
 
-		// It's not clear for now what better handling of a renew error would
-		// be so we just try to create a new transaction.  Presumably it will
-		// fail with the same error.
+		// Nothing we can do with txn now other than destroy it.
+		txn.Abort()
+
+		// For now it's not clear what better handling of a renew error would
+		// entail so we just try to create a new transaction.  It is assumed
+		// that it will fail with the same error... But maybe not?
 		return p.env.BeginTxn(nil, lmdb.Readonly)
 	}
 
@@ -118,21 +125,68 @@ func (p *TxnPool) beginReadonly() (*lmdb.Txn, error) {
 	return txn, nil
 }
 
-func (p *TxnPool) abortReadonly(txn *lmdb.Txn) {
-	// Don't waste cycles resetting RawRead here -- the cost be paid when the
-	// Txn is reused (if at all).  All we need to do is set txn.Pooled to avoid
-	// any warning emitted from the Txn finalizer.
-	txn.Pooled = true
+func (p *TxnPool) renewError(err error) {
+	// TODO:
+	// When this is integrated directly in the lmdb package this can use
+	// the same logging functionality that the Txn finalizer uses.
+	log.Printf("lmdbpool: failed to renew transaction: %v", err)
+}
 
-	txn.Reset()
-	if returnTxnToPool {
-		p.pool.Put(txn)
-	} else {
+func (p *TxnPool) abortReadonly(txn *lmdb.Txn) {
+	if !returnTxnToPool {
 		// If the pool is disabled from race detection then we just abort the
 		// Txn instead of waiting for the finalizer.  See the files put.go and
 		// putrace.go for more information.
 		txn.Abort()
+		return
 	}
+
+	// We want to make sure that we handle updates in some way before we call
+	// either txn.ID() or p.getLastID() as both (can) incurr overhead.
+	if p.handlesUpdates() && txn.ID() < p.getLastID() {
+		ok, err := p.handleReadonly(txn, HandleOutstanding)
+		if err != nil {
+			// We attempted to renew the transaction but failed and the
+			// transaction was automatically aborted.
+			p.renewError(err)
+			return
+		}
+		if !ok {
+			// The transaction was aborted instead of being renewed.
+			return
+		}
+	}
+
+	// Don't waste cycles resetting RawRead here -- the cost be paid when the
+	// Txn is reused (if at all).  All we need to do is set txn.Pooled to avoid
+	// any warning emitted from the Txn finalizer.
+	txn.Pooled = true
+	txn.Reset()
+	p.pool.Put(txn)
+}
+
+func (p *TxnPool) handleReadonly(txn *lmdb.Txn, condition UpdateHandling) (renewed bool, err error) {
+	if p.UpdateHandling&condition == 0 {
+		return
+	}
+
+	if p.UpdateHandling&HandleRenew != 0 {
+		err = txn.Renew()
+		if err != nil {
+			// There is not much to do with txn other than abort it.
+			txn.Abort()
+		}
+		return true, err
+	}
+	txn.Abort()
+	return false, nil
+}
+
+// getLastID safely retrieves the value of p.lastid so routines operating on
+// the sync.Pool know if a transaction can continue to be used without bloating
+// the database.
+func (p *TxnPool) getLastID() uintptr {
+	return atomic.LoadUintptr(&p.lastid)
 }
 
 // CommitID sets the TxnPool's last-known transaction id to invalidate
@@ -140,13 +194,39 @@ func (p *TxnPool) abortReadonly(txn *lmdb.Txn) {
 //
 // CommitID should only be called if p is not used to create/commit update
 // transactions.
+//
+// BUG:
+// HandleIdle is not checked.
 func (p *TxnPool) CommitID(id uintptr) {
+	if !p.handlesUpdates() {
+		return
+	}
+
 	// As long as we think we are holding a newer id than lastid we keep trying
 	// to CAS until we see a newer id or the CAS succeeds.
 	lastid := atomic.LoadUintptr(&p.lastid)
 	for lastid < id && !atomic.CompareAndSwapUintptr(&p.lastid, lastid, id) {
 		lastid = atomic.LoadUintptr(&p.lastid)
 	}
+
+	// TODO:
+	// Presuming the CAS succeeded, do we now try to asynchronously terminate
+	// transactions in the pool?  Alternative to terminating the transactions,
+	// we could go through the pool and renew/reset any stale txns we find?
+	//
+	// In the case where a single transaction enters and exits the pool
+	// repeatedly we are actually doing a disservice to the application because
+	// it will need to allocate more Txns than it would otherwise if we were to
+	// terminate them. Renewing them preemptively runs the risk of wasting
+	// resources.
+	//
+	// The questions surrounding this require more benchmarks and real world
+	// experimentation.
+}
+
+// handlesUpdates returns if updates are handled in any way.
+func (p *TxnPool) handlesUpdates() bool {
+	return p.UpdateHandling&HandleAll != 0
 }
 
 // Abort aborts the txn and allows it to be reused if possible.  Abort must
