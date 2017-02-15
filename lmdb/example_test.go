@@ -62,7 +62,7 @@ func Example() {
 	// In any real application it is important to check for readers that were
 	// never closed by their owning process, and for which the owning process
 	// has exited.  See the documentation on transactions for more information.
-	staleReaders, err = env.ReaderCheck()
+	staleReaders, err := env.ReaderCheck()
 	if err != nil {
 		// ...
 	}
