@@ -21,6 +21,30 @@ func TestTxn_ID(t *testing.T) {
 		id0 = txn.ID()
 		return nil
 	})
+	if err != nil {
+		t.Error(err)
+	}
+	if 0 != id0 {
+		t.Errorf("unexpected readonly id (before update): %v (!= %v)", id0, 0)
+	}
+
+	txnCached, err := env.BeginTxn(nil, Readonly)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer txnCached.Abort()
+	if 0 != txnCached.ID() {
+		t.Errorf("unexpected readonly id (before update): %v (!= %v)", txnCached.ID(), 0)
+	}
+	if txnCached.getID() != txnCached.ID() {
+		t.Errorf("unexpected readonly id (before update): %v (!= %v)", txnCached.ID(), txnCached.getID())
+	}
+	txnCached.Reset()
+	if txnCached.getID() != txnCached.ID() {
+		t.Errorf("unexpected reset id: %v (!= %v)", txnCached.ID(), txnCached.getID())
+	}
+
 	err = env.Update(func(txn *Txn) (err error) {
 		dbi, err := txn.OpenRoot(0)
 		if err != nil {
@@ -43,18 +67,34 @@ func TestTxn_ID(t *testing.T) {
 		return
 	}
 	id3 = txnInvalid.ID()
+
+	// The ID of txnCached will actually change during the call to
+	// txnCached.Renew().  It's imperitive that any ID cached in the Txn object
+	// does not diverge.
+	if txnCached.ID() != txnCached.getID() {
+		t.Errorf("unexpected invalid id: %v (!= %v)", txnCached.ID(), txnCached.getID())
+	}
+	err = txnCached.Renew()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if txnCached.ID() != txnCached.getID() {
+		t.Errorf("unexpected invalid id: %v (!= %v)", txnCached.ID(), txnCached.getID())
+	}
+
 	t.Logf("ro txn id:: %v", id1)
 	t.Logf("txn id: %v", id1)
 	t.Logf("ro txn id: %v", id2)
 	t.Logf("bad txn id: %v", id3)
-	if 0 != id0 {
-		t.Errorf("unexpected readonly id (before update): %v (!= %v)", id0, 0)
-	}
 	if id1 != id2 {
 		t.Errorf("unexpected readonly id: %v (!= %v)", id2, id1)
 	}
 	if 0 != id3 {
 		t.Errorf("unexpected invalid id: %v (!= %v)", id3, 0)
+	}
+	if id1 != txnCached.ID() {
+		t.Errorf("unexpected invalid id: %v (!= %v)", txnCached.ID(), 0)
 	}
 }
 

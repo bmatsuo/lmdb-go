@@ -50,18 +50,20 @@ type Txn struct {
 	// finalizations.
 	Pooled bool
 
+	managed  bool
+	readonly bool
+
 	// The value of Txn.ID() is cached so that the cost of cgo does not have to
 	// be paid.  The id of a Txn cannot change over its life, even if it is
 	// reset/renewed
 	id uintptr
 
-	managed  bool
-	readonly bool
-	env      *Env
-	_txn     *C.MDB_txn
-	errLogf  func(format string, v ...interface{})
-	key      *C.MDB_val
-	val      *C.MDB_val
+	env  *Env
+	_txn *C.MDB_txn
+	key  *C.MDB_val
+	val  *C.MDB_val
+
+	errLogf func(format string, v ...interface{})
 }
 
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
@@ -113,10 +115,14 @@ func (txn *Txn) ID() uintptr {
 	// application dbis.  Even so, calling C.mdb_txn_id excessively isn't
 	// actually harmful, it is just slow.
 	if txn.id == 0 {
-		txn.id = uintptr(C.mdb_txn_id(txn._txn))
+		txn.id = txn.getID()
 	}
 
 	return txn.id
+}
+
+func (txn *Txn) getID() uintptr {
+	return uintptr(C.mdb_txn_id(txn._txn))
 }
 
 // RunOp executes fn with txn as an argument.  During the execution of fn no
@@ -228,6 +234,13 @@ func (txn *Txn) clearTxn() {
 	// returning the old ID future calls to txn.ID() will query LMDB to make
 	// sure the value returned for an invalid Txn is more or less consistent
 	// for people familiar with the C semantics.
+	txn.resetID()
+}
+
+// resetID has to be called anytime the value of Txn.getID() may change
+// otherwise the cached value may diverge from the actual value and the
+// abstraction has failed.
+func (txn *Txn) resetID() {
 	txn.id = 0
 }
 
@@ -263,6 +276,16 @@ func (txn *Txn) Renew() error {
 
 func (txn *Txn) renew() error {
 	ret := C.mdb_txn_renew(txn._txn)
+
+	// mdb_txn_renew causes txn._txn to pick up a new transaction ID.  It's
+	// slightly confusing in the LMDB docs.  Txn ID corresponds to database
+	// snapshot the reader is holding, which is good because renewed
+	// transactions can see updates which happened since they were created (or
+	// since they were last renewed).  It should follow that renewing a Txn
+	// results in the freeing of stale pages the Txn has been holding, though
+	// this has not been confirmed in any way by bmatsuo as of 2017-02-15.
+	txn.resetID()
+
 	return operrno("mdb_txn_renew", ret)
 }
 
