@@ -201,12 +201,17 @@ Building commands and running tests can be done with `go` or with `make`
     make check
     make all
 
-On Linux, you can specify the `pwritev` build tag to reduce the number of syscalls
-required when committing a transaction. In your own package you can then do
+There are several build tags you can use to tune the library.
 
-    go build -tags pwritev .
+* `pwritev` (Linux only): reduce the number of syscalls on transaction commit
+* `fdatasync` (Linux only): reduce the amount of data written on transaction commit (only safe on kernels >= 3.6)
+* `lmdb_debug`: enable LMDB debug output
 
-to enable the optimisation.
+In your own package you can then do
+
+    go build -tags pwritev,lmdb_debug .
+
+to enable any of the supported tags. Enabling Linux-only flags on a different OS is a no-op and therefore safe to do.
 
 ##Documentation
 
