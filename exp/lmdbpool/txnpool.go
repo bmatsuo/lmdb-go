@@ -55,9 +55,10 @@ type TxnPool struct {
 	// used concurrently.
 	UpdateHandling UpdateHandling
 
-	lastid uintptr
-	env    *lmdb.Env
-	pool   sync.Pool
+	lastid    uintptr
+	idleGuard uintptr
+	env       *lmdb.Env
+	pool      sync.Pool
 }
 
 // NewTxnPool initializes returns a new TxnPool.
@@ -194,34 +195,93 @@ func (p *TxnPool) getLastID() uintptr {
 //
 // CommitID should only be called if p is not used to create/commit update
 // transactions.
-//
-// BUG:
-// HandleIdle is not checked.
 func (p *TxnPool) CommitID(id uintptr) {
 	if !p.handlesUpdates() {
 		return
 	}
 
+	updated := false
+
 	// As long as we think we are holding a newer id than lastid we keep trying
 	// to CAS until we see a newer id or the CAS succeeds.
 	lastid := atomic.LoadUintptr(&p.lastid)
-	for lastid < id && !atomic.CompareAndSwapUintptr(&p.lastid, lastid, id) {
+	for lastid < id {
+		if atomic.CompareAndSwapUintptr(&p.lastid, lastid, id) {
+			updated = true
+		}
 		lastid = atomic.LoadUintptr(&p.lastid)
 	}
 
-	// TODO:
-	// Presuming the CAS succeeded, do we now try to asynchronously terminate
-	// transactions in the pool?  Alternative to terminating the transactions,
-	// we could go through the pool and renew/reset any stale txns we find?
-	//
-	// In the case where a single transaction enters and exits the pool
-	// repeatedly we are actually doing a disservice to the application because
-	// it will need to allocate more Txns than it would otherwise if we were to
-	// terminate them. Renewing them preemptively runs the risk of wasting
-	// resources.
-	//
-	// The questions surrounding this require more benchmarks and real world
-	// experimentation.
+	if updated && p.UpdateHandling&HandleIdle != 0 {
+		// In the case where a single transaction enters and exits the pool
+		// repeatedly we are actually doing a disservice to the application because
+		// it will need to allocate more Txns than it would otherwise if we were to
+		// terminate them. Renewing them preemptively runs the risk of wasting
+		// resources.
+		//
+		// The questions surrounding this require more benchmarks and real world
+		// experimentation.
+
+		// NOTE:
+		// If the cost of creating a goroutine here is disruptive in some way
+		// it would be worth experimenting to see if sending over a channel to
+		// notify a worker goroutine would improve performance or other runtime
+		// characteristics.
+		go p.handleIdle()
+	}
+}
+
+func (p *TxnPool) handleIdle() {
+	// We don't want multiple handleIdle goroutines to run simultaneously.  But
+	// we don't really want them to block and run serially because the running
+	// one will probably do the work of the waiting one.  So we just attempt to
+	// CAS a guarding value and continue if the we succeeded (ensuring that we
+	// reset the value with defer).
+	if !atomic.CompareAndSwapUintptr(&p.idleGuard, 0, 1) {
+		return
+	}
+	// Don't CAS when we reset.  Just reset.  It will make sure that handleIdle
+	// can run again.
+	defer atomic.StoreUintptr(&p.idleGuard, 0)
+
+	var txnPutBack *lmdb.Txn
+	for {
+		txn, ok := p.pool.Get().(*lmdb.Txn)
+		if txnPutBack != nil {
+			// If we had a Txn to put back into the pool we wait so that we
+			// don't grab the one we just saw.
+			p.pool.Put(txnPutBack)
+			txnPutBack = nil
+		}
+		if !ok {
+			// No Txn objects in the pool, so we just break out.
+			break
+		}
+
+		// NOTE:
+		// We should not cache p.getLastID or take it as an argument because
+		// this function can run concurrent with updates which are getting
+		// committed.
+		if txn.ID() >= p.getLastID() {
+			// This transaction is not holding stale pages.  We just assume that we
+			// are done now and stop trying to find more transactions.
+			p.pool.Put(txn)
+			break
+		}
+
+		// This transaction has stale pages and must be dealt with
+		ok, err := p.handleReadonly(txn, HandleIdle)
+		if err != nil {
+			// We attempted to renew the transaction but failed and the
+			// transaction was automatically aborted.
+			p.renewError(err)
+			continue
+		}
+		if ok {
+			// txn was renewed so we can put it back in the pool.
+			txnPutBack = txn
+		}
+	}
 }
 
 // handlesUpdates returns if updates are handled in any way.
