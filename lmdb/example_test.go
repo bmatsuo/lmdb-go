@@ -31,20 +31,21 @@ func doUpdate1(txn *lmdb.Txn) error { return nil }
 func doUpdate2(txn *lmdb.Txn) error { return nil }
 func doView(txn *lmdb.Txn) error    { return nil }
 
-// This example demonstrates a complete workflow for an lmdb environment.  The
-// Env is first created.  After being configured the Env is mapped to memory.
-// Once mapped, database handles are opened and normal database operations
+// This example demonstrates a complete workflow for a simple application
+// working with LMDB.  First, an Env is configured and mapped to memory.  Once
+// mapped, database handles are opened and normal database operations may
 // begin.
 func Example() {
-	// create an environment and make sure it is eventually closed.
+	// Create an environment and make sure it is eventually closed.
 	env, err := lmdb.NewEnv()
 	if err != nil {
 		// ...
 	}
 	defer env.Close()
 
-	// configure and open the environment.  most configuration must be done
-	// before opening the environment.
+	// Configure and open the environment.  Most configuration must be done
+	// before opening the environment.  The go documentation for each method
+	// should indicate if it must be called before calling env.Open()
 	err = env.SetMaxDBs(1)
 	if err != nil {
 		// ..
@@ -58,7 +59,21 @@ func Example() {
 		// ..
 	}
 
-	// open a database that can be used as long as the enviroment is mapped.
+	// In any real application it is important to check for readers that were
+	// never closed by their owning process, and for which the owning process
+	// has exited.  See the documentation on transactions for more information.
+	staleReaders, err := env.ReaderCheck()
+	if err != nil {
+		// ...
+	}
+	if staleReaders > 0 {
+		log.Printf("cleared %d reader slots from dead processes", staleReaders)
+	}
+
+	// Open a database handle that will be used for the entire lifetime of this
+	// application.  Because the database may not have existed before, and the
+	// database may need to be created, we need to get the database handle in
+	// an update transacation.
 	var dbi lmdb.DBI
 	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		dbi, err = txn.CreateDBI("example")
@@ -68,8 +83,10 @@ func Example() {
 		// ...
 	}
 
-	// the database is now ready for use.  read the value for a key and print
-	// it to standard output.
+	// The database referenced by our DBI handle is now ready for the
+	// application to use.  Here the application just opens a readonly
+	// transaction and reads the data stored in the "hello" key and prints its
+	// value to the application's standard output.
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		v, err := txn.Get(dbi, []byte("hello"))
 		if err != nil {

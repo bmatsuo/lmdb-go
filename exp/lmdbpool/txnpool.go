@@ -9,6 +9,26 @@ import (
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
+// UpdateHandling describes how a TxnPool handles existing lmdb.Readonly
+// transactions when an environment update occurs.  Applications with a high
+// rate of large updates may need to choose non-default settings to reduce
+// their storage requirements at the cost of read throughput.
+type UpdateHandling uint
+
+const (
+	// AbortOutstanding causes a TxnPool to abort any lmdb.Readonly
+	// transactions that are being returned to the pool after an update.
+	AbortOutstanding UpdateHandling = 1 << iota
+	RenewOutstanding
+
+	// AbortIdle causes a TxnPool to actively attempt aborting idle
+	// transactions in the sync.Pool after an update has been committed.  There
+	// is no guarantee when using AbortIdle that all idle readers will be
+	// aborted.
+	AbortIdle
+	RenewOutstanding
+)
+
 // TxnPool is a pool for reusing transactions through their Reset and Renew
 // methods.  However, even though TxnPool can only reuse lmdb.Readonly
 // transactions it this way it should be used to create and terminate all Txns

@@ -18,6 +18,8 @@ go get github.com/bmatsuo/lmdb-go/exp/lmdbpool
 ```
 
 - Silence aggressive struct initializer warning from clang (#107)
+- Improved documentation regarding long-running transactions and dead readers
+  (#111)
 
 ##v1.8.0 (2017-02-10)
 
