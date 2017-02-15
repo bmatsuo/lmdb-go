@@ -92,7 +92,7 @@ func (p *TxnPool) beginReadonly() (*lmdb.Txn, error) {
 	// LMDB documentation as of 0.9.19).
 	err := txn.Renew()
 	if err != nil {
-		txn.renewError(err)
+		p.renewError(err)
 
 		// Nothing we can do with txn now other than destroy it.
 		txn.Abort()
