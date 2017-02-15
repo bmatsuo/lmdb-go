@@ -13,6 +13,11 @@ import (
 // transactions when an environment update occurs.  Applications with a high
 // rate of large updates may need to choose non-default settings to reduce
 // their storage requirements at the cost of read throughput.
+//
+// The zero-value of UpdateHandling causes a TxnPool to ignore all updates and
+// defers to the application and the lmdb.Txn finalizers clear stale readers
+// (pulling an lmdb.Readonly transaction out of the pool is enough to release
+// its stale pages).
 type UpdateHandling uint
 
 const (
@@ -30,6 +35,10 @@ const (
 	// causes a TxnPool to renew transactions and put them back in the pool
 	// instead of aborting them.
 	HandleRenew
+
+	// HandleAll is a convenient alias for the combination of HandleOutstanding
+	// and HandleIdle.
+	HandleAll = HandleOutstanding | HandleIdle
 )
 
 // TxnPool is a pool for reusing transactions through their Reset and Renew
@@ -128,7 +137,9 @@ func (p *TxnPool) abortReadonly(txn *lmdb.Txn) {
 		return
 	}
 
-	if txn.ID() < p.getLastID() {
+	// We want to make sure that we handle updates in some way before we call
+	// either txn.ID() or p.getLastID() as both (can) incurr overhead.
+	if p.handlesUpdates() && txn.ID() < p.getLastID() {
 		ok, err := p.handleReadonly(txn, HandleOutstanding)
 		if err != nil {
 			// We attempted to renew the transaction but failed and the
@@ -183,6 +194,10 @@ func (p *TxnPool) getLastID() uintptr {
 // BUG:
 // HandleIdle is not checked.
 func (p *TxnPool) CommitID(id uintptr) {
+	if !p.handlesUpdates() {
+		return
+	}
+
 	// As long as we think we are holding a newer id than lastid we keep trying
 	// to CAS until we see a newer id or the CAS succeeds.
 	lastid := atomic.LoadUintptr(&p.lastid)
@@ -203,6 +218,11 @@ func (p *TxnPool) CommitID(id uintptr) {
 	//
 	// The questions surrounding this require more benchmarks and real world
 	// experimentation.
+}
+
+// handlesUpdates returns if updates are handled in any way.
+func (p *TxnPool) handlesUpdates() bool {
+	return p.UpdateHandling&HandleAll != 0
 }
 
 // Abort aborts the txn and allows it to be reused if possible.  Abort must
