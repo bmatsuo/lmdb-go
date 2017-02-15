@@ -61,6 +61,53 @@ through the Env methods Update, View, and RunTxn.  The BeginTxn method on Env
 creates an unmanaged transaction but its use is not advised in most
 applications.
 
+To provide ACID guarantees, a readonly transaction must acquire a "lock" in the
+LMDB environment to ensure that data it reads is consistent over the course of
+the transaction's lifetime, and that updates happening concurrently will not be
+seen.  If a reader does not release its lock then stale data, which has been
+overwritten by later transactions, cannot be reclaimed by LMDB -- resulting in
+a rapid increase in file size.
+
+Long-running read transactions may cause increase an applications storage
+requirements, depending on the application write workload.  But, typically the
+complete failure of an application to terminate a read transactions will result
+in continual increase file size to the point where the storage volume becomes
+full or a quota has been reached.
+
+There are steps an application may take to greatly reduce the possibility of
+unterminated read transactions.  The first safety measure is to avoid the use
+of Env.BeginTxn, which creates unmanaged transactions, and always use Env.View
+or Env.Update to create managed transactions that are (mostly) guaranteed to
+terminate.  If Env.BeginTxn must be used try to defer a call to the Txn's Abort
+method (this is useful even for update transactions).
+
+	txn, err := env.BeginTxn(nil, 0)
+	if err != nil {
+		// ...
+	}
+	defer txn.Abort() // Safe even if txn.Commit() is called later.
+
+Because application crashes and signals from the operation system may cause
+unexpected termination of a readonly transaction before Txn.Abort may be called
+it is also important that applications clear any readers held for dead OS
+processes when they start.
+
+	numStale, err := env.ReaderCheck()
+	if err != nil {
+		// ...
+	}
+	if numStale > 0 {
+		log.Printf("Released locks for %d dead readers", numStale)
+	}
+
+If an application gets accessed by multiple programs concurrently it is also a
+good idea to periodically call Env.ReaderCheck during application execution.
+However, note that Env.ReaderCheck cannot find readers opened by the
+application itself which have since leaked.  Because of this, the lmdb package
+uses a finalizer to abort unreachable Txn objects.  But of course, applications
+must still be careful not to leak unterminated Txn objects in a way such that
+they fail get garbage collected.
+
 
 Caveats
 
