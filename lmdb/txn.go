@@ -52,11 +52,18 @@ type Txn struct {
 
 	managed  bool
 	readonly bool
-	env      *Env
-	_txn     *C.MDB_txn
-	errLogf  func(format string, v ...interface{})
-	key      *C.MDB_val
-	val      *C.MDB_val
+
+	// The value of Txn.ID() is cached so that the cost of cgo does not have to
+	// be paid.  The id of a Txn cannot change over its life, even if it is
+	// reset/renewed
+	id uintptr
+
+	env  *Env
+	_txn *C.MDB_txn
+	key  *C.MDB_val
+	val  *C.MDB_val
+
+	errLogf func(format string, v ...interface{})
 }
 
 // beginTxn does not lock the OS thread which is a prerequisite for creating a
@@ -102,6 +109,19 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 //
 // See mdb_txn_id.
 func (txn *Txn) ID() uintptr {
+	// It is possible for a txn to legitimately have ID 0 if it a readonly txn
+	// created before any updates.  In practice this does not really happen
+	// because an application typically must do an initial update to initialize
+	// application dbis.  Even so, calling C.mdb_txn_id excessively isn't
+	// actually harmful, it is just slow.
+	if txn.id == 0 {
+		txn.id = txn.getID()
+	}
+
+	return txn.id
+}
+
+func (txn *Txn) getID() uintptr {
 	return uintptr(C.mdb_txn_id(txn._txn))
 }
 
@@ -171,7 +191,7 @@ func (txn *Txn) Commit() error {
 
 func (txn *Txn) commit() error {
 	ret := C.mdb_txn_commit(txn._txn)
-	txn._txn = nil
+	txn.clearTxn()
 	return operrno("mdb_txn_commit", ret)
 }
 
@@ -201,9 +221,27 @@ func (txn *Txn) abort() {
 	}
 	txn.env.closeLock.RUnlock()
 
+	txn.clearTxn()
+}
+
+func (txn *Txn) clearTxn() {
 	// Clear the C object to prevent any potential future use of the freed
 	// pointer.
 	txn._txn = nil
+
+	// Clear txn.id because it no longer matches the value of txn._txn (and
+	// future calls to txn.ID() should not see the stale id).  Instead of
+	// returning the old ID future calls to txn.ID() will query LMDB to make
+	// sure the value returned for an invalid Txn is more or less consistent
+	// for people familiar with the C semantics.
+	txn.resetID()
+}
+
+// resetID has to be called anytime the value of Txn.getID() may change
+// otherwise the cached value may diverge from the actual value and the
+// abstraction has failed.
+func (txn *Txn) resetID() {
+	txn.id = 0
 }
 
 // Reset aborts the transaction clears internal state so the transaction may be
@@ -238,6 +276,16 @@ func (txn *Txn) Renew() error {
 
 func (txn *Txn) renew() error {
 	ret := C.mdb_txn_renew(txn._txn)
+
+	// mdb_txn_renew causes txn._txn to pick up a new transaction ID.  It's
+	// slightly confusing in the LMDB docs.  Txn ID corresponds to database
+	// snapshot the reader is holding, which is good because renewed
+	// transactions can see updates which happened since they were created (or
+	// since they were last renewed).  It should follow that renewing a Txn
+	// results in the freeing of stale pages the Txn has been holding, though
+	// this has not been confirmed in any way by bmatsuo as of 2017-02-15.
+	txn.resetID()
+
 	return operrno("mdb_txn_renew", ret)
 }
 
