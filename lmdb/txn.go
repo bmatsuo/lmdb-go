@@ -50,6 +50,11 @@ type Txn struct {
 	// finalizations.
 	Pooled bool
 
+	// The value of Txn.ID() is cached so that the cost of cgo does not have to
+	// be paid.  The id of a Txn cannot change over its life, even if it is
+	// reset/renewed
+	id uintptr
+
 	managed  bool
 	readonly bool
 	env      *Env
@@ -102,7 +107,16 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 //
 // See mdb_txn_id.
 func (txn *Txn) ID() uintptr {
-	return uintptr(C.mdb_txn_id(txn._txn))
+	// It is possible for a txn to legitimately have ID 0 if it a readonly txn
+	// created before any updates.  In practice this does not really happen
+	// because an application typically must do an initial update to initialize
+	// application dbis.  Even so, calling C.mdb_txn_id excessively isn't
+	// actually harmful, it is just slow.
+	if txn.id == 0 {
+		txn.id = uintptr(C.mdb_txn_id(txn._txn))
+	}
+
+	return txn.id
 }
 
 // RunOp executes fn with txn as an argument.  During the execution of fn no
@@ -171,7 +185,7 @@ func (txn *Txn) Commit() error {
 
 func (txn *Txn) commit() error {
 	ret := C.mdb_txn_commit(txn._txn)
-	txn._txn = nil
+	txn.clearTxn()
 	return operrno("mdb_txn_commit", ret)
 }
 
@@ -201,9 +215,20 @@ func (txn *Txn) abort() {
 	}
 	txn.env.closeLock.RUnlock()
 
+	txn.clearTxn()
+}
+
+func (txn *Txn) clearTxn() {
 	// Clear the C object to prevent any potential future use of the freed
 	// pointer.
 	txn._txn = nil
+
+	// Clear txn.id because it no longer matches the value of txn._txn (and
+	// future calls to txn.ID() should not see the stale id).  Instead of
+	// returning the old ID future calls to txn.ID() will query LMDB to make
+	// sure the value returned for an invalid Txn is more or less consistent
+	// for people familiar with the C semantics.
+	txn.id = 0
 }
 
 // Reset aborts the transaction clears internal state so the transaction may be

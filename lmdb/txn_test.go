@@ -15,9 +15,13 @@ func TestTxn_ID(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 
-	var id1, id2, id3 uintptr
+	var id0, id1, id2, id3 uintptr
 	var txnInvalid *Txn
-	err := env.Update(func(txn *Txn) (err error) {
+	err := env.View(func(txn *Txn) (err error) {
+		id0 = txn.ID()
+		return nil
+	})
+	err = env.Update(func(txn *Txn) (err error) {
 		dbi, err := txn.OpenRoot(0)
 		if err != nil {
 			return err
@@ -39,13 +43,17 @@ func TestTxn_ID(t *testing.T) {
 		return
 	}
 	id3 = txnInvalid.ID()
+	t.Logf("ro txn id:: %v", id1)
 	t.Logf("txn id: %v", id1)
 	t.Logf("ro txn id: %v", id2)
 	t.Logf("bad txn id: %v", id3)
+	if 0 != id0 {
+		t.Errorf("unexpected readonly id (before update): %v (!= %v)", id0, 0)
+	}
 	if id1 != id2 {
 		t.Errorf("unexpected readonly id: %v (!= %v)", id2, id1)
 	}
-	if id2 == id3 {
+	if 0 != id3 {
 		t.Errorf("unexpected invalid id: %v (!= %v)", id3, 0)
 	}
 }
