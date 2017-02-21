@@ -150,7 +150,6 @@ func Example_worker() {
 	})
 }
 
-/*
 // This example shows basic operations on databases use integer keys, integer
 // values, or both.  This is a fairly advanced example and assumes you are
 // familiar with more common operations with Txn and Cursor types.
@@ -204,29 +203,29 @@ func Example_integers() {
 	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		// Create a database of items which have a simple increasing numeric
 		// key (like a postgres serial primary key).
-		err = txn.PutData(db1, lmdb.Uintptr(1), lmdb.Bytes([]byte("item1")), 0)
+		err = txn.Put(db1, lmdb.CSizet(1).Bytes(), []byte("item1"), 0)
 		if err != nil {
 			return nil
 		}
-		err = txn.PutData(db1, lmdb.Uintptr(2), lmdb.Bytes([]byte("item2")), 0)
+		err = txn.Put(db1, lmdb.CSizet(2).Bytes(), []byte("item2"), 0)
 		if err != nil {
 			return nil
 		}
-		err = txn.PutData(db1, lmdb.Uintptr(3), lmdb.Bytes([]byte("item3")), 0)
+		err = txn.Put(db1, lmdb.CSizet(3).Bytes(), []byte("item3"), 0)
 		if err != nil {
 			return nil
 		}
 
 		// Associate two records with "alice" and one record with "bob".
-		err = txn.PutData(db2, lmdb.Bytes([]byte("alice")), lmdb.Uint(1), 0)
+		err = txn.Put(db2, []byte("alice"), lmdb.CUint(1).Bytes(), 0)
 		if err != nil {
 			return nil
 		}
-		err = txn.PutData(db2, lmdb.Bytes([]byte("alice")), lmdb.Uint(2), 0)
+		err = txn.Put(db2, []byte("alice"), lmdb.CUint(2).Bytes(), 0)
 		if err != nil {
 			return nil
 		}
-		err = txn.PutData(db2, lmdb.Bytes([]byte("bob")), lmdb.Uint(2), 0)
+		err = txn.Put(db2, []byte("bob"), lmdb.CUint(2).Bytes(), 0)
 		if err != nil {
 			return nil
 		}
@@ -235,19 +234,19 @@ func Example_integers() {
 		// keys and values of this database have different sizes primarily to
 		// illustrate the different APIs available and not to demonstrate good
 		// application design.
-		err = txn.PutData(db3, lmdb.Uint(1), lmdb.Uintptr(1), 0)
+		err = txn.Put(db3, lmdb.CUint(1).Bytes(), lmdb.CSizet(1).Bytes(), 0)
 		if err != nil {
 			return nil
 		}
-		err = txn.PutData(db3, lmdb.Uint(1), lmdb.Uintptr(2), 0)
+		err = txn.Put(db3, lmdb.CUint(1).Bytes(), lmdb.CSizet(2).Bytes(), 0)
 		if err != nil {
 			return nil
 		}
-		err = txn.PutData(db3, lmdb.Uint(3), lmdb.Uintptr(3), 0)
+		err = txn.Put(db3, lmdb.CUint(3).Bytes(), lmdb.CSizet(3).Bytes(), 0)
 		if err != nil {
 			return nil
 		}
-		err = txn.PutData(db3, lmdb.Uint(2), lmdb.Uintptr(2), 0)
+		err = txn.Put(db3, lmdb.CUint(2).Bytes(), lmdb.CSizet(2).Bytes(), 0)
 		if err != nil {
 			return nil
 		}
@@ -268,7 +267,7 @@ func Example_integers() {
 
 		// Get the item with the above id from db1.  Because one of the
 		// arguments to the query is an integer type Txn.GetData must be used.
-		item, err := txn.GetData(db1, lmdb.Uintptr(id))
+		item, err := txn.Get(db1, lmdb.CSizet(id).Bytes())
 		for err != nil {
 			log.Printf("%d -> %d", id, item)
 		}
@@ -301,7 +300,7 @@ func Example_integers() {
 		if err != nil {
 			return err
 		}
-		_, rec, err := lmdb.DataBU(cur.Get(nil, nil, lmdb.FirstDup))
+		_, rec, err := lmdb.ValueBU(cur.Get(nil, nil, lmdb.FirstDup))
 		if err != nil {
 			return err
 		}
@@ -327,10 +326,10 @@ func Example_integers() {
 		// Dump the contents of DB2.  Here the DataUZ function is used to
 		// extract a uint key and uintptr value from the result of Get or
 		// GetData.
-		rec, item, err := lmdb.DataUZ(cur.Get(nil, nil, lmdb.First))
+		rec, item, err := lmdb.ValueUZ(cur.Get(nil, nil, lmdb.First))
 		for err != nil {
 			log.Printf("%d -> %d", rec, item)
-			rec, item, err = lmdb.DataUZ(cur.Get(nil, nil, lmdb.Next))
+			rec, item, err = lmdb.ValueUZ(cur.Get(nil, nil, lmdb.Next))
 		}
 		if err != nil && !lmdb.IsNotFound(err) {
 			return err
@@ -342,7 +341,6 @@ func Example_integers() {
 		panic(err)
 	}
 }
-*/
 
 // This example demonstrates how an application typically uses Env.SetMapSize.
 // The call to Env.SetMapSize() is made before calling env.Open().  Any calls
