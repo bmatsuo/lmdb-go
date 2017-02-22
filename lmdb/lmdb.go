@@ -131,7 +131,7 @@ developer with safe conversion functions which are listed below for reference.
 
 The suffix on the conversion function denotes the types of value(s) extracted
 from []byte data and the length of the suffix denotes the number of []byte
-arguments accepted converted.  The character 'U' in a suffix means the
+arguments accepted/converted.  The character 'U' in a suffix means the
 conversion function extracts a C.uint value as a uint.  The character 'Z' in a
 suffix means the function extracts a C.size_t value as a uintptr.  The
 character 'X' in a suffix means that the function will extract either C.uint or
@@ -146,9 +146,9 @@ Conversion functions with a two-letter suffix (e.g.  ValueZU) take two []byte
 values with an error and can safely extract integers the result of Cursor.Get.
 So, ValueZU will take ([]byte, []byte, error) arguments and return (uintptr,
 uint, error) results.  These three-argument conversion functions also have
-special variants using the character 'B' in their suffix which signifies that
+special variants which use the character 'B' in their suffix, signifying that
 the corresponding []byte argument will be returned as it is given.  So an
-application that with a database using only the flag IntegerKey might call
+application with a database using only the flag IntegerKey might call
 Cursor.Get and pass its results to ValueZB (or ValueUB).
 
 	id, data, err := lmdb.ValueZB(cursor.Get(nil, nil, lmdb.First))
