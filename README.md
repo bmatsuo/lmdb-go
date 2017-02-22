@@ -103,6 +103,9 @@ reason).  Some notable features and optimizations that are supported:
 - Reserved writes than can save in memory copies converting/buffering into
   `[]byte`.
 
+- Optimized databases using unsigned integer keys and values using the
+  `MDB_INTEGERKEY` and `MDB_INTEGERDUP` flags.
+
 For tracking purposes a list of unsupported features is kept in an
 [issue](https://github.com/bmatsuo/lmdb-go/issues/1).
 

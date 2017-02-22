@@ -127,6 +127,81 @@ the runtime's thread locking implementation.  In such situations updates
 desired by the goroutine in question must be proxied by a goroutine with a
 known state (i.e.  "locked" or "unlocked").  See the included examples for more
 details about dealing with such situations.
+
+Integer Values
+
+The IntegerKey and IntegerDup flags on databases allow LMDB to store C.uint and
+C.size_t data directly, sorted using standard integer comparison.  This is a
+performance optimization that allows for faster comparisions during lookups and
+avoids otherwise necessary serialization overhead storing unsigned integer data
+to ensure that keys, and values for duplicate keys in the case of DupSort,
+retain the correct ordering when using byte-wise comparison.
+
+Before committing your application to the use of integer values there are
+downsides to consider, particularly concerning application portability.  The
+acceptable values for the C.uint and C.size_t types are platform dependent.  As
+such, when using these flags it is easy to write application code which
+contains built-in assumptions about the target architecture.  Where an
+application which serializes unsigned integer data itself will deal with
+explicitly sized types like uint32 and uint64 and more naturally write their
+application in a way which is portable across architectures.
+
+Applications that have been written to serialize unsigned integer data as
+big-endian byte slices should consider benchmarking there applications before
+committing to the use of integer values for their application.  It is likely
+that applications will not notice a significant performance change unless
+operating on database with a large number of entries.
+
+When retrieving integer data from a database the package lmdb does not know
+what type of value you are retrieving.  Because of this everything is returned
+as a raw []byte.  In order to extract integer values package lmdb provides the
+developer with safe conversion functions which are listed below for reference.
+
+	ValueU
+	ValueX
+	ValueZ
+	ValueBU
+	ValueBX
+	ValueBZ
+	ValueUB
+	ValueUU
+	ValueUX
+	ValueUZ
+	ValueXB
+	ValueXU
+	ValueXX
+	ValueXZ
+	ValueZB
+	ValueZU
+	ValueZX
+	ValueZZ
+
+The suffix on the conversion function denotes the types of value(s) extracted
+from []byte data and the length of the suffix denotes the number of []byte
+arguments accepted/converted.  The character 'U' in a suffix means the
+conversion function extracts a C.uint value as a uint.  The character 'Z' in a
+suffix means the function extracts a C.size_t value as a uintptr.  The
+character 'X' in a suffix means that the function will extract either C.uint or
+C.size_t based on the size of the input []byte.
+
+Conversion functions with a single-letter suffix (e.g.  ValueU), take a single
+[]byte value with an error and can safely extract integers from the result of
+Txn.Get.  So, ValueU will take ([]byte, error) arguments and return (uint,
+error) results.
+
+Conversion functions with a two-letter suffix (e.g.  ValueZU) take two []byte
+values with an error and can safely extract integers the result of Cursor.Get.
+So, ValueZU will take ([]byte, []byte, error) arguments and return (uintptr,
+uint, error) results.  These three-argument conversion functions also have
+special variants which use the character 'B' in their suffix, signifying that
+the corresponding []byte argument will be returned as it is given.  So an
+application with a database using only the flag IntegerKey might call
+Cursor.Get and pass its results to ValueZB (or ValueUB).
+
+	id, data, err := lmdb.ValueZB(cursor.Get(nil, nil, lmdb.First))
+
+The id variable above will have type uintptr while data will be the bytes
+returned by cursor.Get, unmodified.
 */
 package lmdb
 

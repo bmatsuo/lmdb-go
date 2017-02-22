@@ -230,38 +230,35 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 		s := lmdbscan.New(txn, 0)
 		defer s.Close()
 		for s.Scan() {
-			key := s.Key()
-			data := s.Val()
-			txid := *(*C.size_t)(unsafe.Pointer(&key[0]))
-			ipages := int64(*(*C.size_t)(unsafe.Pointer(&data[0])))
-			numpages += ipages
+			txid, data, err := lmdb.ValueZB(s.Item())
+			if err != nil {
+				panic(fmt.Sprintf("unexpected transaction key: %q", s.Key()))
+			}
+			pages, ok := decodePages(data)
+			if !ok {
+				panic(fmt.Sprintf("unexpected transaction value: %d bytes", len(data)))
+			}
+			numpages += int64(len(pages))
 			if opt.PrintFreeSummary || opt.PrintFreeFull {
 				bad := ""
-				hdr := reflect.SliceHeader{
-					Data: uintptr(unsafe.Pointer(&data[0])),
-					Len:  int(ipages) + 1,
-					Cap:  int(ipages) + 1,
-				}
-				pages := *(*[]C.size_t)(unsafe.Pointer(&hdr))
-				pages = pages[1:]
 				var span C.size_t
 				prev := C.size_t(1)
-				for i := ipages - 1; i >= 0; i-- {
+				for i := C.size_t(len(pages) - 1); i >= 0; i-- {
 					pg := pages[i]
 					if pg < prev {
 						bad = " [bad sequence]"
 					}
 					prev = pg
 					pg += span
-					for i >= int64(span) && pages[i-int64(span)] == pg {
+					for i >= span && pages[i-span] == pg {
 						span++
 						pg++
 					}
 				}
-				fmt.Printf("    Transaction %d, %d pages, maxspan %d%s\n", txid, ipages, span, bad)
+				fmt.Printf("    Transaction %x, %d pages, maxspan %d%s\n", txid, len(pages), span, bad)
 
 				if opt.PrintFreeFull {
-					for j := ipages - 1; j >= 0; {
+					for j := len(pages) - 1; j >= 0; {
 						pg := pages[j]
 						j--
 						span := C.size_t(1)
@@ -287,6 +284,20 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 
 		return nil
 	})
+}
+
+func decodePages(b []byte) (pages []C.size_t, ok bool) {
+	if uintptr(len(b)) < unsafe.Sizeof(C.size_t(0)) {
+		return nil, false
+	}
+	n := int64(*(*C.size_t)(unsafe.Pointer(&b[0])))
+	hdr := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&b[0])),
+		Len:  int(n) + 1,
+		Cap:  int(n) + 1,
+	}
+	pages = *(*[]C.size_t)(unsafe.Pointer(&hdr))
+	return pages[1:], true
 }
 
 func doPrintStatRoot(env *lmdb.Env, opt *Options) error {

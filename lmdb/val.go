@@ -8,6 +8,7 @@ package lmdb
 import "C"
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/bmatsuo/lmdb-go/internal/lmdbarch"
@@ -29,9 +30,8 @@ const (
 	valMaxSize  = 1<<valSizeBits - 1
 )
 
-// Multi is a wrapper for a contiguous page of sorted, fixed-length values
-// passed to Cursor.PutMulti or retrieved using Cursor.Get with the
-// GetMultiple/NextMultiple flag.
+// Multi is a generic FixedMultiple implementation that can store contiguous
+// fixed-width for a configurable width (stride).
 //
 // Multi values are only useful in databases opened with DupSort|DupFixed.
 type Multi struct {
@@ -39,12 +39,22 @@ type Multi struct {
 	stride int
 }
 
-// WrapMulti converts a page of contiguous values with stride size into a
-// Multi.  WrapMulti panics if len(page) is not a multiple of stride.
+// WrapMulti converts a page of contiguous stride-sized values into a Multi.
+// WrapMulti panics if len(page) is not a multiple of stride.
 //
-//		_, val, _ := cursor.Get(nil, nil, lmdb.FirstDup)
-//		_, page, _ := cursor.Get(nil, nil, lmdb.GetMultiple)
-//		multi := lmdb.WrapMulti(page, len(val))
+// WrapMulti is deprecated.  Use the Stride.Multiple method instead.
+//
+//		_, elem, err := cursor.Get(nil, nil, lmdb.FirstDup)
+//		if err != nil {
+//			return err
+//		}
+//		_, page, err := cursor.Get(nil, nil, lmdb.GetMultiple)
+//		elems, err := lmdb.
+//			Stride(len(elem)).
+//			Multiple(page, err)
+//		if err != nil {
+//			return err
+//		}
 //
 // See mdb_cursor_get and MDB_GET_MULTIPLE.
 func WrapMulti(page []byte, stride int) *Multi {
@@ -52,6 +62,29 @@ func WrapMulti(page []byte, stride int) *Multi {
 		panic("incongruent arguments")
 	}
 	return &Multi{page: page, stride: stride}
+}
+
+// Stride is the fixed element width for a Multi object
+type Stride int
+
+// Multiple wraps page as a Multi.  Multiple returns an error if the input err
+// is non-nil, the stride is not a positive value, or if len(page) is not a
+// multiple of the stride.
+func (s Stride) Multiple(page []byte, err error) (*Multi, error) {
+	if err != nil {
+		return nil, err
+	}
+	if s < 1 {
+		return nil, fmt.Errorf("invalid stride")
+	}
+	if len(page)%int(s) != 0 {
+		return nil, fmt.Errorf("argument and page stride are not congruent")
+	}
+	m := &Multi{
+		page:   page,
+		stride: int(s),
+	}
+	return m, nil
 }
 
 // Vals returns a slice containing the values in m.  The returned slice has
@@ -69,6 +102,19 @@ func (m *Multi) Vals() [][]byte {
 func (m *Multi) Val(i int) []byte {
 	off := i * m.stride
 	return m.page[off : off+m.stride]
+}
+
+// Append returns a new Multi with page data resulting from appending b to
+// m.Page().  Put panics if len(b) is not equal to m.Stride()
+func (m *Multi) Append(b []byte) *Multi {
+	if len(b) != m.stride {
+		panic("bad data size")
+	}
+
+	return &Multi{
+		stride: m.stride,
+		page:   append(m.page, b...),
+	}
 }
 
 // Len returns the number of values in the Multi.

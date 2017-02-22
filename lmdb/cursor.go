@@ -140,17 +140,18 @@ func (c *Cursor) DBI() DBI {
 // RawRead set to false the Set op returns key values with memory distinct from
 // setkey, as is always the case when using RawRead.
 //
-// Get ignores setval if setkey is empty.
+// Get ignores data if key is empty.
 //
 // See mdb_cursor_get.
-func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error) {
+func (c *Cursor) Get(key, data []byte, op uint) ([]byte, []byte, error) {
+	var err error
 	switch {
-	case len(setkey) == 0:
+	case len(key) == 0:
 		err = c.getVal0(op)
-	case len(setval) == 0:
-		err = c.getVal1(setkey, op)
+	case len(data) == 0:
+		err = c.getVal1(key, op)
 	default:
-		err = c.getVal2(setkey, setval, op)
+		err = c.getVal2(key, data, op)
 	}
 	if err != nil {
 		*c.txn.key = C.MDB_val{}
@@ -163,24 +164,22 @@ func (c *Cursor) Get(setkey, setval []byte, op uint) (key, val []byte, err error
 	// routines will be bad for the Go runtime when operating on Go memory
 	// (panic or potentially garbage memory reference).
 	if op == Set {
-		if c.txn.RawRead {
-			key = setkey
-		} else {
-			p := make([]byte, len(setkey))
-			copy(p, setkey)
+		if !c.txn.RawRead {
+			p := make([]byte, len(key))
+			copy(p, key)
 			key = p
 		}
 	} else {
 		key = c.txn.bytes(c.txn.key)
 	}
-	val = c.txn.bytes(c.txn.val)
+	data = c.txn.bytes(c.txn.val)
 
 	// Clear transaction storage record storage area for future use and to
 	// prevent dangling references.
 	*c.txn.key = C.MDB_val{}
 	*c.txn.val = C.MDB_val{}
 
-	return key, val, nil
+	return key, data, nil
 }
 
 // getVal0 retrieves items from the database without using given key or value
@@ -196,10 +195,10 @@ func (c *Cursor) getVal0(op uint) error {
 // (Set, SetRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal1(setkey []byte, op uint) error {
+func (c *Cursor) getVal1(key []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get1(
 		c._c,
-		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
@@ -210,11 +209,11 @@ func (c *Cursor) getVal1(setkey []byte, op uint) error {
 // reference (GetBoth, GetBothRange, etc).
 //
 // See mdb_cursor_get.
-func (c *Cursor) getVal2(setkey, setval []byte, op uint) error {
+func (c *Cursor) getVal2(key, data []byte, op uint) error {
 	ret := C.lmdbgo_mdb_cursor_get2(
 		c._c,
-		(*C.char)(unsafe.Pointer(&setkey[0])), C.size_t(len(setkey)),
-		(*C.char)(unsafe.Pointer(&setval[0])), C.size_t(len(setval)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(len(data)),
 		c.txn.key, c.txn.val,
 		C.MDB_cursor_op(op),
 	)
@@ -226,21 +225,18 @@ func (c *Cursor) putNilKey(flags uint) error {
 	return operrno("mdb_cursor_put", ret)
 }
 
-// Put stores an item in the database.
+// Put stores data associated with key in the database associated with c.
 //
 // See mdb_cursor_put.
-func (c *Cursor) Put(key, val []byte, flags uint) error {
+func (c *Cursor) Put(key, data []byte, flags uint) error {
 	if len(key) == 0 {
 		return c.putNilKey(flags)
 	}
-	vn := len(val)
-	if vn == 0 {
-		val = []byte{0}
-	}
+	data, dn := valBytes(data)
 	ret := C.lmdbgo_mdb_cursor_put2(
 		c._c,
 		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
-		(*C.char)(unsafe.Pointer(&val[0])), C.size_t(len(val)),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(dn),
 		C.uint(flags),
 	)
 	return operrno("mdb_cursor_put", ret)
@@ -275,6 +271,10 @@ func (c *Cursor) PutReserve(key []byte, n int, flags uint) ([]byte, error) {
 // PutMulti panics if len(page) is not a multiple of stride.  The cursor's
 // database must be DupFixed and DupSort.
 //
+// PutMulti is a deprecated function.  It does not return the number of items
+// written in the case of partial completion.  PutMultiple should be used in
+// place of PutMulti.
+//
 // See mdb_cursor_put.
 func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error {
 	if len(key) == 0 {
@@ -290,8 +290,47 @@ func (c *Cursor) PutMulti(key []byte, page []byte, stride int, flags uint) error
 		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
 		(*C.char)(unsafe.Pointer(&page[0])), C.size_t(vn), C.size_t(stride),
 		C.uint(flags|C.MDB_MULTIPLE),
+		nil,
 	)
 	return operrno("mdb_cursor_put", ret)
+}
+
+// PutMultiple writes FixedMultiple data associated with key into a database
+// (the database must have the DupSort|DupFixed combination of flags).  The
+// Multiple flag will be included to the underlying call to mdb_cursor_put
+// automatically and does not need to be provided to PutMultiple.  The number
+// of elements successfully written is returned along with any error
+// encountered.
+//
+// PutMultiple does not perform validation of the multiple object.  That is,
+// PutMultiple assumes that the values returned by multiple's methods are
+// consistent with one another, as the interface mandates.
+//
+// See mdb_cursor_put.
+//
+// BUG:
+// As of LMDB 0.9.19, passing a FixedMultiple such that mulitple.Size() == 0
+// may cause LMDB to write invalid data into database.  In general attempting
+// to write empty data to LMDB will fail.  But this case has a substandard
+// behavior which absolutely must be avoided.  When uptstream has committed a
+// fix it will be made available and this warning will be removed.
+func (c *Cursor) PutMultiple(key []byte, multiple FixedMultiple, flags uint) (int, error) {
+	key, kn := valBytes(key)
+	data, dn := valBytes(multiple.Page())
+
+	var _n C.size_t
+	ret := C.lmdbgo_mdb_cursor_putmulti(
+		c._c,
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(kn),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(dn), C.size_t(multiple.Stride()),
+		C.uint(flags|C.MDB_MULTIPLE),
+		&_n,
+	)
+
+	// There is no real concern for overflow on the output (unless for some
+	// buggy output from LMDB).  The input interface must be able to represent
+	// its length as an integer.  So the conversion should not fail.
+	return int(_n), operrno("mdb_cursor_put", ret)
 }
 
 // Del deletes the item referred to by the cursor from the database.

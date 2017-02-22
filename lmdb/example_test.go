@@ -167,6 +167,190 @@ func Example_worker() {
 	})
 }
 
+// This example shows basic operations on databases use integer keys, integer
+// values, or both.  This is a fairly advanced example and assumes you are
+// familiar with more common operations with Txn and Cursor types.
+//
+// Note that IntegerDup flag is only useful if the database requires DupSort.
+// Databases which don't use the DupSort feature will see no benefit from the
+// IntegerDup flag.
+//
+// The example tries its best to demonstrate the Value** conversion functions
+// provided by the library for extracting integer values from the results of
+// calls to Get.  See go doc and the package documentation of integer values
+// for a list and comprehensive discussion of these functions.
+func Example_integers() {
+	var db1, db2, db3 lmdb.DBI
+
+	// Initially the application creates databases with the appropriate flags.
+	// Database db1 will be contain []byte values stored under integer keys,
+	// db2 will contain []byte keys with integer values, and db3 will contain
+	// integer key and values.
+	//
+	// NOTE:
+	// LMDB supports variable-sized integer values in DupSort databases, though
+	// this seems like a poor practice practice in general.  The package
+	// maintainer's recommendation is that databases opened with the IntegerDup
+	// flag always have the DupFixed flag provided as well.  In pratice
+	// applications should see better performance and a reduced risk of runtime
+	// panic when they comply with these recommendations.
+	err := env.Update(func(txn *lmdb.Txn) (err error) {
+		db1, err = txn.OpenDBI("db1", lmdb.Create|lmdb.IntegerKey)
+		if err != nil {
+			return err
+		}
+		db2, err = txn.OpenDBI("db2", lmdb.Create|lmdb.DupSort|lmdb.IntegerDup|lmdb.DupFixed)
+		if err != nil {
+			return err
+		}
+		db3, err = txn.OpenDBI("db3", lmdb.Create|lmdb.IntegerKey|lmdb.DupSort|lmdb.IntegerDup|lmdb.DupFixed)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// The functions CSizet and CUint convert unsigned integer values to byte
+	// arrays of appropriate size for the corresponding C type.  Slices of
+	// these values are passed to Put where the database expects an unsigned
+	// integer.
+	err = env.Update(func(txn *lmdb.Txn) (err error) {
+		// Create a database of items which have a simple increasing numeric
+		// key (like a postgres serial primary key).
+		err = txn.Put(db1, lmdb.CSizet(1).Bytes(), []byte("item1"), 0)
+		if err != nil {
+			return nil
+		}
+		err = txn.Put(db1, lmdb.CSizet(2).Bytes(), []byte("item2"), 0)
+		if err != nil {
+			return nil
+		}
+		err = txn.Put(db1, lmdb.CSizet(3).Bytes(), []byte("item3"), 0)
+		if err != nil {
+			return nil
+		}
+
+		// Associate two records with "alice" and one record with "bob".
+		err = txn.Put(db2, []byte("alice"), lmdb.CUint(1).Bytes(), 0)
+		if err != nil {
+			return nil
+		}
+		err = txn.Put(db2, []byte("alice"), lmdb.CUint(2).Bytes(), 0)
+		if err != nil {
+			return nil
+		}
+		err = txn.Put(db2, []byte("bob"), lmdb.CUint(2).Bytes(), 0)
+		if err != nil {
+			return nil
+		}
+
+		// Associate each record from db2 with a set of items from db1.  The
+		// keys and values of this database have different sizes primarily to
+		// illustrate the different APIs available and not to demonstrate good
+		// application design.
+		err = txn.Put(db3, lmdb.CUint(1).Bytes(), lmdb.CSizet(1).Bytes(), 0)
+		if err != nil {
+			return nil
+		}
+		err = txn.Put(db3, lmdb.CUint(1).Bytes(), lmdb.CSizet(2).Bytes(), 0)
+		if err != nil {
+			return nil
+		}
+		err = txn.Put(db3, lmdb.CUint(3).Bytes(), lmdb.CSizet(3).Bytes(), 0)
+		if err != nil {
+			return nil
+		}
+		err = txn.Put(db3, lmdb.CUint(2).Bytes(), lmdb.CSizet(2).Bytes(), 0)
+		if err != nil {
+			return nil
+		}
+
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// Data conversion functions provided by the lmdb package should be used to
+	// extract integer values from the []byte values returned by Txn.Get.
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		id := uintptr(3)
+
+		// Get the item with the above id from db1.
+		item, err := txn.Get(db1, lmdb.CSizet(id).Bytes())
+		if err != nil {
+			return err
+		}
+
+		log.Printf("%d -> %d", id, item)
+
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// Get returns []byte values, so package lmdb provides conversion functions
+	// to convert their results safely to integer values.  There are a lot of
+	// these functions, so they have been given fairly vague names to avoid
+	// being overly verbose.
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(db2)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		// Get the first record for "alice".  lmdb.ValueBU is needed to safely
+		// extract a uint value from the data returned by cur.Get.
+		_, _, err = cur.Get([]byte("alice"), nil, lmdb.Set)
+		if err != nil {
+			return err
+		}
+		_, rec, err := lmdb.ValueBU(cur.Get(nil, nil, lmdb.FirstDup))
+		if err != nil {
+			return err
+		}
+		log.Printf("alice -> %d", rec)
+
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// This final example shows an example where integer values must be
+	// extracted for key data.  For uint key data the ValueU* functions are
+	// used for conversion (for example, ValueUZ below).  For uintptr key data
+	// the ValueZ* conversion functions are used instead.
+	err = env.View(func(txn *lmdb.Txn) (err error) {
+		cur, err := txn.OpenCursor(db3)
+		if err != nil {
+			return err
+		}
+		defer cur.Close()
+
+		// Dump the contents of DB2.  Here the ValueUZ function is used to
+		// extract a uint key and uintptr value from the result of Get.
+		rec, item, err := lmdb.ValueUZ(cur.Get(nil, nil, lmdb.First))
+		for err != nil {
+			log.Printf("%d -> %d", rec, item)
+			rec, item, err = lmdb.ValueUZ(cur.Get(nil, nil, lmdb.Next))
+		}
+		if err != nil && !lmdb.IsNotFound(err) {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
 // This example demonstrates how an application typically uses Env.SetMapSize.
 // The call to Env.SetMapSize() is made before calling env.Open().  Any calls
 // after calling Env.Open() must take special care to synchronize with other

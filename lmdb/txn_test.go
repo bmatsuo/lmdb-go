@@ -269,7 +269,7 @@ func TestTxn_Del_dup(t *testing.T) {
 	}
 }
 
-func TestTexn_Put_emptyValue(t *testing.T) {
+func TestTexn_Put_emptyData(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
 

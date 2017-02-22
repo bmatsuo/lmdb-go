@@ -17,10 +17,6 @@ import (
 // This flags are used exclusively for Txn.OpenDBI and Txn.OpenRoot.  The
 // Create flag must always be supplied when opening a non-root DBI for the
 // first time.
-//
-// BUG(bmatsuo):
-// MDB_INTEGERKEY and MDB_INTEGERDUP aren't usable. I'm not sure they would be
-// faster with the cgo bridge.  They need to be tested and benchmarked.
 const (
 	// Flags for Txn.OpenDBI.
 
@@ -28,6 +24,8 @@ const (
 	DupSort    = C.MDB_DUPSORT    // Use sorted duplicates.
 	DupFixed   = C.MDB_DUPFIXED   // Duplicate items have a fixed size (DupSort).
 	ReverseDup = C.MDB_REVERSEDUP // Reverse duplicate values (DupSort).
+	IntegerKey = C.MDB_INTEGERKEY // Keys are compared as unsigned integer or size_t values.
+	IntegerDup = C.MDB_INTEGERDUP // Values with duplicate keys are compared as unsigned integer or size_t values (DupSort).
 	Create     = C.MDB_CREATE     // Create DB if not already existing.
 )
 
@@ -403,7 +401,7 @@ func (txn *Txn) bytes(val *C.MDB_val) []byte {
 	return getBytesCopy(val)
 }
 
-// Get retrieves items from database dbi.  If txn.RawRead is true the slice
+// Get retrieves data from database dbi.  If txn.RawRead is true the slice
 // returned by Get references a readonly section of memory that must not be
 // accessed after txn has terminated.
 //
@@ -431,23 +429,20 @@ func (txn *Txn) putNilKey(dbi DBI, flags uint) error {
 	return operrno("mdb_put", ret)
 }
 
-// Put stores an item in database dbi.
+// Put stores data associated with key in database dbi.
 //
 // See mdb_put.
-func (txn *Txn) Put(dbi DBI, key []byte, val []byte, flags uint) error {
+func (txn *Txn) Put(dbi DBI, key []byte, data []byte, flags uint) error {
 	kn := len(key)
 	if kn == 0 {
 		return txn.putNilKey(dbi, flags)
 	}
-	vn := len(val)
-	if vn == 0 {
-		val = []byte{0}
-	}
+	data, dn := valBytes(data)
 
 	ret := C.lmdbgo_mdb_put2(
 		txn._txn, C.MDB_dbi(dbi),
 		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(kn),
-		(*C.char)(unsafe.Pointer(&val[0])), C.size_t(vn),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(dn),
 		C.uint(flags),
 	)
 	return operrno("mdb_put", ret)
@@ -477,17 +472,17 @@ func (txn *Txn) PutReserve(dbi DBI, key []byte, n int, flags uint) ([]byte, erro
 	return b, nil
 }
 
-// Del deletes an item from database dbi.  Del ignores val unless dbi has the
+// Del deletes an item from database dbi.  Del ignores data unless dbi has the
 // DupSort flag.
 //
 // See mdb_del.
-func (txn *Txn) Del(dbi DBI, key, val []byte) error {
-	kdata, kn := valBytes(key)
-	vdata, vn := valBytes(val)
+func (txn *Txn) Del(dbi DBI, key, data []byte) error {
+	key, kn := valBytes(key)
+	data, dn := valBytes(data)
 	ret := C.lmdbgo_mdb_del(
 		txn._txn, C.MDB_dbi(dbi),
-		(*C.char)(unsafe.Pointer(&kdata[0])), C.size_t(kn),
-		(*C.char)(unsafe.Pointer(&vdata[0])), C.size_t(vn),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(kn),
+		(*C.char)(unsafe.Pointer(&data[0])), C.size_t(dn),
 	)
 	return operrno("mdb_del", ret)
 }
