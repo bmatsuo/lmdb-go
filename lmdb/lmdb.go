@@ -85,10 +85,10 @@ Integer Values
 
 The IntegerKey and IntegerDup flags on databases allow LMDB to store C.uint and
 C.size_t data directly, sorted using standard integer comparison.  This is a
-performance optimization that avoids otherwise necessary serialization overhead
-storing unsigned integer data to ensure that keys, and values for duplicate
-keys in the case of DupSort, retain the correct ordering when using byte-wise
-comparison.
+performance optimization that allows for faster comparisions during lookups and
+avoids otherwise necessary serialization overhead storing unsigned integer data
+to ensure that keys, and values for duplicate keys in the case of DupSort,
+retain the correct ordering when using byte-wise comparison.
 
 Before committing your application to the use of integer values there are
 downsides to consider, particularly concerning application portability.  The
