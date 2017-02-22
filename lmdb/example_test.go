@@ -158,10 +158,10 @@ func Example_worker() {
 // Databases which don't use the DupSort feature will see no benefit from the
 // IntegerDup flag.
 //
-// The example tries its best to demonstrate the Data** conversion functions
+// The example tries its best to demonstrate the Value** conversion functions
 // provided by the library for extracting integer values from the results of
-// calls to Get and GetData.  See go doc and the package documentation of
-// integer values for a list and comprehensive discussion of these functions.
+// calls to Get.  See go doc and the package documentation of integer values
+// for a list and comprehensive discussion of these functions.
 func Example_integers() {
 	var db1, db2, db3 lmdb.DBI
 
@@ -196,10 +196,10 @@ func Example_integers() {
 		panic(err)
 	}
 
-	// Instead of calling txn.Put as one would on a normal database, on a
-	// database using integer values the method txn.PutData should be used
-	// instead of writing unsafe type coversions to convert integer values to
-	// byte slices.
+	// The functions CSizet and CUint convert unsigned integer values to byte
+	// arrays of appropriate size for the corresponding C type.  Slices of
+	// these values are passed to Put where the database expects an unsigned
+	// integer.
 	err = env.Update(func(txn *lmdb.Txn) (err error) {
 		// Create a database of items which have a simple increasing numeric
 		// key (like a postgres serial primary key).
@@ -257,23 +257,18 @@ func Example_integers() {
 		panic(err)
 	}
 
-	// For the same reason Txn.PutData is used above, retrieving values from
-	// the database should be done with Txn.GetData instead of Txn.Get.  In
-	// addition, data conversion functions provided by the lmdb package should
-	// be used to extract integer values from the []byte values returned by
-	// Txn.GetData.
+	// Data conversion functions provided by the lmdb package should be used to
+	// extract integer values from the []byte values returned by Txn.Get.
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		id := uintptr(3)
 
-		// Get the item with the above id from db1.  Because one of the
-		// arguments to the query is an integer type Txn.GetData must be used.
+		// Get the item with the above id from db1.
 		item, err := txn.Get(db1, lmdb.CSizet(id).Bytes())
-		for err != nil {
-			log.Printf("%d -> %d", id, item)
-		}
 		if err != nil {
 			return err
 		}
+
+		log.Printf("%d -> %d", id, item)
 
 		return nil
 	})
@@ -281,10 +276,10 @@ func Example_integers() {
 		panic(err)
 	}
 
-	// Both Get and GetData return []byte values, so package lmdb provides
-	// conversion functions to convert their results safely to integer values.
-	// There are a lot of these functions, so they have been given fairly vague
-	// names to avoid being overly verbose.
+	// Get returns []byte values, so package lmdb provides conversion functions
+	// to convert their results safely to integer values.  There are a lot of
+	// these functions, so they have been given fairly vague names to avoid
+	// being overly verbose.
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		cur, err := txn.OpenCursor(db2)
 		if err != nil {
@@ -292,10 +287,8 @@ func Example_integers() {
 		}
 		defer cur.Close()
 
-		// Get the first record for "alice". GetData isn't required for this
-		// operation because db2 uses []byte keys.  But, lmdb.DataBU is needed
-		// to safely extract a uint value from the result of a call to Get or
-		// GetData.
+		// Get the first record for "alice".  lmdb.ValueBU is needed to safely
+		// extract a uint value from the data returned by cur.Get.
 		_, _, err = cur.Get([]byte("alice"), nil, lmdb.Set)
 		if err != nil {
 			return err
@@ -313,9 +306,9 @@ func Example_integers() {
 	}
 
 	// This final example shows an example where integer values must be
-	// extracted for key data.  For uint key data the DataU* functions are used
-	// for conversion (for example, DataUZ below).  For uintptr key data the
-	// DataZ* conversion functions are used instead.
+	// extracted for key data.  For uint key data the ValueU* functions are
+	// used for conversion (for example, ValueUZ below).  For uintptr key data
+	// the ValueZ* conversion functions are used instead.
 	err = env.View(func(txn *lmdb.Txn) (err error) {
 		cur, err := txn.OpenCursor(db3)
 		if err != nil {
@@ -323,9 +316,8 @@ func Example_integers() {
 		}
 		defer cur.Close()
 
-		// Dump the contents of DB2.  Here the DataUZ function is used to
-		// extract a uint key and uintptr value from the result of Get or
-		// GetData.
+		// Dump the contents of DB2.  Here the ValueUZ function is used to
+		// extract a uint key and uintptr value from the result of Get.
 		rec, item, err := lmdb.ValueUZ(cur.Get(nil, nil, lmdb.First))
 		for err != nil {
 			log.Printf("%d -> %d", rec, item)
