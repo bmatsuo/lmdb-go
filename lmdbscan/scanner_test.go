@@ -101,7 +101,7 @@ func TestScanner_Scan(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 	if !reflect.DeepEqual(scanned, items) {
-		t.Errorf("unexpected items %q (!= %q)", scanned, items)
+		t.Errorf("unexpected items %v (!= %v)", scanned, items)
 	}
 }
 
@@ -148,7 +148,7 @@ func TestScanner_Set(t *testing.T) {
 		t.Error(err)
 	}
 	if !reflect.DeepEqual(tail, items[4:]) {
-		t.Errorf("items: %q (!= %q)", tail, items)
+		t.Errorf("items: %v (!= %v)", tail, items)
 	}
 }
 
@@ -202,7 +202,7 @@ func TestScanner_SetNext(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(head, items[:5]) {
-		t.Errorf("items: %q (!= %q)", head, items)
+		t.Errorf("items: %v (!= %v)", head, items)
 	}
 }
 
@@ -259,7 +259,7 @@ func TestScanner_Del(t *testing.T) {
 	}
 
 	if len(rem) != 0 {
-		t.Errorf("items: %q (!= %q)", rem, []string{})
+		t.Errorf("items: %v (!= %v)", rem, []string{})
 	}
 }
 
@@ -295,7 +295,7 @@ func TestScanner_Del_closed(t *testing.T) {
 		return s.Del(0)
 	})
 	if err != errClosed {
-		t.Errorf("unexpected error: %q (!= %q)", err, errClosed)
+		t.Errorf("unexpected error: %v (!= %v)", err, errClosed)
 	}
 }
 
@@ -353,7 +353,7 @@ func TestScanner_Cursor_Del(t *testing.T) {
 	}
 
 	if len(rem) != 0 {
-		t.Errorf("items: %q (!= %q)", rem, []string{})
+		t.Errorf("items: %v (!= %v)", rem, []string{})
 	}
 }
 
