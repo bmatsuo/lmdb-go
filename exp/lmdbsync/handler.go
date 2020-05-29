@@ -1,14 +1,13 @@
 package lmdbsync
 
 import (
+	"context"
 	"errors"
 	"math"
 	"math/rand"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
 )
 
 // Handler can intercept errors returned by a transaction and handle them in an

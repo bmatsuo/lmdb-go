@@ -1,11 +1,11 @@
 language: go
 go:
-- 1.6
-- 1.7
-- tip
+  - 1.6
+  - 1.7
+  - tip
 
 before_install:
-    - go get -u github.com/golang/lint/golint
-    - go get -u golang.org/x/tools/cmd/goimports
+  - go get -u github.com/golang/lint/golint
+  - go get -u golang.org/x/tools/cmd/goimports
 
 script: make all

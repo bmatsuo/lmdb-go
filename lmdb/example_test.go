@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
 )
 
 // These values shouldn't actually be assigned to.  The are used as stand-ins
@@ -356,6 +356,7 @@ func ExampleEnv() {
 	if err != nil {
 		panic(err)
 	}
+	_ = dbi
 }
 
 // This example shows the basic operations used when creating and working with
@@ -673,6 +674,7 @@ func ExampleTxn_OpenDBI() {
 	if err != nil {
 		panic(err)
 	}
+	_ = dbi
 }
 
 // When Create is passed to Txn.OpenDBI() the database will be created if it
@@ -687,6 +689,7 @@ func ExampleTxn_OpenDBI_create() {
 	if err != nil {
 		panic(err)
 	}
+	_ = dbi
 }
 
 // When a non-existent database is opened without the Create flag the errno is
@@ -699,6 +702,7 @@ func ExampleTxn_OpenDBI_notFound() {
 		return err
 	})
 	log.Print(err) // mdb_dbi_open: MDB_NOTFOUND: No matching key/data pair found
+	_ = dbi
 }
 
 // When the number of open named databases in an environment reaches the value
@@ -712,6 +716,7 @@ func ExampleTxn_OpenDBI_dBsFull() {
 		return err
 	})
 	log.Print(err) // mdb_dbi_open: MDB_DBS_FULL: Environment maxdbs limit reached
+	_ = dbi
 }
 
 // Txn.OpenRoot does not need to be called with the Create flag.  And
@@ -725,6 +730,7 @@ func ExampleTxn_OpenRoot() {
 	if err != nil {
 		panic(err)
 	}
+	_ = dbi
 }
 
 // Txn.OpenRoot may also be called without flags inside View transactions
@@ -798,6 +804,7 @@ func ExampleTxn_Get() {
 
 		return nil
 	})
+	_, _ = str, p2
 }
 
 // This example demonstrates the use of PutReserve to store a string value in

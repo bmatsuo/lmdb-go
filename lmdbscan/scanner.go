@@ -6,7 +6,7 @@ package lmdbscan
 import (
 	"fmt"
 
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
 )
 
 // errClosed is an error returned to the user when attempting to operate on a

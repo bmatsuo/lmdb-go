@@ -18,6 +18,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"flag"
 	"fmt"
@@ -26,10 +27,8 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/bmatsuo/lmdb-go/exp/lmdbsync"
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/exp/lmdbsync"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
 )
 
 func main() {

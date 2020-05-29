@@ -10,10 +10,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bmatsuo/lmdb-go/exp/lmdbsync"
-	"github.com/bmatsuo/lmdb-go/internal/lmdbcmd"
-	"github.com/bmatsuo/lmdb-go/lmdb"
-	"github.com/bmatsuo/lmdb-go/lmdbscan"
+	"github.com/AskAlexSharov/lmdb-go/exp/lmdbsync"
+	"github.com/AskAlexSharov/lmdb-go/internal/lmdbcmd"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/lmdbscan"
 )
 
 func main() {

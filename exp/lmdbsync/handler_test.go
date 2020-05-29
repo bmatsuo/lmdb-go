@@ -1,14 +1,13 @@
 package lmdbsync
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/bmatsuo/lmdb-go/internal/lmdbtest"
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/internal/lmdbtest"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
 )
 
 type testHandler struct {

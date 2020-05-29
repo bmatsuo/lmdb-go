@@ -106,14 +106,13 @@ See mdb_env_open and MDB_NOLOCK.
 package lmdbsync
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
 )
 
 // Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
