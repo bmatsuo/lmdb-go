@@ -89,6 +89,8 @@ func (c *Cursor) close() bool {
 	if c._c != nil {
 		if c.txn._txn == nil && !c.txn.readonly {
 			// the cursor has already been released by LMDB.
+		} else if c.txn.Pooled && c.txn.readonly {
+			// if tx pooled, then cursor must be also pulled
 		} else {
 			C.mdb_cursor_close(c._c)
 		}
