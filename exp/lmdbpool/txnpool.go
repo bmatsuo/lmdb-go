@@ -72,7 +72,8 @@ func NewTxnPool(env *lmdb.Env) *TxnPool {
 // Close flushes the pool of transactions and aborts them to free resources so
 // that the pool Env may be closed.
 func (p *TxnPool) Close() {
-	txn, ok := (*lmdb.Txn)(nil), true
+	var txn *lmdb.Txn
+	ok := true
 	for ok {
 		txn, ok = p.pool.Get().(*lmdb.Txn)
 		if ok {

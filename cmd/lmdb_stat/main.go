@@ -224,7 +224,10 @@ func doPrintFree(env *lmdb.Env, opt *Options) error {
 		if err != nil {
 			return err
 		}
-		printStat(stat, opt)
+		err = printStat(stat, opt)
+		if err != nil {
+			return err
+		}
 
 		var numpages int64
 		s := lmdbscan.New(txn, 0)
@@ -328,9 +331,7 @@ func printStatDB(env *lmdb.Env, txn *lmdb.Txn, db string, opt *Options) error {
 	}
 
 	fmt.Println("Status of", db)
-	printStat(stat, opt)
-
-	return err
+	return printStat(stat, opt)
 }
 
 func printStat(stat *lmdb.Stat, opt *Options) error {

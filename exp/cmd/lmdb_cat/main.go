@@ -59,7 +59,10 @@ func main() {
 
 	for _, spec := range specs {
 		opt := &catOptions{DB: spec.DB}
-		cat(spec.Path, opt)
+		err := cat(spec.Path, opt)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -178,7 +181,7 @@ func cat(path string, opt *catOptions) error {
 	if err != nil {
 		return err
 	}
-	err = env.Open(path, lmdbcmd.OpenFlag(), 644)
+	err = env.Open(path, lmdbcmd.OpenFlag(), 0644)
 	defer env.Close()
 	if err != nil {
 		return err

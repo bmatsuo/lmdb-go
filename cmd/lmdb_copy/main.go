@@ -38,7 +38,9 @@ func main() {
 		dstpath = flag.Arg(1)
 	}
 
-	copyEnv(srcpath, dstpath, opt)
+	if err := copyEnv(srcpath, dstpath, opt); err != nil {
+		panic(err)
+	}
 }
 
 // Options contain the command line options for an lmdb_copy command.

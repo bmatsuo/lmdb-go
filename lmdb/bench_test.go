@@ -1605,12 +1605,6 @@ func openBenchDBI(b *testing.B, env *Env) DBI {
 	return dbi
 }
 
-func randBytes(n int) []byte {
-	p := make([]byte, n)
-	crand.Read(p)
-	return p
-}
-
 func bMust(b *testing.B, err error, action string) {
 	if err != nil {
 		b.Fatalf("error %s: %v", action, err)
@@ -1670,14 +1664,6 @@ func (c *randSourceCursor) NBytes(n int) []byte {
 		return p
 	}
 	return randSource[i : i+n]
-}
-
-func populateDBIString(t testing.TB, env *Env, dbi DBI, records []testRecordString) (ok bool) {
-	return populateDBI(t, env, dbi, testRecordSetString(records))
-}
-
-func populateDBIBytes(t testing.TB, env *Env, dbi DBI, records []testRecordBytes) (ok bool) {
-	return populateDBI(t, env, dbi, testRecordSetBytes(records))
 }
 
 func populateDBI(t testing.TB, env *Env, dbi DBI, records testRecordSet) (ok bool) {
@@ -1742,16 +1728,6 @@ type testRecordSet interface {
 	TestRecord(i int) testRecord
 }
 
-type testRecordSetString []testRecordString
-
-func (s testRecordSetString) Len() int                    { return len(s) }
-func (s testRecordSetString) TestRecord(i int) testRecord { return s[i] }
-
-type testRecordSetBytes []testRecordBytes
-
-func (s testRecordSetBytes) Len() int                    { return len(s) }
-func (s testRecordSetBytes) TestRecord(i int) testRecord { return s[i] }
-
 type testRecordGen struct {
 	n  int
 	fn testRecordFn
@@ -1771,8 +1747,3 @@ type testRecordBytes [2][]byte
 
 func (r testRecordBytes) Key() []byte  { return r[0] }
 func (r testRecordBytes) Data() []byte { return r[1] }
-
-type testRecordString [2][]byte
-
-func (r testRecordString) Key() []byte  { return []byte(r[0]) }
-func (r testRecordString) Data() []byte { return []byte(r[1]) }

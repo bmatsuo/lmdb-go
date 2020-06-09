@@ -9,10 +9,6 @@ import (
 	"github.com/AskAlexSharov/lmdb-go/lmdb"
 )
 
-type errcheck func(err error) (ok bool)
-
-var pIsNil = func(err error) bool { return err == nil }
-
 func TestScanner_err(t *testing.T) {
 	env, err := lmdbtest.NewEnv(nil)
 	if err != nil {
@@ -85,12 +81,12 @@ func TestScanner_Scan(t *testing.T) {
 	}
 
 	items := lmdbtest.SimpleItemList{
-		{"k0", "v0"},
-		{"k1", "v1"},
-		{"k2", "v2"},
-		{"k3", "v3"},
-		{"k4", "v4"},
-		{"k5", "v5"},
+		{K: "k0", V: "v0"},
+		{K: "k1", V: "v1"},
+		{K: "k2", V: "v2"},
+		{K: "k3", V: "v3"},
+		{K: "k4", V: "v4"},
+		{K: "k5", V: "v5"},
 	}
 	err = lmdbtest.Put(env, dbi, items)
 	if err != nil {
@@ -119,12 +115,12 @@ func TestScanner_Set(t *testing.T) {
 	}
 
 	items := lmdbtest.SimpleItemList{
-		{"k0", "v0"},
-		{"k1", "v1"},
-		{"k2", "v2"},
-		{"k3", "v3"},
-		{"k4", "v4"},
-		{"k5", "v5"},
+		{K: "k0", V: "v0"},
+		{K: "k1", V: "v1"},
+		{K: "k2", V: "v2"},
+		{K: "k3", V: "v3"},
+		{K: "k4", V: "v4"},
+		{K: "k5", V: "v5"},
 	}
 	err = lmdbtest.Put(env, dbi, items)
 	if err != nil {
@@ -166,12 +162,12 @@ func TestScanner_SetNext(t *testing.T) {
 	}
 
 	items := lmdbtest.SimpleItemList{
-		{"k0", "v0"},
-		{"k1", "v1"},
-		{"k2", "v2"},
-		{"k3", "v3"},
-		{"k4", "v4"},
-		{"k5", "v5"},
+		{K: "k0", V: "v0"},
+		{K: "k1", V: "v1"},
+		{K: "k2", V: "v2"},
+		{K: "k3", V: "v3"},
+		{K: "k4", V: "v4"},
+		{K: "k5", V: "v5"},
 	}
 	err = lmdbtest.Put(env, dbi, items)
 	if err != nil {
@@ -220,12 +216,12 @@ func TestScanner_Del(t *testing.T) {
 	}
 
 	items := lmdbtest.SimpleItemList{
-		{"k0", "v0"},
-		{"k1", "v1"},
-		{"k2", "v2"},
-		{"k3", "v3"},
-		{"k4", "v4"},
-		{"k5", "v5"},
+		{K: "k0", V: "v0"},
+		{K: "k1", V: "v1"},
+		{K: "k2", V: "v2"},
+		{K: "k3", V: "v3"},
+		{K: "k4", V: "v4"},
+		{K: "k5", V: "v5"},
 	}
 	err = lmdbtest.Put(env, dbi, items)
 	if err != nil {
@@ -277,12 +273,12 @@ func TestScanner_Del_closed(t *testing.T) {
 	}
 
 	items := lmdbtest.SimpleItemList{
-		{"k0", "v0"},
-		{"k1", "v1"},
-		{"k2", "v2"},
-		{"k3", "v3"},
-		{"k4", "v4"},
-		{"k5", "v5"},
+		{K: "k0", V: "v0"},
+		{K: "k1", V: "v1"},
+		{K: "k2", V: "v2"},
+		{K: "k3", V: "v3"},
+		{K: "k4", V: "v4"},
+		{K: "k5", V: "v5"},
 	}
 	err = lmdbtest.Put(env, dbi, items)
 	if err != nil {
@@ -313,12 +309,12 @@ func TestScanner_Cursor_Del(t *testing.T) {
 	}
 
 	items := lmdbtest.SimpleItemList{
-		{"k0", "v0"},
-		{"k1", "v1"},
-		{"k2", "v2"},
-		{"k3", "v3"},
-		{"k4", "v4"},
-		{"k5", "v5"},
+		{K: "k0", V: "v0"},
+		{K: "k1", V: "v1"},
+		{K: "k2", V: "v2"},
+		{K: "k3", V: "v3"},
+		{K: "k4", V: "v4"},
+		{K: "k5", V: "v5"},
 	}
 	err = lmdbtest.Put(env, dbi, items)
 	if err != nil {

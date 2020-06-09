@@ -54,13 +54,6 @@ func TestHandlerChain(t *testing.T) {
 	}
 }
 
-type retryHandler struct{}
-
-func (*retryHandler) HandleTxnErr(ctx context.Context, env *Env, err error) (context.Context, error) {
-	return ctx, ErrTxnRetry
-
-}
-
 type passthroughHandler struct{}
 
 func (*passthroughHandler) HandleTxnErr(ctx context.Context, env *Env, err error) (context.Context, error) {
@@ -88,6 +81,10 @@ func TestMapFullHandler(t *testing.T) {
 
 	errother := fmt.Errorf("testerr")
 	ctx1, err := handler.HandleTxnErr(ctx, env, errother)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	if ctx1 != ctx {
 		t.Errorf("ctx changed: %q (!= %q)", ctx1, ctx)
 	}
@@ -126,6 +123,9 @@ func TestMapResizedHandler(t *testing.T) {
 
 	errother := fmt.Errorf("testerr")
 	_, err = handler.HandleTxnErr(ctx, env, errother)
+	if err != ErrTxnRetry {
+		t.Errorf("unexpected error: %v", err)
+	}
 
 	errmapresized := &lmdb.OpError{
 		Op:    "lmdbsync_test_op",

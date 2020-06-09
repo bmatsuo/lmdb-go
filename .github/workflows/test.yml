@@ -1,0 +1,33 @@
+name: Test
+on: [push]
+jobs:
+
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-10.15, windows-2019] # list of os: https://github.com/actions/virtual-environments
+        go: [ '1.14', '1.13' ]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ matrix.os }}-${{ matrix.go }}-${{ hashFiles('**/go.sum') }}
+
+      - name: Lint
+        run: |
+          make lint-deps
+          make lint
+
+      - name: Test
+        run: make test
+
+      - name: Race
+        run: make race

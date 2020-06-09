@@ -19,17 +19,12 @@ var DBIEx lmdb.DBI
 
 // These values can only be used is code-only examples (no test output).
 var env *lmdb.Env
-var txn *lmdb.Txn
 var dbi lmdb.DBI
-var dbname string
 var err error
 var stop chan struct{}
 
 // These values can be used as no-op placeholders in examples.
-func doUpdate(txn *lmdb.Txn) error  { return nil }
-func doUpdate1(txn *lmdb.Txn) error { return nil }
-func doUpdate2(txn *lmdb.Txn) error { return nil }
-func doView(txn *lmdb.Txn) error    { return nil }
+func doUpdate(txn *lmdb.Txn) error { return nil }
 
 // This example demonstrates a complete workflow for a simple application
 // working with LMDB.  First, an Env is configured and mapped to memory.  Once
@@ -220,8 +215,6 @@ retry:
 	// ...
 }
 
-func backupFailed(err error) {}
-
 // This example uses env.Copy to periodically create atomic backups of an
 // environment.  A real implementation would need to solve problems with
 // failures, remote persistence, purging old backups, etc.  But the core loop
@@ -233,7 +226,7 @@ func ExampleEnv_Copy() {
 			case <-backup:
 				now := time.Now().UTC()
 				backup := fmt.Sprintf("backup-%s", now.Format(time.RFC3339))
-				os.Mkdir(backup, 0755)
+				_ = os.Mkdir(backup, 0755)
 				err = env.Copy(backup)
 				if err != nil {
 					// ...
@@ -777,7 +770,7 @@ func ExampleTxn_Get() {
 
 	// extract data from an example environment/database.  it is critical for application
 	// code to handle errors  but that is omitted here to save space.
-	EnvEx.View(func(txn *lmdb.Txn) (err error) {
+	_ = EnvEx.View(func(txn *lmdb.Txn) (err error) {
 		// OK
 		// A []byte to string conversion will always copy the data
 		v, _ := txn.Get(DBIEx, []byte("mykey"))
@@ -811,7 +804,7 @@ func ExampleTxn_Get() {
 // the root database.  This may be faster than Put alone for large values
 // because a string to []byte conversion is not required.
 func ExampleTxn_PutReserve() {
-	EnvEx.Update(func(txn *lmdb.Txn) (err error) {
+	_ = EnvEx.Update(func(txn *lmdb.Txn) (err error) {
 		dbroot, err := txn.OpenRoot(0)
 		if err != nil {
 			return err

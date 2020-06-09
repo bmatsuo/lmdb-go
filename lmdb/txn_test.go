@@ -650,7 +650,7 @@ func TestTxn_Flags(t *testing.T) {
 	env := setup(t)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		t.Error(err)
 		return
 	}
@@ -691,7 +691,7 @@ func TestTxn_Flags(t *testing.T) {
 		}
 		return nil
 	})
-	env.Close()
+	_ = env.Close()
 	if err != nil {
 		t.Error(err)
 		return
@@ -752,7 +752,7 @@ func TestTxn_Renew(t *testing.T) {
 	env := setup(t)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		t.Error(err)
 		return
 	}
@@ -778,7 +778,7 @@ func TestTxn_Renew(t *testing.T) {
 		return
 	}
 	defer txn.Abort()
-	val, err := txn.Get(dbroot, []byte("k"))
+	_, err = txn.Get(dbroot, []byte("k"))
 	if !IsNotFound(err) {
 		t.Errorf("get: %v", err)
 	}
@@ -794,7 +794,7 @@ func TestTxn_Renew(t *testing.T) {
 		t.Error(err)
 	}
 
-	val, err = txn.Get(dbroot, []byte("k"))
+	_, err = txn.Get(dbroot, []byte("k"))
 	if !IsNotFound(err) {
 		t.Errorf("get: %v", err)
 	}
@@ -804,7 +804,7 @@ func TestTxn_Renew(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	val, err = txn.Get(dbroot, []byte("k"))
+	val, err := txn.Get(dbroot, []byte("k"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1096,9 +1096,7 @@ func BenchmarkTxn_Sub_abort(b *testing.B) {
 		b.ResetTimer()
 		defer b.StopTimer()
 		for i := 0; i < b.N; i++ {
-			txn.Sub(func(txn *Txn) (err error) { return e })
-			if e == nil {
-			}
+			_ = txn.Sub(func(txn *Txn) (err error) { return e })
 		}
 		return nil
 	})
@@ -1123,7 +1121,7 @@ func BenchmarkTxn_abort(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env.Update(func(txn *Txn) error { return e })
+		_ = env.Update(func(txn *Txn) error { return e })
 	}
 }
 
@@ -1152,7 +1150,7 @@ func BenchmarkTxn_ro(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		b.Error(err)
 		return
 	}
@@ -1173,7 +1171,7 @@ func BenchmarkTxn_unmanaged_abort(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		b.Error(err)
 		return
 	}
@@ -1198,7 +1196,7 @@ func BenchmarkTxn_unmanaged_commit(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		b.Error(err)
 		return
 	}
@@ -1223,7 +1221,7 @@ func BenchmarkTxn_unmanaged_ro(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		b.Error(err)
 		return
 	}
@@ -1280,7 +1278,7 @@ func BenchmarkTxn_Put_append(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		b.Error(err)
 		return
 	}
@@ -1328,7 +1326,7 @@ func BenchmarkTxn_Put_append_noflag(b *testing.B) {
 	env := setup(b)
 	path, err := env.Path()
 	if err != nil {
-		env.Close()
+		_ = env.Close()
 		b.Error(err)
 		return
 	}
