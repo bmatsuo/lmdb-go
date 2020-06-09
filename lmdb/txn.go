@@ -497,7 +497,7 @@ func (txn *Txn) Del(dbi DBI, key, val []byte) error {
 // See mdb_cursor_open.
 func (txn *Txn) OpenCursor(dbi DBI) (*Cursor, error) {
 	cur, err := openCursor(txn, dbi)
-	if cur != nil && txn.readonly && !txn.Pooled {
+	if cur != nil && txn.readonly {
 		runtime.SetFinalizer(cur, (*Cursor).close)
 	}
 	return cur, err
