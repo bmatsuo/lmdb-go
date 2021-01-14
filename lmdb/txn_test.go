@@ -423,19 +423,6 @@ func TestTxn_Put_overwrite(t *testing.T) {
 	}
 }
 
-func TestTxn_OpenDBI_emptyName(t *testing.T) {
-	env := setup(t)
-	defer clean(env, t)
-
-	err := env.View(func(txn *Txn) (err error) {
-		_, err = txn.OpenDBI("", 0)
-		return err
-	})
-	if !IsErrno(err, BadValSize) {
-		t.Errorf("mdb_dbi_open: %v", err)
-	}
-}
-
 func TestTxn_OpenDBI_zero(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
