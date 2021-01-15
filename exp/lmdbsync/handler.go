@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/jtaczanowski/lmdb-go/lmdb"
 )
 
 // Handler can intercept errors returned by a transaction and handle them in an
