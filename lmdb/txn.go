@@ -289,8 +289,9 @@ func (txn *Txn) renew() error {
 	return operrno("mdb_txn_renew", ret)
 }
 
-// OpenDBI opens a named database in the environment.  An error is returned if
-// name is empty.  The DBI returned by OpenDBI can be used in other
+// OpenDBI opens a database in the environment. If only a single database is
+// needed in the environment, the name value can be an empty string.
+// The DBI returned by OpenDBI can be used in other
 // transactions but not before Txn has terminated.
 //
 // OpenDBI can only be called after env.SetMaxDBs() has been called to set the
@@ -302,8 +303,14 @@ func (txn *Txn) renew() error {
 //
 // See mdb_dbi_open.
 func (txn *Txn) OpenDBI(name string, flags uint) (DBI, error) {
+	var dbi DBI
+	var err error
+	if name == "" {
+		dbi, err = txn.openDBI(nil, flags)
+		return dbi, err
+	}
 	cname := C.CString(name)
-	dbi, err := txn.openDBI(cname, flags)
+	dbi, err = txn.openDBI(cname, flags)
 	C.free(unsafe.Pointer(cname))
 	return dbi, err
 }
