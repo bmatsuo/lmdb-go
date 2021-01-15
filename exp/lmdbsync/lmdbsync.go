@@ -113,7 +113,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/jtaczanowski/lmdb-go/lmdb"
 )
 
 // Env wraps an *lmdb.Env, receiving all the same methods and proxying some to
