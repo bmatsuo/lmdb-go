@@ -543,6 +543,88 @@ func TestCursor_PutMulti(t *testing.T) {
 	}
 }
 
+func TestCursor_Put(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.CreateDBI("testing")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+
+		err = cur.Put([]byte("k"), []byte("foo"), 0)
+		if err != nil {
+			return err
+		}
+		v, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(v, []byte("foo")) {
+			t.Errorf("value: %q (!= \"foo\")", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestCursor_Put_emptyValue(t *testing.T) {
+	env := setup(t)
+	defer clean(env, t)
+
+	var db DBI
+	err := env.Update(func(txn *Txn) (err error) {
+		db, err = txn.CreateDBI("testing")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = env.Update(func(txn *Txn) (err error) {
+		cur, err := txn.OpenCursor(db)
+		if err != nil {
+			return err
+		}
+
+		err = cur.Put([]byte("k"), nil, 0)
+		if err != nil {
+			return err
+		}
+		v, err := txn.Get(db, []byte("k"))
+		if err != nil {
+			return err
+		}
+		if len(v) != 0 {
+			t.Errorf("value: %q (!= \"\")", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
 func TestCursor_Del(t *testing.T) {
 	env := setup(t)
 	defer clean(env, t)
