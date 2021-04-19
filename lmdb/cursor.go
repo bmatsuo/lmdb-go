@@ -230,7 +230,8 @@ func (c *Cursor) putNilKey(flags uint) error {
 //
 // See mdb_cursor_put.
 func (c *Cursor) Put(key, val []byte, flags uint) error {
-	if len(key) == 0 {
+	kn := len(key)
+	if kn == 0 {
 		return c.putNilKey(flags)
 	}
 	vn := len(val)
@@ -239,8 +240,8 @@ func (c *Cursor) Put(key, val []byte, flags uint) error {
 	}
 	ret := C.lmdbgo_mdb_cursor_put2(
 		c._c,
-		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(len(key)),
-		(*C.char)(unsafe.Pointer(&val[0])), C.size_t(len(val)),
+		(*C.char)(unsafe.Pointer(&key[0])), C.size_t(kn),
+		(*C.char)(unsafe.Pointer(&val[0])), C.size_t(vn),
 		C.uint(flags),
 	)
 	return operrno("mdb_cursor_put", ret)
