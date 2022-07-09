@@ -18,7 +18,7 @@ import (
 // Create flag must always be supplied when opening a non-root DBI for the
 // first time.
 //
-// BUG(bmatsuo):
+// BUG(yerden):
 // MDB_INTEGERKEY and MDB_INTEGERDUP aren't usable. I'm not sure they would be
 // faster with the cgo bridge.  They need to be tested and benchmarked.
 const (
@@ -283,7 +283,7 @@ func (txn *Txn) renew() error {
 	// transactions can see updates which happened since they were created (or
 	// since they were last renewed).  It should follow that renewing a Txn
 	// results in the freeing of stale pages the Txn has been holding, though
-	// this has not been confirmed in any way by bmatsuo as of 2017-02-15.
+	// this has not been confirmed in any way by yerden as of 2017-02-15.
 	txn.resetID()
 
 	return operrno("mdb_txn_renew", ret)

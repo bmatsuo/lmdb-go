@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/yerden/lmdb-go/lmdb"
 )
 
 // ItemList is a list of database items.

@@ -14,8 +14,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/bmatsuo/lmdb-go/internal/lmdbcmd"
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/yerden/lmdb-go/internal/lmdbcmd"
+	"github.com/yerden/lmdb-go/lmdb"
 )
 
 func main() {
